@@ -38,6 +38,7 @@
 		"zod": "^3.25.76"
 	},
 	"dependencies": {
-		"@supabase/supabase-js": "^2.58.0"
+		"@supabase/supabase-js": "^2.58.0",
+		"svelte-sonner": "^1.0.5"
 	}
 }
