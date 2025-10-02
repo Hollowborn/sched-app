@@ -1,26 +1,24 @@
 <script lang="ts">
-	import * as Card from "$lib/components/ui/card/index.js";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { cn } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { cn } from '$lib/utils.js';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let { class: className, ...restProps }: HTMLAttributes<HTMLDivElement> = $props();
 
 	const id = $props.id();
 </script>
 
-<div class={cn("flex flex-col gap-6", className)} {...restProps}>
+<div class={cn('flex flex-col gap-6', className)} {...restProps}>
 	<Card.Root class="overflow-hidden p-0">
 		<Card.Content class="grid p-0 md:grid-cols-2">
 			<form class="p-6 md:p-8">
 				<div class="flex flex-col gap-6">
 					<div class="flex flex-col items-center text-center">
 						<h1 class="text-2xl font-bold">Welcome back</h1>
-						<p class="text-muted-foreground text-balance">
-							Login to your Acme Inc account
-						</p>
+						<p class="text-muted-foreground text-balance">Login to your SmartSched account</p>
 					</div>
 					<div class="grid gap-3">
 						<Label for="email-{id}">Email</Label>
@@ -39,9 +37,7 @@
 					<div
 						class="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t"
 					>
-						<span class="bg-card text-muted-foreground relative z-10 px-2">
-							Or continue with
-						</span>
+						<span class="bg-card text-muted-foreground relative z-10 px-2"> Or continue with </span>
 					</div>
 					<div class="grid grid-cols-3 gap-4">
 						<Button variant="outline" type="button" class="w-full">
