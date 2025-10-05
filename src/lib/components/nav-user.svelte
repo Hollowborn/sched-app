@@ -12,13 +12,20 @@
 	import SparklesIcon from '@lucide/svelte/icons/sparkles';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
-
+	import { supabase } from '$lib/supabaseClientsBrowser';
+	import { toast } from 'svelte-sonner';
 	import { toggleMode } from 'mode-watcher';
 	import { Button } from '$lib/components/ui/button/index.js';
-	function handleLogout() {
-		goto('/login');
-	}
 
+	async function handleSignOut() {
+		const res = await fetch('/logout', { method: 'POST' });
+		if (res.ok) {
+			toast.success('Signed out successfully.', { description: 'Redirecting to login.' });
+			goto('/login');
+		} else {
+			toast.error('Sign out failed.');
+		}
+	}
 	let { user }: { user: { name: string; email: string; avatar: string } } = $props();
 	const sidebar = useSidebar();
 </script>
@@ -65,7 +72,7 @@
 				</DropdownMenu.Label>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Group>
-					<DropdownMenu.Item onclick={toggleMode} size="icon">
+					<DropdownMenu.Item onclick={toggleMode}>
 						<SunIcon
 							class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 !transition-all dark:-rotate-90 dark:scale-0"
 						/>
@@ -92,7 +99,7 @@
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item onclick={handleLogout}>
+				<DropdownMenu.Item onclick={handleSignOut}>
 					<LogOutIcon />
 					Log out
 				</DropdownMenu.Item>
