@@ -46,6 +46,12 @@
 				method="POST"
 				use:enhance={() => {
 					isSubmitting = true;
+					onDone: ({ result }) => {
+						if (result.type === 'redirect') {
+							// Force a full reload to ensure session is picked up
+							window.location.href = result.location;
+						}
+					};
 					return async ({ update }) => {
 						isSubmitting = false;
 						await update();
@@ -187,6 +193,3 @@
 		<a href="##" class="text-blue-600 dark:text-blue-400">Privacy Policy</a>.
 	</div>
 </div>
-{#if globalMessage && !formErrors.email && !formErrors.password}
-	{toast.error(globalMessage)}
-{/if}
