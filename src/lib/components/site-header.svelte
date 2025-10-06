@@ -42,7 +42,7 @@
 	async function handleGlobalSearch() {
 		if (globalSearchQuery.trim()) {
 			// Navigate to a dedicated search results page with the query as a URL parameter
-			await goto(`/dashboard/search-results?q=${encodeURIComponent(globalSearchQuery.trim())}`);
+			// await goto(`/dashboard/search-results?q=${encodeURIComponent(globalSearchQuery.trim())}`);
 		}
 	}
 
