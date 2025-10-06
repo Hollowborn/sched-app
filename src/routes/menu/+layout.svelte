@@ -14,8 +14,8 @@
 	style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
 	{...restProps}
 >
-	<!-- <AppSidebar user={data.user} navItems={data.navItems} /> -->
-	<AppSidebar />
+	<AppSidebar user={data.profile} navItems={data.navItems} />
+	<!-- <AppSidebar user={data.user} /> -->
 	<Sidebar.Inset>
 		<SiteHeader />
 

@@ -1,115 +1,207 @@
-// src/routes/dashboard/+layout.server.ts
+// src/routes/menu/+layout.server.ts
+import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-// Assuming NavItem type is correctly imported from your nav-main.svelte module script
-import type { NavItem } from '$lib/components/nav-main.svelte';
+import type { NavItem } from '../../nav';
 
-// Define your base navigation data with groups here.
-// We'll filter this data based on user roles.
-const allNavItemsData: { main: NavItem[]; administration: NavItem[] } = {
-	main: [
-		{
-			title: 'Dashboard',
-			url: '/dashboard',
-			icon: 'dashboard',
-			// Add a 'roles' array to each item indicating who can see it
-			roles: ['admin', 'feeds', 'hardware'] // Example: All roles can see dashboard
-		},
-		{
-			title: 'Clients',
-			url: '/dashboard/clients',
-			icon: 'users',
-			roles: ['admin'] // Example: Only admin and feeds roles can see clients
-		},
-		{
-			title: 'Feeds Inventory',
-			url: '/dashboard/inventory/feeds',
-			icon: 'fish',
-			roles: ['admin', 'feeds'] // Example: Admin and feeds roles
-		},
-		{
-			title: 'Hardware Inventory',
-			url: '/dashboard/inventory/hardware',
-			icon: 'hammer',
-			roles: ['admin', 'hardware'] // Example: Admin and hardware roles
-		},
-		{
-			title: 'Bookings',
-			url: '/dashboard/bookings',
-			icon: 'calendar',
-			roles: ['admin'] // Example: Only admin can see bookings
-		},
-		{
-			title: 'Ponds',
-			url: '/dashboard/ponds',
-			icon: 'fileText',
-			roles: ['admin'] // Example: All can see ponds
-		}
-	],
-	administration: [
-		{
-			title: 'Employees',
-			url: '/dashboard/employees',
-			icon: 'briefcase',
-			roles: ['admin'] // Example: Only admin can see employees
-		},
-		{
-			title: 'Activity Log',
-			url: '/dashboard/activities',
-			icon: 'fileText',
-			roles: ['admin', 'feeds', 'hardware'] // Example: Only admin can see employees
-		},
-		{
-			title: 'Settings',
-			url: '/dashboard/settings',
-			icon: 'settings',
-			roles: ['admin', 'feeds', 'hardware'] // Example: All logged-in users can see settings
-		},
-		{
-			title: 'Guide / Help Section',
-			url: '/dashboard/guide',
-			icon: 'help',
-			roles: ['admin', 'feeds', 'hardware'] // Example: All can see help
-		}
-	]
-};
+// List of public routes that *do not* require authentication
+const PUBLIC_ROUTES = ['/login', '/'];
 
-export const load: LayoutServerLoad = async ({ locals }) => {
-	// Get the user's role from locals.user, which is populated by hooks.server.ts
-	// Provide a default 'guest' role if locals.user is null (e.g., not logged in)
-	const userRole = locals.user?.role || 'guest';
-
-	// Function to filter navigation items based on the user's role
-	const filterNavItemsByRole = (items: NavItem[], role: string): NavItem[] => {
-		return items.filter((item) => {
-			// If an item has explicit roles defined, check if the user's role is included
-			if (item.roles && item.roles.length > 0) {
-				return item.roles.includes(role);
+// --- Navigation Data: Central source of truth for menu items (SmartSched Timetable Management) ---
+// NOTE: Roles assumed for SmartSched: 'admin', 'editor' (can modify schedules/resources), 'viewer' (read-only access).
+const ALL_NAV_ITEMS_DATA: NavItem[] = [
+	{
+		title: 'Timetable Manager',
+		url: '/menu/timetables',
+		icon: 'CalendarClock', // Used for scheduling
+		roles: ['admin', 'editor', 'viewer'], // All roles need access to view schedules
+		items: [
+			{
+				title: 'Current Schedules',
+				url: '/menu/timetables/current',
+				roles: ['admin', 'editor', 'viewer']
+			},
+			{
+				title: 'Create New Timetable',
+				url: '/menu/timetables/create',
+				roles: ['admin', 'editor']
+			},
+			{
+				title: 'Archived Timetables',
+				url: '/menu/timetables/archive',
+				roles: ['admin']
 			}
-			// If no specific roles are defined, the item is visible to everyone by default
-			// (or you can decide to hide it if no roles are specified)
-			return true; // Default to visible if no roles specified
-		});
-	};
+		]
+	},
+	{
+		title: 'Resource Setup',
+		url: '/menu/resources',
+		icon: 'LayoutGrid', // Used to group resources
+		roles: ['admin', 'editor'], // Only admin and editors manage core resources
+		items: [
+			{
+				title: 'Subjects & Courses',
+				url: '/menu/resources/subjects',
+				roles: ['admin', 'editor']
+			},
+			{
+				title: 'Rooms & Venues',
+				url: '/menu/resources/rooms',
+				roles: ['admin', 'editor']
+			},
+			{
+				title: 'Faculty & Staff List',
+				url: '/menu/resources/faculty',
+				roles: ['admin'] // Staff list creation/deletion usually Admin-only
+			}
+		]
+	},
+	{
+		title: 'Admin Console',
+		url: '/menu/admin',
+		icon: 'SquareTerminal',
+		roles: ['admin'], // Only 'admin' role can see this main item
+		items: [
+			{
+				title: 'Users & Roles',
+				url: '/menu/admin/users/create',
+				roles: ['admin']
+			},
+			{
+				title: 'Activity Log',
+				url: '/menu/admin/log',
+				roles: ['admin']
+			},
+			{
+				title: 'System Maintenance',
+				url: '/menu/admin/maintenance',
+				roles: ['admin']
+			}
+		]
+	},
+	{
+		title: 'Documentation',
+		url: '/docs',
+		icon: 'BookOpen',
+		roles: ['admin', 'editor', 'viewer'],
+		items: [
+			{
+				title: 'User Guide',
+				url: '/docs/guide',
+				roles: ['admin', 'editor', 'viewer']
+			},
+			{
+				title: 'Support & FAQs',
+				url: '/docs/support',
+				roles: ['admin', 'editor', 'viewer']
+			}
+		]
+	},
+	{
+		title: 'Settings',
+		url: '/settings',
+		icon: 'Settings2',
+		roles: ['admin', 'editor', 'viewer'],
+		items: [
+			{
+				title: 'My Profile',
+				url: '/settings/profile',
+				roles: ['admin', 'editor', 'viewer']
+			},
+			{
+				title: 'System Configuration',
+				url: '/settings/system',
+				roles: ['admin']
+			}
+		]
+	}
+];
 
-	// Filter the navigation data based on the current user's role
-	const filteredMainNavItems = filterNavItemsByRole(allNavItemsData.main, userRole);
-	const filteredAdminNavItems = filterNavItemsByRole(allNavItemsData.administration, userRole);
+/**
+ * Recursively filters navigation items based on the user's role.
+ * Only returns items where the user's role is included in the item's 'roles' array.
+ * @param navItems The full list of navigation items.
+ * @param userRole The role of the current user.
+ * @returns Filtered navigation items.
+ */
+function filterNavByRole(navItems: NavItem[], userRole: string | null): NavItem[] {
+	if (!userRole) return []; // If no role (unauthenticated), return nothing
 
-	// Reconstruct the navItemsData with filtered items
-	const navItemsForUser = {
-		main: filteredMainNavItems,
-		administration: filteredAdminNavItems
-	};
+	return navItems.reduce((acc: NavItem[], item) => {
+		// 1. Check if the user's role is allowed for the main item
+		if (item.roles.includes(userRole)) {
+			const filteredItem: NavItem = { ...item };
 
-	return {
-		navItems: navItemsForUser, // Pass the filtered navigation items
-		user: locals.user
-			? {
-					name: locals.user.username,
-					display_name: locals.user.display_name,
-					role: locals.user.role,
-					avatar: locals.user.profile_image // should be a string URL or base64
+			// 2. Recursively filter sub-items if they exist
+			if (item.items) {
+				const filteredSubItems = filterNavByRole(item.items, userRole);
+
+				// If the main item is visible but has no visible sub-items, we don't include the 'items' property.
+				if (filteredSubItems.length > 0) {
+					filteredItem.items = filteredSubItems;
+				} else {
+					delete filteredItem.items;
 				}
-			: null // Pass null if no user is logged in
+			}
+
+			// 3. Only keep the main item if its role check passed and it's not a parent stripped of all its children.
+			// Note: Since we checked item.roles.includes(userRole) above, we just push the modified item.
+			acc.push(filteredItem);
+		}
+		return acc;
+	}, []);
+}
+
+// --- Layout Server Load Function ---
+export const load: LayoutServerLoad = async ({ locals, url }) => {
+	// Session and User state from src/hooks.server.ts
+	const session = locals.session;
+	const user = locals.user;
+
+	const isPublicRoute = PUBLIC_ROUTES.includes(url.pathname);
+
+	// --- 1. Authentication Protection ---
+
+	// If NOT authenticated AND trying to access a protected route
+	if (!session && !isPublicRoute) {
+		throw redirect(303, '/login');
+	}
+
+	// If IS authenticated AND trying to access the login page
+	if (session && url.pathname === '/login') {
+		// Redirect logged-in users to the main protected page
+		throw redirect(303, '/menu');
+	}
+
+	// --- 2. Fetch Role and Filter Navigation ---
+	let userRole: string | null = null;
+	let profile: { username: string; role: string } | null = null;
+	let filteredNav: NavItem[] = [];
+
+	if (user) {
+		// Fetch the user's role and username from the 'users' profile table
+		const { data, error } = await locals.supabase
+			.from('users')
+			.select('username, role')
+			.eq('id', user.id)
+			.single();
+
+		if (error || !data) {
+			console.error('Failed to fetch user profile in layout. Defaulting to "guest".', error);
+			userRole = 'guest';
+		} else {
+			profile = data;
+			userRole = data.role;
+		}
+
+		// Filter the main navigation based on the determined role
+		filteredNav = filterNavByRole(ALL_NAV_ITEMS_DATA, userRole);
+	}
+
+	// Pass essential data to the client-side layout
+	return {
+		session,
+		user,
+		profile,
+		navItems: filteredNav
 	};
 };
