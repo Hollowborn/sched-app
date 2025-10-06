@@ -5,6 +5,7 @@
 	import type { ComponentProps } from 'svelte';
 	import type { NavItem } from '../../nav';
 	import { page } from '$app/stores';
+	import Separator from './ui/separator/separator.svelte';
 
 	let {
 		user,
@@ -42,6 +43,7 @@
 				SmartSched
 			</h1>
 		</a>
+		<Separator class="mt-2" />
 	</Sidebar.Header>
 
 	<Sidebar.Content class="p-2">
