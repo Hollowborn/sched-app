@@ -4,30 +4,37 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
-	import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
-	import BellIcon from '@lucide/svelte/icons/bell';
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
-	import CreditCardIcon from '@lucide/svelte/icons/credit-card';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import SparklesIcon from '@lucide/svelte/icons/sparkles';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
-	import { supabase } from '$lib/supabaseClientsBrowser';
+	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { toast } from 'svelte-sonner';
 	import { toggleMode } from 'mode-watcher';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { page } from '$app/stores';
+
+	// Receive the user object, which includes the email from the auth session
+	let { user }: { user: { username: string; role: string; email?: string } } = $props();
+	const sidebar = useSidebar();
+
+	// Get the supabase client from the page store, provided by the root +layout.ts
+	const { supabase } = $page.data;
 
 	async function handleSignOut() {
-		const res = await fetch('/logout', { method: 'POST' });
-		if (res.ok) {
-			toast.success('Signed out successfully.', { description: 'Redirecting to login.' });
-			goto('/login');
-		} else {
-			toast.error('Sign out failed.');
-		}
+		const promise = supabase.auth.signOut();
+
+		toast.promise(promise, {
+			loading: 'Signing out...',
+			success: () => {
+				// Use goto with invalidateAll to force a layout reload
+				goto('/login', { invalidateAll: true });
+				return 'Signed out successfully.';
+			},
+			error: 'Sign out failed.'
+		});
 	}
-	let { user }: { user: { name: string; email: string; avatar: string } } = $props();
-	const sidebar = useSidebar();
+
+	// Create a fallback initial from the username
+	const nameInitial = user.username ? user.username.charAt(0).toUpperCase() : 'U';
 </script>
 
 <Sidebar.Menu>
@@ -41,19 +48,21 @@
 						{...props}
 					>
 						<Avatar.Root class="size-8 rounded-lg">
-							<Avatar.Image src={user.avatar} alt={user.name} />
-							<Avatar.Fallback class="rounded-lg">CN</Avatar.Fallback>
+							<!-- Fallback is now more robust -->
+							<Avatar.Fallback class="rounded-lg bg-primary text-primary-foreground">
+								{nameInitial}
+							</Avatar.Fallback>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">{user.name}</span>
-							<!-- <span class="truncate text-xs">{user.email}</span> -->
+							<span class="truncate font-medium">{user.username}</span>
+							<span class="text-muted-foreground truncate text-xs">{user.role}</span>
 						</div>
 						<ChevronsUpDownIcon class="ml-auto size-4" />
 					</Sidebar.MenuButton>
 				{/snippet}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content
-				class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
+				class="w-[--bits-dropdown-menu-anchor-width] min-w-56 rounded-lg"
 				side={sidebar.isMobile ? 'bottom' : 'right'}
 				align="end"
 				sideOffset={4}
@@ -61,12 +70,13 @@
 				<DropdownMenu.Label class="p-0 font-normal">
 					<div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 						<Avatar.Root class="size-8 rounded-lg">
-							<Avatar.Image src={user.avatar} alt={user.name} />
-							<Avatar.Fallback class="rounded-lg">CN</Avatar.Fallback>
+							<Avatar.Fallback class="rounded-lg bg-primary text-primary-foreground"
+								>{nameInitial}</Avatar.Fallback
+							>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">{user.name}</span>
-							<span class="truncate text-xs">{user.email}</span>
+							<span class="truncate font-medium">{user.username}</span>
+							<span class="text-muted-foreground truncate text-xs">{user.email || 'No email'}</span>
 						</div>
 					</div>
 				</DropdownMenu.Label>
@@ -74,28 +84,12 @@
 				<DropdownMenu.Group>
 					<DropdownMenu.Item onclick={toggleMode}>
 						<SunIcon
-							class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 !transition-all dark:-rotate-90 dark:scale-0"
+							class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
 						/>
 						<MoonIcon
-							class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 !transition-all dark:rotate-0 dark:scale-100"
+							class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
 						/>
 						Switch Theme
-						<span class="sr-only">Toggle theme</span>
-					</DropdownMenu.Item>
-				</DropdownMenu.Group>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Group>
-					<DropdownMenu.Item>
-						<BadgeCheckIcon />
-						Account
-					</DropdownMenu.Item>
-					<DropdownMenu.Item>
-						<CreditCardIcon />
-						Billing
-					</DropdownMenu.Item>
-					<DropdownMenu.Item>
-						<BellIcon />
-						Notifications
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />
