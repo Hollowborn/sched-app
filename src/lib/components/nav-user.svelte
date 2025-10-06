@@ -46,7 +46,7 @@
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
 							<span class="truncate font-medium">{user.name}</span>
-							<span class="truncate text-xs">{user.email}</span>
+							<!-- <span class="truncate text-xs">{user.email}</span> -->
 						</div>
 						<ChevronsUpDownIcon class="ml-auto size-4" />
 					</Sidebar.MenuButton>
