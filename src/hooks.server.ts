@@ -1,23 +1,19 @@
-import { createServerClient } from '@supabase/ssr';
-import { type Handle, redirect } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { createServerClient } from '@supabase/ssr';
+import { sequence } from '@sveltejs/kit/hooks';
+import type { Handle } from '@sveltejs/kit';
 
+/**
+ * First hook in the sequence: Initializes Supabase client.
+ * This function creates a new Supabase client for each server request,
+ * ensuring that the authentication context is not shared between users.
+ */
 const supabase: Handle = async ({ event, resolve }) => {
-	/**
-	 * Creates a Supabase client specific to this server request.
-	 *
-	 * The Supabase client gets the Auth token from the request cookies.
-	 */
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
-			/**
-			 * SvelteKit's cookies API requires `path` to be explicitly set in
-			 * the cookie options. Setting `path` to `/` replicates previous/
-			 * standard behavior.
-			 */
+			// SvelteKit's cookies API requires `path` to be explicitly set.
+			// Setting `path` to `/` makes the cookie available across the entire site.
 			setAll: (cookiesToSet) => {
 				cookiesToSet.forEach(({ name, value, options }) => {
 					event.cookies.set(name, value, { ...options, path: '/' });
@@ -27,9 +23,9 @@ const supabase: Handle = async ({ event, resolve }) => {
 	});
 
 	/**
-	 * Unlike `supabase.auth.getSession()`, which returns the session _without_
-	 * validating the JWT, this function also calls `getUser()` to validate the
-	 * JWT before returning the session.
+	 * A helper function to safely get the session and user data.
+	 * `getSession()` alone just reads the cookie, while `getUser()` validates the JWT.
+	 * This helper combines both for robust authentication checks.
 	 */
 	event.locals.safeGetSession = async () => {
 		const {
@@ -44,38 +40,33 @@ const supabase: Handle = async ({ event, resolve }) => {
 			error
 		} = await event.locals.supabase.auth.getUser();
 		if (error) {
-			// JWT validation has failed
+			// The JWT is invalid or expired.
 			return { session: null, user: null };
 		}
 
 		return { session, user };
 	};
 
+	// Continue processing the request, but filter headers to allow Supabase to work correctly.
 	return resolve(event, {
 		filterSerializedResponseHeaders(name) {
-			/**
-			 * Supabase libraries use the `content-range` and `x-supabase-api-version`
-			 * headers, so we need to tell SvelteKit to pass it through.
-			 */
 			return name === 'content-range' || name === 'x-supabase-api-version';
 		}
 	});
 };
 
-const authGuard: Handle = async ({ event, resolve }) => {
+/**
+ * Second hook in the sequence: Populates session data into locals.
+ * This makes `event.locals.session` and `event.locals.user` available
+ * in all subsequent server functions (`+page.server.ts`, `+layout.server.ts`, etc.).
+ */
+const auth: Handle = async ({ event, resolve }) => {
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;
 
-	if (!event.locals.session && event.url.pathname.startsWith('/private')) {
-		redirect(303, '/auth');
-	}
-
-	if (event.locals.session && event.url.pathname === '/auth') {
-		redirect(303, '/private');
-	}
-
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(supabase, authGuard);
+// The `sequence` helper runs our hooks in the specified order.
+export const handle: Handle = sequence(supabase, auth);
