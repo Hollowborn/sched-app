@@ -56,7 +56,7 @@
 						<div class="flex flex-col gap-2 text-center">
 							<h1 class="text-3xl font-bold tracking-tight">Welcome Back</h1>
 							<p class="text-muted-foreground text-balance">
-								Enter your credentials to access the SmartSched dashboard.
+								Enter your credentials to access the smart-sched dashboard.
 							</p>
 						</div>
 
@@ -123,7 +123,9 @@
 				</div>
 
 				<!-- Image Section -->
-				<div class="bg-muted relative hidden items-center justify-center md:flex">
+				<div
+					class="bg-muted relative hidden items-center justify-center md:flex mr-0 md:mr-6 lg:mr-10 rounded-r-lg overflow-hidden"
+				>
 					<img
 						src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
 						alt="University campus"
@@ -131,7 +133,7 @@
 					/>
 					<div class="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent" />
 					<div class="absolute bottom-10 left-10 text-white">
-						<h2 class="text-4xl font-bold">SmartSched</h2>
+						<h2 class="text-4xl font-bold">smart-sched</h2>
 						<p class="mt-2 max-w-xs text-lg">Intelligent academic scheduling, simplified.</p>
 					</div>
 				</div>

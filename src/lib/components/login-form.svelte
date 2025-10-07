@@ -18,7 +18,7 @@
 				<div class="flex flex-col gap-6">
 					<div class="flex flex-col items-center text-center">
 						<h1 class="text-2xl font-bold">Welcome back</h1>
-						<p class="text-muted-foreground text-balance">Login to your SmartSched account</p>
+						<p class="text-muted-foreground text-balance">Login to your smart-sched account</p>
 					</div>
 					<div class="grid gap-3">
 						<Label for="email-{id}">Email</Label>
