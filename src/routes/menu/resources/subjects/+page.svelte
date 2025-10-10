@@ -1,83 +1,149 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { invalidateAll } from '$app/navigation';
+	import { AlertCircle, PlusCircle, Trash2, Pencil, LoaderCircle, Search } from '@lucide/svelte';
 
-	// ShadCN & Lucide Imports
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Dialog from '$lib/components/ui/dialog';
+	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import { PlusCircle, Edit, Trash2, BookOpen } from 'lucide-svelte';
+	import * as Table from '$lib/components/ui/table';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Badge } from '$lib/components/ui/badge';
+
+	// --- Type Definition for Clarity and Type Safety ---
+	// This defines the shape of a single subject object, making the code more robust.
+	type Subject = {
+		id: number;
+		subject_code: string;
+		subject_name: string;
+		lecture_hours: number;
+		lab_hours: number;
+		college_id: number;
+		colleges: { college_name: string } | null;
+	};
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
-	// Modal State
-	let isCreateModalOpen = $state(false);
-	let isEditModalOpen = $state(false);
-	let isDeleteModalOpen = $state(false);
-	let selectedSubject = $state<(typeof data.subjects)[0] | null>(null);
+	// --- Component State ---
+	let createOpen = $state(false);
+	let editOpen = $state(false);
+	let deleteOpen = $state(false);
+	let selectedSubject = $state<Subject | null>(null);
+	let isSubmitting = $state(false);
+	let searchQuery = $state('');
+	let selectedCollegeId = $state('all');
 
-	// Form State
-	let subjectCode = $state('');
-	let subjectName = $state('');
-	let lectureHours = $state(3.0);
-	let labHours = $state(0.0);
-	let collegeId = $state('');
+	// --- Form State ---
+	let createCode = $state('');
+	let createName = $state('');
+	let createLecHours = $state(3.0);
+	let createLabHours = $state(0.0);
+	let createCollegeId = $state('');
 
-	function openCreateModal() {
-		// Reset form fields
-		subjectCode = '';
-		subjectName = '';
-		lectureHours = 3.0;
-		labHours = 0.0;
-		collegeId = '';
-		isCreateModalOpen = true;
-	}
+	let editCode = $state('');
+	let editName = $state('');
+	let editLecHours = $state(3.0);
+	let editLabHours = $state(0.0);
+	let editCollegeId = $state('');
 
-	function openEditModal(subject: (typeof data.subjects)[0]) {
-		selectedSubject = subject;
-		subjectCode = subject.subject_code;
-		subjectName = subject.subject_name;
-		lectureHours = subject.lecture_hours;
-		labHours = subject.lab_hours;
-		collegeId = String(subject.college_id);
-		isEditModalOpen = true;
-	}
+	// --- Derived State ---
+	const createCollegeName = $derived(
+		data.colleges?.find((c) => c.id.toString() === createCollegeId)?.college_name
+	);
+	const editCollegeName = $derived(
+		data.colleges?.find((c) => c.id.toString() === editCollegeId)?.college_name
+	);
+	const selectedCollegeName = $derived(
+		data.colleges?.find((c) => c.id.toString() === selectedCollegeId)?.college_name
+	);
 
-	function openDeleteModal(subject: (typeof data.subjects)[0]) {
-		selectedSubject = subject;
-		isDeleteModalOpen = true;
-	}
+	// Using `$derived.by` is a more explicit way to declare a derived value from a function,
+	// which helps the TypeScript compiler correctly infer the type as `Subject[]`.
+	const filteredSubjects: Subject[] = $derived.by(() => {
+		// Start with an empty array if data.subjects is not yet available to prevent errors.
+		const subjects = data.subjects || [];
 
-	// Handle form action feedback with toasts
-	$effect(() => {
-		if (form?.success) {
-			toast.success(form.message);
-			isCreateModalOpen = false;
-			isEditModalOpen = false;
-			isDeleteModalOpen = false;
-		} else if (form?.error) {
-			toast.error(form.message);
+		// Apply college filter
+		const collegeFiltered =
+			selectedCollegeId === 'all'
+				? subjects
+				: subjects.filter((s) => s.college_id.toString() === selectedCollegeId);
+
+		// Apply search filter
+		if (!searchQuery) {
+			return collegeFiltered;
 		}
+		const lowerQuery = searchQuery.toLowerCase();
+		return collegeFiltered.filter(
+			(s) =>
+				s.subject_code.toLowerCase().includes(lowerQuery) ||
+				s.subject_name.toLowerCase().includes(lowerQuery)
+		);
 	});
+
+	// --- Event Handlers ---
+	function openEditModal(subject: Subject) {
+		selectedSubject = subject;
+		editCode = subject.subject_code;
+		editName = subject.subject_name;
+		editLecHours = subject.lecture_hours;
+		editLabHours = subject.lab_hours;
+		editCollegeId = subject.college_id.toString();
+		editOpen = true;
+	}
+
+	function openDeleteModal(subject: Subject) {
+		selectedSubject = subject;
+		deleteOpen = true;
+	}
 </script>
 
 <div class="space-y-6">
-	<header class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Subject Management</h1>
-			<p class="text-muted-foreground">Add, edit, and manage all academic subjects.</p>
-		</div>
-		<Button onclick={openCreateModal}>
-			<PlusCircle class="mr-2 h-4 w-4" />
-			Add New Subject
-		</Button>
+	<header>
+		<h1 class="text-3xl font-bold tracking-tight">Subject & Course Management</h1>
+		<p class="text-muted-foreground mt-1">
+			A central hub to create, search, and manage all subjects offered by the university.
+		</p>
 	</header>
+
+	<div class="flex items-center justify-between gap-4">
+		<div class="flex flex-1 items-center gap-4">
+			<div class="relative w-full max-w-sm">
+				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input
+					placeholder="Search by code or name..."
+					class="pl-10"
+					bind:value={searchQuery}
+					disabled={isSubmitting}
+				/>
+			</div>
+			<Select.Root type="single" bind:value={selectedCollegeId}>
+				<Select.Trigger class="w-[200px]" disabled={isSubmitting}>
+					<span>{selectedCollegeName || 'Filter by College'}</span>
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="all">All Colleges</Select.Item>
+					{#if data.colleges}
+						{#each data.colleges as college}
+							<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+						{/each}
+					{/if}
+				</Select.Content>
+			</Select.Root>
+		</div>
+		{#if data.profile?.role === 'Admin'}
+			<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
+				<PlusCircle class="mr-2 h-4 w-4" />
+				Add Subject
+			</Button>
+		{/if}
+	</div>
 
 	<Card.Root>
 		<Card.Content class="p-0">
@@ -89,13 +155,15 @@
 						<Table.Head>College</Table.Head>
 						<Table.Head class="text-center">Lec Hours</Table.Head>
 						<Table.Head class="text-center">Lab Hours</Table.Head>
-						<Table.Head class="text-right">Actions</Table.Head>
+						{#if data.profile?.role === 'Admin'}
+							<Table.Head class="text-right pr-6">Actions</Table.Head>
+						{/if}
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#if data.subjects.length > 0}
-						{#each data.subjects as subject (subject.id)}
-							<Table.Row>
+					{#if filteredSubjects.length > 0}
+						{#each filteredSubjects as subject (subject.id)}
+							<Table.Row class="hover:bg-muted/50">
 								<Table.Cell class="font-medium">{subject.subject_code}</Table.Cell>
 								<Table.Cell>{subject.subject_name}</Table.Cell>
 								<Table.Cell>
@@ -103,26 +171,37 @@
 								</Table.Cell>
 								<Table.Cell class="text-center">{subject.lecture_hours}</Table.Cell>
 								<Table.Cell class="text-center">{subject.lab_hours}</Table.Cell>
-								<Table.Cell class="text-right">
-									<div class="flex items-center justify-end gap-2">
-										<Button variant="outline" size="icon" onclick={() => openEditModal(subject)}>
-											<Edit class="h-4 w-4" />
+								{#if data.profile?.role === 'Admin'}
+									<Table.Cell class="text-right">
+										<Button
+											onclick={() => openEditModal(subject)}
+											variant="ghost"
+											size="icon"
+											disabled={isSubmitting}
+										>
+											<Pencil class="h-4 w-4" />
 										</Button>
 										<Button
-											variant="destructive"
-											size="icon"
 											onclick={() => openDeleteModal(subject)}
+											variant="ghost"
+											size="icon"
+											class="text-destructive hover:text-destructive"
+											disabled={isSubmitting}
 										>
 											<Trash2 class="h-4 w-4" />
 										</Button>
-									</div>
-								</Table.Cell>
+									</Table.Cell>
+								{/if}
 							</Table.Row>
 						{/each}
 					{:else}
 						<Table.Row>
 							<Table.Cell colspan={6} class="h-24 text-center">
-								No subjects found. Get started by adding a new subject.
+								{#if searchQuery || selectedCollegeId !== 'all'}
+									No subjects match your current filter.
+								{:else}
+									No subjects found. Start by adding a new subject.
+								{/if}
 							</Table.Cell>
 						</Table.Row>
 					{/if}
@@ -132,171 +211,238 @@
 	</Card.Root>
 </div>
 
+<!-- === DIALOGS / MODALS === -->
+
 <!-- Create Subject Dialog -->
-<Dialog.Root bind:open={isCreateModalOpen}>
+<Dialog.Root bind:open={createOpen}>
 	<Dialog.Content>
 		<Dialog.Header>
-			<Dialog.Title>Add a New Subject</Dialog.Title>
-			<Dialog.Description>
-				Fill in the details for the new subject. The code must be unique.
-			</Dialog.Description>
+			<Dialog.Title>Add New Subject</Dialog.Title>
+			<Dialog.Description>Enter the details for the new subject.</Dialog.Description>
 		</Dialog.Header>
-		<form method="POST" action="?/createSubject" use:enhance>
+		<form
+			method="POST"
+			action="?/createSubject"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Creating subject...');
+
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						if (result.data?.action === 'createSubject') {
+							createOpen = false;
+						}
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
 			<div class="grid gap-4 py-4">
 				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="subject_code" class="text-right">Code</Label>
-					<Input
-						id="subject_code"
-						name="subject_code"
-						class="col-span-3"
-						bind:value={subjectCode}
-					/>
+					<Label for="create-code" class="text-right">Code</Label>
+					<Input id="create-code" name="subject_code" bind:value={createCode} class="col-span-3" />
 				</div>
 				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="subject_name" class="text-right">Name</Label>
-					<Input
-						id="subject_name"
-						name="subject_name"
-						class="col-span-3"
-						bind:value={subjectName}
-					/>
+					<Label for="create-name" class="text-right">Name</Label>
+					<Input id="create-name" name="subject_name" bind:value={createName} class="col-span-3" />
 				</div>
 				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="college_id" class="text-right">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={collegeId}>
-						<Select.Trigger class="col-span-3">
-							<span>Select a college {collegeId}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.colleges as college}
-								<Select.Item value={String(college.id)}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="lecture_hours" class="text-right">Lec Hours</Label>
+					<Label for="create-lec" class="text-right">Lec Hours</Label>
 					<Input
-						id="lecture_hours"
+						id="create-lec"
 						name="lecture_hours"
 						type="number"
 						step="0.5"
+						bind:value={createLecHours}
 						class="col-span-3"
-						bind:value={lectureHours}
 					/>
 				</div>
 				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="lab_hours" class="text-right">Lab Hours</Label>
+					<Label for="create-lab" class="text-right">Lab Hours</Label>
 					<Input
-						id="lab_hours"
+						id="create-lab"
 						name="lab_hours"
 						type="number"
 						step="0.5"
+						bind:value={createLabHours}
 						class="col-span-3"
-						bind:value={labHours}
 					/>
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="create-college" class="text-right">College</Label>
+					<Select.Root type="single" name="college_id" bind:value={createCollegeId}>
+						<Select.Trigger class="col-span-3">
+							<span>{createCollegeName || 'Select a college'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#if data.colleges}
+								{#each data.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							{/if}
+						</Select.Content>
+					</Select.Root>
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Button type="submit">Create Subject</Button>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Creating...
+					{:else}
+						Create Subject
+					{/if}
+				</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
 
 <!-- Edit Subject Dialog -->
-{#if selectedSubject}
-	<Dialog.Root bind:open={isEditModalOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Edit: {selectedSubject.subject_code}</Dialog.Title>
-				<Dialog.Description>Update the details for this subject.</Dialog.Description>
-			</Dialog.Header>
-			<form method="POST" action="?/updateSubject" use:enhance>
-				<input type="hidden" name="id" value={selectedSubject.id} />
-				<div class="grid gap-4 py-4">
-					<!-- Form fields are identical to create, but pre-filled -->
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="edit_subject_code" class="text-right">Code</Label>
-						<Input
-							id="edit_subject_code"
-							name="subject_code"
-							class="col-span-3"
-							bind:value={subjectCode}
-						/>
-					</div>
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="edit_subject_name" class="text-right">Name</Label>
-						<Input
-							id="edit_subject_name"
-							name="subject_name"
-							class="col-span-3"
-							bind:value={subjectName}
-						/>
-					</div>
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="edit_college_id" class="text-right">College</Label>
-						<Select.Root type="single" name="college_id" bind:value={collegeId}>
-							<Select.Trigger class="col-span-3">
-								<span>Select a college</span>
-							</Select.Trigger>
-							<Select.Content>
-								{#each data.colleges as college}
-									<Select.Item value={String(college.id)}>{college.college_name}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="edit_lecture_hours" class="text-right">Lec Hours</Label>
-						<Input
-							id="edit_lecture_hours"
-							name="lecture_hours"
-							type="number"
-							step="0.5"
-							class="col-span-3"
-							bind:value={lectureHours}
-						/>
-					</div>
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="edit_lab_hours" class="text-right">Lab Hours</Label>
-						<Input
-							id="edit_lab_hours"
-							name="lab_hours"
-							type="number"
-							step="0.5"
-							class="col-span-3"
-							bind:value={labHours}
-						/>
-					</div>
-				</div>
-				<Dialog.Footer>
-					<Button type="submit">Save Changes</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
+<Dialog.Root bind:open={editOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Edit Subject: {selectedSubject?.subject_code}</Dialog.Title>
+			<Dialog.Description>Update the details for this subject.</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/updateSubject"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Saving changes...');
 
-<!-- Delete Confirmation Dialog -->
-{#if selectedSubject}
-	<Dialog.Root bind:open={isDeleteModalOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Are you sure?</Dialog.Title>
-				<Dialog.Description>
-					This will permanently delete the subject <span class="font-bold"
-						>{selectedSubject.subject_code} - {selectedSubject.subject_name}</span
-					>. This action cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						if (result.data?.action === 'updateSubject') {
+							editOpen = false;
+						}
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="id" value={selectedSubject?.id} />
+			<div class="grid gap-4 py-4">
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="edit-code" class="text-right">Code</Label>
+					<Input id="edit-code" name="subject_code" bind:value={editCode} class="col-span-3" />
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="edit-name" class="text-right">Name</Label>
+					<Input id="edit-name" name="subject_name" bind:value={editName} class="col-span-3" />
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="edit-lec" class="text-right">Lec Hours</Label>
+					<Input
+						id="edit-lec"
+						name="lecture_hours"
+						type="number"
+						step="0.5"
+						bind:value={editLecHours}
+						class="col-span-3"
+					/>
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="edit-lab" class="text-right">Lab Hours</Label>
+					<Input
+						id="edit-lab"
+						name="lab_hours"
+						type="number"
+						step="0.5"
+						bind:value={editLabHours}
+						class="col-span-3"
+					/>
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="edit-college" class="text-right">College</Label>
+					<Select.Root type="single" name="college_id" bind:value={editCollegeId}>
+						<Select.Trigger class="col-span-3">
+							<span>{editCollegeName || 'Select a college'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#if data.colleges}
+								{#each data.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							{/if}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
 			<Dialog.Footer>
-				<Button variant="outline" onclick={() => (isDeleteModalOpen = false)}>Cancel</Button>
-				<form method="POST" action="?/deleteSubject" use:enhance>
-					<input type="hidden" name="id" value={selectedSubject.id} />
-					<Button type="submit" variant="destructive">Yes, delete subject</Button>
-				</form>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Saving...
+					{:else}
+						Save Changes
+					{/if}
+				</Button>
 			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Delete Subject Dialog -->
+<Dialog.Root bind:open={deleteOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Are you sure?</Dialog.Title>
+			<Dialog.Description>
+				This action cannot be undone. This will permanently delete the subject
+				<strong>{selectedSubject?.subject_code} - {selectedSubject?.subject_name}</strong>.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/deleteSubject"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Deleting subject...');
+
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						if (result.data?.action === 'deleteSubject') {
+							deleteOpen = false;
+						}
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="id" value={selectedSubject?.id} />
+			<Dialog.Footer>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => (deleteOpen = false)}
+					disabled={isSubmitting}>Cancel</Button
+				>
+				<Button type="submit" variant="destructive" disabled={isSubmitting}>
+					{#if isSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Deleting...
+					{:else}
+						Yes, Delete Subject
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
