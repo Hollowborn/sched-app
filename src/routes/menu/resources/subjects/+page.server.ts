@@ -1,76 +1,64 @@
-import { fail, error, redirect } from '@sveltejs/kit';
+import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-// Define the roles that have permission to manage subjects
-const PERMITTED_ROLES = ['Admin', 'Dean', 'Registrar'];
+// Define the roles that are allowed to view and manage this page.
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
 
+// --- LOAD FUNCTION ---
+// Fetches the initial data needed to render the subjects page.
 export const load: PageServerLoad = async ({ locals }) => {
-	// --- Security Check ---
-	// First, ensure the user has a profile and an authorized role.
-	if (!locals.profile || !PERMITTED_ROLES.includes(locals.profile.role)) {
-		// You can either throw an error to show a 403 Forbidden page,
-		// or redirect them to a safe page like the dashboard.
+	// Security: Ensure the user has the correct role to access this page.
+	const userRole = locals.profile?.role;
+	if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
 		throw error(403, 'Forbidden: You do not have permission to access this page.');
 	}
 
-	// Fetch all subjects and join with the colleges table to get the college name
-	const { data: subjects, error: subjectsError } = await locals.supabase.from('subjects').select(
-		`
-            id,
-            subject_code,
-            subject_name,
-            lecture_hours,
-            lab_hours,
-            college_id,
-            colleges (
-                college_name
-            )
-        `
-	);
+	// Fetch all subjects and join with the colleges table to get the college name.
+	const { data: subjects, error: subjectsError } = await locals.supabase
+		.from('subjects')
+		.select(`*, colleges ( college_name )`)
+		.order('subject_code', { ascending: true });
 
-	if (subjectsError) {
-		console.error('Error fetching subjects:', subjectsError);
-		return fail(500, { message: 'Failed to load subjects.' });
-	}
-
-	// Fetch all colleges to populate the select dropdown in the form
+	// Fetch all colleges for the dropdown menus in the forms.
 	const { data: colleges, error: collegesError } = await locals.supabase
 		.from('colleges')
-		.select('id, college_name');
+		.select('*')
+		.order('college_name', { ascending: true });
 
-	if (collegesError) {
-		console.error('Error fetching colleges:', collegesError);
-		return fail(500, { message: 'Failed to load colleges for form.' });
+	if (subjectsError || collegesError) {
+		console.error('Error fetching subjects or colleges:', subjectsError || collegesError);
+		throw error(500, 'Failed to load data from the database. Please try again later.');
 	}
 
+	// Pass the logged-in user's profile to the client for role-based UI rendering.
+	// console.log(subjects);
 	return {
 		subjects,
-		colleges
+		colleges,
+		profile: locals.profile
 	};
 };
 
+// --- ACTIONS ---
+// Handles form submissions for creating, updating, and deleting subjects.
 export const actions: Actions = {
+	// CREATE ACTION
 	createSubject: async ({ request, locals }) => {
-		// --- Security Check ---
-		if (!locals.profile || !PERMITTED_ROLES.includes(locals.profile.role)) {
-			throw error(403, 'Forbidden: You do not have permission to create subjects.');
+		// Security: Only Admins should be able to create new subjects.
+		if (locals.profile?.role !== 'Admin') {
+			return fail(403, { message: 'Forbidden: You do not have permission to create subjects.' });
 		}
 
 		const formData = await request.formData();
-		const subject_code = formData.get('subject_code')?.toString();
-		const subject_name = formData.get('subject_name')?.toString();
+		const subject_code = formData.get('subject_code')?.toString()?.trim();
+		const subject_name = formData.get('subject_name')?.toString()?.trim();
 		const lecture_hours = Number(formData.get('lecture_hours'));
 		const lab_hours = Number(formData.get('lab_hours'));
 		const college_id = Number(formData.get('college_id'));
 
-		if (!subject_code || subject_code.length < 3) {
-			return fail(400, { message: 'Subject code must be at least 3 characters.', error: true });
-		}
-		if (!subject_name) {
-			return fail(400, { message: 'Subject name is required.', error: true });
-		}
-		if (isNaN(college_id)) {
-			return fail(400, { message: 'Please select a college.', error: true });
+		// Basic Validation
+		if (!subject_code || !subject_name || !college_id) {
+			return fail(400, { message: 'Subject code, name, and college are required.' });
 		}
 
 		const { error: insertError } = await locals.supabase.from('subjects').insert({
@@ -83,34 +71,30 @@ export const actions: Actions = {
 
 		if (insertError) {
 			console.error('Error creating subject:', insertError);
-			if (insertError.code === '23505') {
-				return fail(409, {
-					message: `Subject code "${subject_code}" already exists.`,
-					error: true
-				});
-			}
-			return fail(500, { message: 'Failed to create subject.', error: true });
+			return fail(500, { message: 'Failed to create subject. Please try again.' });
 		}
 
-		return { success: true, message: 'Subject created successfully.' };
+		// Return a unique action identifier for the client-side logic.
+		return { status: 201, message: 'Subject created successfully.', action: 'createSubject' };
 	},
 
+	// UPDATE ACTION
 	updateSubject: async ({ request, locals }) => {
-		// --- Security Check ---
-		if (!locals.profile || !PERMITTED_ROLES.includes(locals.profile.role)) {
-			throw error(403, 'Forbidden: You do not have permission to update subjects.');
+		// Security: Only Admins should be able to update subjects.
+		if (locals.profile?.role !== 'Admin') {
+			return fail(403, { message: 'Forbidden: You do not have permission to update subjects.' });
 		}
-
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
-		const subject_code = formData.get('subject_code')?.toString();
-		const subject_name = formData.get('subject_name')?.toString();
+		const subject_code = formData.get('subject_code')?.toString()?.trim();
+		const subject_name = formData.get('subject_name')?.toString()?.trim();
 		const lecture_hours = Number(formData.get('lecture_hours'));
 		const lab_hours = Number(formData.get('lab_hours'));
 		const college_id = Number(formData.get('college_id'));
 
-		if (isNaN(id)) {
-			return fail(400, { message: 'Invalid subject ID.', error: true });
+		// Validation
+		if (!id || !subject_code || !subject_name || !college_id) {
+			return fail(400, { message: 'All fields are required to update a subject.' });
 		}
 
 		const { error: updateError } = await locals.supabase
@@ -126,33 +110,34 @@ export const actions: Actions = {
 
 		if (updateError) {
 			console.error('Error updating subject:', updateError);
-			return fail(500, { message: 'Failed to update subject.', error: true });
+			return fail(500, { message: 'Failed to update subject. Please try again.' });
 		}
 
-		return { success: true, message: 'Subject updated successfully.' };
+		return { status: 200, message: 'Subject updated successfully.', action: 'updateSubject' };
 	},
 
+	// DELETE ACTION
 	deleteSubject: async ({ request, locals }) => {
-		// --- Security Check (More granular for deletion) ---
-		// For a destructive action like delete, you might want only Admins to do it.
-		if (!locals.profile || locals.profile.role !== 'Admin') {
-			throw error(403, 'Forbidden: Only administrators can delete subjects.');
+		// Security: Only Admins should be able to delete subjects.
+		if (locals.profile?.role !== 'Admin') {
+			return fail(403, { message: 'Forbidden: You do not have permission to delete subjects.' });
 		}
-
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
 
-		if (isNaN(id)) {
-			return fail(400, { message: 'Invalid subject ID.', error: true });
+		if (!id) {
+			return fail(400, { message: 'Invalid subject ID.' });
 		}
 
 		const { error: deleteError } = await locals.supabase.from('subjects').delete().eq('id', id);
 
 		if (deleteError) {
 			console.error('Error deleting subject:', deleteError);
-			return fail(500, { message: 'Failed to delete subject.', error: true });
+			return fail(500, {
+				message: 'Failed to delete subject. It might be in use in a schedule.'
+			});
 		}
 
-		return { success: true, message: 'Subject deleted successfully.' };
+		return { status: 200, message: 'Subject deleted successfully.', action: 'deleteSubject' };
 	}
 };
