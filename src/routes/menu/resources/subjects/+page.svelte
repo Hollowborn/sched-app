@@ -124,7 +124,7 @@
 				/>
 			</div>
 			<Select.Root type="single" bind:value={selectedCollegeId}>
-				<Select.Trigger class="w-[200px]" disabled={isSubmitting}>
+				<Select.Trigger disabled={isSubmitting}>
 					<span>{selectedCollegeName || 'Filter by College'}</span>
 				</Select.Trigger>
 				<Select.Content>
