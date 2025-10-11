@@ -5,37 +5,67 @@ import type { NavItem } from '../../nav';
 // --- Navigation Data: Central source of truth for menu items ---
 const ALL_NAV_ITEMS_DATA: NavItem[] = [
 	{
-		title: 'Timetable Manager',
-		url: '/menu/timetables',
-		icon: 'CalendarClock',
-		roles: ['Admin', 'Registrar', 'Dean'],
+		title: 'Academics',
+		url: '/menu/academics',
+		icon: 'BookOpen',
+		roles: ['Admin', 'Dean', 'Registrar'],
 		items: [
 			{
-				title: 'Current Schedules',
-				url: '/menu/timetables/current',
-				roles: ['Admin', 'Registrar', 'Dean']
+				title: 'Class Offerings',
+				url: '/menu/academics/offerings',
+				roles: ['Admin', 'Dean', 'Registrar']
 			},
 			{
-				title: 'Create New Timetable',
-				url: '/menu/timetables/create',
-				roles: ['Admin', 'Registrar']
-			},
-			{ title: 'Archived Timetables', url: '/menu/timetables/archive', roles: ['Admin'] }
+				title: 'Instructor Assignments',
+				url: '/menu/academics/assignments',
+				roles: ['Admin', 'Dean']
+			}
 		]
 	},
 	{
-		title: 'Resource Setup',
-		url: '/menu/resources',
-		icon: 'LayoutGrid',
-		roles: ['Admin', 'Registrar'],
+		title: 'Scheduling',
+		url: '/menu/timetables',
+		icon: 'CalendarClock',
+		roles: ['Admin', 'Dean', 'Registrar'],
 		items: [
 			{
-				title: 'Subjects & Courses',
+				title: 'Master Scheduler',
+				url: '/menu/timetables/scheduler',
+				roles: ['Admin', 'Dean', 'Registrar']
+			},
+			{
+				title: 'View Schedules',
+				url: '/menu/timetables/view',
+				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
+			}
+		]
+	},
+	{
+		title: 'Resources',
+		url: '/menu/resources',
+		icon: 'LayoutGrid',
+		roles: ['Admin', 'Dean', 'Registrar'],
+		items: [
+			{
+				title: 'Subjects (Catalog)',
 				url: '/menu/resources/subjects',
+				roles: ['Admin', 'Dean', 'Registrar']
+			},
+			{
+				title: 'Instructors',
+				url: '/menu/resources/instructors',
+				roles: ['Admin', 'Dean']
+			},
+			{
+				title: 'Rooms & Venues',
+				url: '/menu/resources/rooms',
 				roles: ['Admin', 'Registrar']
 			},
-			{ title: 'Rooms & Venues', url: '/menu/resources/rooms', roles: ['Admin', 'Registrar'] },
-			{ title: 'Faculty & Staff List', url: '/menu/resources/faculty', roles: ['Admin'] }
+			{
+				title: 'Programs & Blocks',
+				url: '/menu/resources/blocks',
+				roles: ['Admin', 'Registrar']
+			}
 		]
 	},
 	{
@@ -44,12 +74,19 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		icon: 'SquareTerminal',
 		roles: ['Admin'],
 		items: [
-			{ title: 'Users & Roles', url: '/menu/admin/users/create', roles: ['Admin'] },
-			{ title: 'Activity Log', url: '/menu/admin/log', roles: ['Admin'] },
-			{ title: 'System Maintenance', url: '/menu/admin/maintenance', roles: ['Admin'] }
+			{
+				title: 'User Management',
+				url: '/menu/admin/users/create',
+				roles: ['Admin']
+			},
+			{
+				title: 'System Settings',
+				url: '/menu/admin/settings',
+				roles: ['Admin']
+			}
+			// { title: 'Activity Log', url: '/menu/admin/log', roles: ['Admin'] } // Can be added back later
 		]
 	}
-	// Note: Documentation and Settings can be added back if needed
 ];
 
 /**
