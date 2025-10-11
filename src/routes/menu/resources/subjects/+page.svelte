@@ -145,70 +145,72 @@
 		{/if}
 	</div>
 
-	<Card.Root>
-		<Card.Content class="p-0">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head class="w-[120px]">Code</Table.Head>
-						<Table.Head>Subject Name</Table.Head>
-						<Table.Head>College</Table.Head>
-						<Table.Head class="text-center">Lec Hours</Table.Head>
-						<Table.Head class="text-center">Lab Hours</Table.Head>
-						{#if data.profile?.role === 'Admin'}
-							<Table.Head class="text-right pr-6">Actions</Table.Head>
-						{/if}
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#if filteredSubjects.length > 0}
-						{#each filteredSubjects as subject (subject.id)}
-							<Table.Row class="hover:bg-muted/50">
-								<Table.Cell class="font-medium">{subject.subject_code}</Table.Cell>
-								<Table.Cell>{subject.subject_name}</Table.Cell>
-								<Table.Cell>
-									<Badge variant="secondary">{subject.colleges?.college_name || 'N/A'}</Badge>
-								</Table.Cell>
-								<Table.Cell class="text-center">{subject.lecture_hours}</Table.Cell>
-								<Table.Cell class="text-center">{subject.lab_hours}</Table.Cell>
-								{#if data.profile?.role === 'Admin'}
-									<Table.Cell class="text-right">
-										<Button
-											onclick={() => openEditModal(subject)}
-											variant="ghost"
-											size="icon"
-											disabled={isSubmitting}
-										>
-											<Pencil class="h-4 w-4" />
-										</Button>
-										<Button
-											onclick={() => openDeleteModal(subject)}
-											variant="ghost"
-											size="icon"
-											class="text-destructive hover:text-destructive"
-											disabled={isSubmitting}
-										>
-											<Trash2 class="h-4 w-4" />
-										</Button>
-									</Table.Cell>
-								{/if}
-							</Table.Row>
-						{/each}
-					{:else}
-						<Table.Row>
-							<Table.Cell colspan={6} class="h-24 text-center">
-								{#if searchQuery || selectedCollegeId !== 'all'}
-									No subjects match your current filter.
-								{:else}
-									No subjects found. Start by adding a new subject.
-								{/if}
-							</Table.Cell>
-						</Table.Row>
+	<!-- <Card.Root> -->
+	<!-- <Card.Content class=""> -->
+	<div class="border-2 rounded-2xl p-1 overflow-x-auto">
+		<Table.Root>
+			<Table.Header class="">
+				<Table.Row>
+					<Table.Head class="w-[120px]">Code</Table.Head>
+					<Table.Head>Subject Name</Table.Head>
+					<Table.Head>College</Table.Head>
+					<Table.Head class="text-center">Lec Hours</Table.Head>
+					<Table.Head class="text-center">Lab Hours</Table.Head>
+					{#if data.profile?.role === 'Admin'}
+						<Table.Head class="text-right pr-6">Actions</Table.Head>
 					{/if}
-				</Table.Body>
-			</Table.Root>
-		</Card.Content>
-	</Card.Root>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#if filteredSubjects.length > 0}
+					{#each filteredSubjects as subject (subject.id)}
+						<Table.Row class="hover:bg-muted/50">
+							<Table.Cell class="font-medium">{subject.subject_code}</Table.Cell>
+							<Table.Cell>{subject.subject_name}</Table.Cell>
+							<Table.Cell>
+								<Badge variant="secondary">{subject.colleges?.college_name || 'N/A'}</Badge>
+							</Table.Cell>
+							<Table.Cell class="text-center">{subject.lecture_hours}</Table.Cell>
+							<Table.Cell class="text-center">{subject.lab_hours}</Table.Cell>
+							{#if data.profile?.role === 'Admin'}
+								<Table.Cell class="text-right">
+									<Button
+										onclick={() => openEditModal(subject)}
+										variant="ghost"
+										size="icon"
+										disabled={isSubmitting}
+									>
+										<Pencil class="h-4 w-4" />
+									</Button>
+									<Button
+										onclick={() => openDeleteModal(subject)}
+										variant="ghost"
+										size="icon"
+										class="text-destructive hover:text-destructive"
+										disabled={isSubmitting}
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
+								</Table.Cell>
+							{/if}
+						</Table.Row>
+					{/each}
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={6} class="h-24 text-center">
+							{#if searchQuery || selectedCollegeId !== 'all'}
+								No subjects match your current filter.
+							{:else}
+								No subjects found. Start by adding a new subject.
+							{/if}
+						</Table.Cell>
+					</Table.Row>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
+	<!-- </Card.Content> -->
+	<!-- </Card.Root> -->
 </div>
 
 <!-- === DIALOGS / MODALS === -->
