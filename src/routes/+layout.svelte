@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { Toaster } from 'svelte-sonner';
+	import { Toaster } from '$lib/components/ui/sonner';
 	import { ModeWatcher } from 'mode-watcher';
 
 	import { invalidate } from '$app/navigation';
