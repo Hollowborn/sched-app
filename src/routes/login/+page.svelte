@@ -139,5 +139,18 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
+		<a
+			href="https://supabase.com"
+			class="fixed bottom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
+			target="_blank"
+			rel="noopener noreferrer"
+		>
+			<img
+				width="168"
+				height="30"
+				src="https://supabase.com/badge-made-with-supabase.svg"
+				alt="Made with Supabase"
+			/>
+		</a>
 	</div>
 </div>
