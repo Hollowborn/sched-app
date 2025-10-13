@@ -9,6 +9,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
+
 	let { form } = $props<{ form?: ActionData }>();
 
 	let email = $state(form?.email || '');
@@ -19,7 +22,7 @@
 	let formErrors = $derived(form?.formErrors || {});
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+<div class="flex flex-col min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
 	<div class="w-full max-w-4xl">
 		<Card.Root class="overflow-hidden shadow-2xl dark:shadow-blue-950/20">
 			<Card.Content class="grid p-0 md:grid-cols-2">
@@ -139,9 +142,14 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
-		<a
+		<!-- Badge attempts -->
+		<!-- <Badge
+			class="fixed bottfom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
+			variant="outline">Made with SvelteKit and Supabase</Badge
+		> -->
+		<!-- <a
 			href="https://supabase.com"
-			class="fixed bottom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
+			class="ixed bottfom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
 			target="_blank"
 			rel="noopener noreferrer"
 		>
@@ -151,6 +159,12 @@
 				src="https://supabase.com/badge-made-with-supabase.svg"
 				alt="Made with Supabase"
 			/>
-		</a>
+		</a> -->
+	</div>
+	<div class="fixed items-center mt-6 bottom-0">
+		<Separator />
+		<Label class="m-2 text-muted-foreground text-sm"
+			>Copyright <a href="https://github.com/Hollowborn" target="_blank">@Finnex</a> 2025</Label
+		>
 	</div>
 </div>
