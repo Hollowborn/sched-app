@@ -72,10 +72,15 @@
 	);
 
 	const genProgramPrefix = $derived(
-		data.programs?.find((p) => p.id.toString() === genProgramId)?.program_name.slice(0, 4)
+		data.programs
+			?.find((p) => p.id.toString() === genProgramId)
+			?.program_name.slice(0, 4)
+			.toUpperCase()
 	);
 	$effect(() => {
-		genPrefix = genProgramPrefix || '';
+		if (genProgramPrefix) {
+			genPrefix = genProgramPrefix;
+		}
 	});
 
 	const filteredBlocks: Block[] = $derived.by(() => {
@@ -138,7 +143,7 @@
 							<Card.Title>Academic Programs</Card.Title>
 							<Card.Description>List of all degree programs offered.</Card.Description>
 						</div>
-						<Button onclick={() => (programCreateOpen = true)}>
+						<Button onclick={() => (programCreateOpen = true)} disabled={isSubmitting}>
 							<PlusCircle class="mr-2 h-4 w-4" /> Add Program
 						</Button>
 					</div>
@@ -166,6 +171,7 @@
 													onclick={() => openProgramEditModal(program)}
 													variant="ghost"
 													size="icon"
+													disabled={isSubmitting}
 												>
 													<Pencil class="h-4 w-4" />
 												</Button>
@@ -174,6 +180,7 @@
 													variant="ghost"
 													size="icon"
 													class="text-destructive hover:text-destructive"
+													disabled={isSubmitting}
 												>
 													<Trash2 class="h-4 w-4" />
 												</Button>
@@ -194,27 +201,28 @@
 
 		<!-- BLOCKS TAB -->
 		<Tabs.Content value="blocks" class="mt-6 space-y-6">
-			<Collapsible.Root bind:open={bulkGenerateOpen} class="w-full">
+			<Collapsible.Root class="w-full" bind:open={bulkGenerateOpen}>
 				<Card.Root>
-					<Card.Header>
-						<div class="flex items-center justify-between">
-							<Wand2 class="h-5 w-5" />
-							<div>
-								<Card.Title>Bulk Generate Blocks</Card.Title>
-								<Card.Description>
-									Quickly create multiple blocks for a program with a consistent naming scheme.
-								</Card.Description>
+					<div class="flex items-center justify-between pr-4 rounded-t-lg cursor-pointer">
+						<Card.Header class="flex-1">
+							<div class="flex items-center gap-3">
+								<Wand2 class="h-6 w-6 text-primary" />
+								<div>
+									<Card.Title>Bulk Generate Blocks</Card.Title>
+									<Card.Description>
+										Quickly create multiple blocks for a program with a consistent naming scheme.
+									</Card.Description>
+								</div>
 							</div>
-							<Collapsible.Trigger>
-								<Button variant="ghost" size="icon">
-									<ChevronRight
-										class="h-4 w-4 transition-transform {bulkGenerateOpen ? 'rotate-90' : ''}"
-									/>
-								</Button>
-							</Collapsible.Trigger>
-						</div>
-					</Card.Header>
-
+						</Card.Header>
+						<Collapsible.Trigger>
+							<Button variant="ghost" size="icon">
+								<ChevronRight
+									class="h-4 w-4 transition-transform {bulkGenerateOpen ? 'rotate-90' : ''}"
+								/>
+							</Button>
+						</Collapsible.Trigger>
+					</div>
 					<Collapsible.Content>
 						<Card.Content class="pt-2">
 							<form
@@ -260,7 +268,11 @@
 										<Select.Trigger>
 											<span
 												>{genYearLevel
-													? `${genYearLevel}${['st', 'nd', 'rd', 'th'][((((Number(genYearLevel) + 90) % 100) - 10) % 10) - 1] || 'th'} Year`
+													? `${genYearLevel}${
+															['st', 'nd', 'rd', 'th'][
+																((((Number(genYearLevel) + 90) % 100) - 10) % 10) - 1
+															] || 'th'
+														} Year`
 													: 'Select Year'}</span
 											>
 										</Select.Trigger>
@@ -372,15 +384,55 @@
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Create New Program</Dialog.Title>
+			<Dialog.Description>Add a new degree program to the system.</Dialog.Description>
 		</Dialog.Header>
 		<form
 			method="POST"
 			action="?/createProgram"
 			use:enhance={() => {
-				/* ... */
+				isSubmitting = true;
+				const toastId = toast.loading('Creating program...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						programCreateOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
 			}}
 		>
-			<!-- Form fields... -->
+			<div class="grid gap-4 py-4">
+				<div class="space-y-2">
+					<Label for="program-name">Program Name</Label>
+					<Input
+						id="program-name"
+						name="program_name"
+						placeholder="e.g. Bachelor of Science in Computer Science"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="program-college">College</Label>
+					<Select.Root name="college_id">
+						<Select.Trigger>
+							<span>Select a college</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each data.colleges as college}
+								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Create Program
+				</Button>
+			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
@@ -390,16 +442,52 @@
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Edit Program</Dialog.Title>
+			<Dialog.Description>Update the details for this program.</Dialog.Description>
 		</Dialog.Header>
 		<form
 			method="POST"
 			action="?/updateProgram"
 			use:enhance={() => {
-				/* ... */
+				isSubmitting = true;
+				const toastId = toast.loading('Saving changes...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						programEditOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
 			}}
 		>
 			<input type="hidden" name="id" value={selectedProgram?.id} />
-			<!-- Form fields... -->
+			<div class="grid gap-4 py-4">
+				<div class="space-y-2">
+					<Label for="edit-program-name">Program Name</Label>
+					<Input id="edit-program-name" name="program_name" bind:value={programFormName} />
+				</div>
+				<div class="space-y-2">
+					<Label for="edit-program-college">College</Label>
+					<Select.Root name="college_id" type="single" bind:value={programFormCollegeId}>
+						<Select.Trigger>
+							<span>{programFormCollegeName || 'Select a college'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each data.colleges as college}
+								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Save Changes
+				</Button>
+			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
@@ -419,15 +507,32 @@
 				method="POST"
 				action="?/deleteProgram"
 				use:enhance={() => {
-					/* ... */
+					isSubmitting = true;
+					const toastId = toast.loading('Deleting program...');
+					return async ({ update, result }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							toast.success(result.data?.message, { id: toastId });
+							invalidateAll();
+							programDeleteOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error(result.data?.message, { id: toastId });
+						}
+						await update();
+					};
 				}}
 			>
 				<input type="hidden" name="id" value={selectedProgram.id} />
 				<Dialog.Footer>
-					<Button type="button" variant="outline" onclick={() => (programDeleteOpen = false)}
-						>Cancel</Button
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => (programDeleteOpen = false)}
+						disabled={isSubmitting}>Cancel</Button
 					>
-					<Button type="submit" variant="destructive">Yes, Delete</Button>
+					<Button type="submit" variant="destructive" disabled={isSubmitting}>
+						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Yes, Delete
+					</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -449,15 +554,32 @@
 				method="POST"
 				action="?/deleteBlock"
 				use:enhance={() => {
-					/* ... */
+					isSubmitting = true;
+					const toastId = toast.loading('Deleting block...');
+					return async ({ update, result }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							toast.success(result.data?.message, { id: toastId });
+							invalidateAll();
+							blockDeleteOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error(result.data?.message, { id: toastId });
+						}
+						await update();
+					};
 				}}
 			>
 				<input type="hidden" name="id" value={selectedBlock.id} />
 				<Dialog.Footer>
-					<Button type="button" variant="outline" onclick={() => (blockDeleteOpen = false)}
-						>Cancel</Button
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => (blockDeleteOpen = false)}
+						disabled={isSubmitting}>Cancel</Button
 					>
-					<Button type="submit" variant="destructive">Yes, Delete</Button>
+					<Button type="submit" variant="destructive" disabled={isSubmitting}>
+						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Yes, Delete
+					</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
