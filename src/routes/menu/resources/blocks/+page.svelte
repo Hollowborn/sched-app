@@ -54,6 +54,7 @@
 	let selectedProgram = $state<Program | null>(null);
 	let programFormName = $state('');
 	let programFormCollegeId = $state('');
+	let programCreateId = $state('');
 
 	// Block State
 	let bulkGenerateOpen = $state(false);
@@ -416,9 +417,12 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="program-college">College</Label>
-					<Select.Root name="college_id">
+					<Select.Root type="single" name="college_id" bind:value={programCreateId}>
 						<Select.Trigger>
-							<span>Select a college</span>
+							<span
+								>{data.colleges?.find((c) => c.id.toString() === programCreateId)?.college_name ||
+									'Select a college'}</span
+							>
 						</Select.Trigger>
 						<Select.Content>
 							{#each data.colleges as college}
