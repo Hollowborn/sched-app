@@ -75,8 +75,8 @@ export const actions: Actions = {
 		const college_id = Number(formData.get('college_id'));
 		const max_load = Number(formData.get('max_load'));
 
-		if (!name || !email || !college_id || !max_load) {
-			return fail(400, { message: 'All fields are required.' });
+		if (!name || !college_id || !max_load) {
+			return fail(400, { message: 'Name and College are required.' });
 		}
 
 		const { error: insertError } = await locals.supabase
@@ -102,8 +102,8 @@ export const actions: Actions = {
 		const max_load = Number(formData.get('max_load'));
 		const min_load = Number(formData.get('min_load'));
 
-		if (!id || !name || !email || !college_id || !max_load || !min_load) {
-			return fail(400, { message: 'All fields are required.' });
+		if (!id || !name || !college_id || !max_load || !min_load) {
+			return fail(400, { message: 'All fields except email are required.' });
 		}
 
 		const { error: updateError } = await locals.supabase
