@@ -7,7 +7,6 @@
 		AlertCircle,
 		PlusCircle,
 		Trash2,
-		Pencil,
 		LoaderCircle,
 		Search,
 		Calendar,
@@ -34,7 +33,7 @@
 		blocks: { id: number; block_name: string } | null;
 	};
 
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	let { data } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- State Management ---
 	let createOpen = $state(false);
@@ -87,7 +86,7 @@
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
-		goto(`?${params.toString()}`, { keepData: false, invalidateAll: true });
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
 	}
 
 	function generateAcademicYears() {
@@ -108,9 +107,9 @@
 
 <div class="space-y-6">
 	<header>
-		<h1 class="text-2xl font-bold tracking-tight">Class Offerings</h1>
-		<p class="text-muted-foreground">
-			Manage subjects offered for a specific academic year and semester.
+		<h1 class="text-3xl font-bold tracking-tight">Class Offerings</h1>
+		<p class="text-muted-foreground mt-1">
+			Manage which subjects are offered for a specific academic year and semester.
 		</p>
 	</header>
 
@@ -119,7 +118,16 @@
 			<div class="flex flex-1 items-center gap-4">
 				<div class="flex items-center gap-2">
 					<Calendar class="h-4 w-4 text-muted-foreground" />
-					<Select.Root type="single" bind:value={academicYear} onchange={handleFilterChange}>
+					<Select.Root
+						type="single"
+						value={academicYear}
+						onValueChange={(v) => {
+							if (v) {
+								academicYear = v.value;
+								handleFilterChange();
+							}
+						}}
+					>
 						<Select.Trigger class="w-[150px]">
 							<span>{academicYear || 'Academic Year'}</span>
 						</Select.Trigger>
@@ -132,7 +140,16 @@
 				</div>
 				<div class="flex items-center gap-2">
 					<BookOpen class="h-4 w-4 text-muted-foreground" />
-					<Select.Root type="single" bind:value={semester} onchange={handleFilterChange}>
+					<Select.Root
+						type="single"
+						value={semester}
+						onValueChange={(v) => {
+							if (v) {
+								semester = v.value;
+								handleFilterChange();
+							}
+						}}
+					>
 						<Select.Trigger class="w-[150px]">
 							<span>{semester || 'Semester'}</span>
 						</Select.Trigger>
@@ -152,7 +169,7 @@
 					/>
 				</div>
 			</div>
-			{#if data.profile?.role === 'Admin' || data.profile?.role === 'Dean'}
+			{#if data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role)}
 				<Button onclick={() => (createOpen = true)}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create Offering
@@ -182,8 +199,13 @@
 							>
 							<Table.Cell>{classItem.subjects?.subject_name || 'N/A'}</Table.Cell>
 							<Table.Cell>{classItem.blocks?.block_name || 'N/A'}</Table.Cell>
-							<!-- <span class="text-muted-foreground italic">Unassigned</span>  -->
-							<Table.Cell>{classItem.instructors?.name || 'Unassigned'}</Table.Cell>
+							<Table.Cell>
+								{#if classItem.instructors?.name}
+									{classItem.instructors.name}
+								{:else}
+									<span class="text-muted-foreground italic">Unassigned</span>
+								{/if}
+							</Table.Cell>
 							<Table.Cell>
 								<Badge variant="secondary">
 									{data.colleges?.find((c) => c.id === classItem.subjects?.college_id)
@@ -221,8 +243,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Create New Class Offering</Dialog.Title>
 			<Dialog.Description>
-				Select a subject from the catalog and assign it to a block and instructor for {academicYear},
-				{semester}.
+				Assign a subject from the catalog to a block for {academicYear}, {semester}.
 			</Dialog.Description>
 		</Dialog.Header>
 		<form
@@ -250,11 +271,11 @@
 				<div class="space-y-2">
 					<Label>Subject</Label>
 					<Select.Root type="single" name="subject_id" bind:value={createSubjectId}>
-						<Select.Trigger
-							><span class="placeholder:text-muted-foreground"
+						<Select.Trigger>
+							<span class="placeholder:text-muted-foreground"
 								>{createSubjectName || 'Select a subject'}</span
-							></Select.Trigger
-						>
+							>
+						</Select.Trigger>
 						<Select.Content>
 							{#each data.subjects || [] as subject}
 								<Select.Item value={subject.id.toString()}
@@ -267,11 +288,11 @@
 				<div class="space-y-2">
 					<Label>Block Section</Label>
 					<Select.Root type="single" name="block_id" bind:value={createBlockId}>
-						<Select.Trigger
-							><span class="placeholder:text-muted-foreground"
+						<Select.Trigger>
+							<span class="placeholder:text-muted-foreground"
 								>{createBlockName || 'Select a block'}</span
-							></Select.Trigger
-						>
+							>
+						</Select.Trigger>
 						<Select.Content>
 							{#each data.blocks || [] as block}
 								<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
@@ -282,11 +303,11 @@
 				<div class="space-y-2">
 					<Label>Instructor (Optional)</Label>
 					<Select.Root type="single" name="instructor_id" bind:value={createInstructorId}>
-						<Select.Trigger
-							><span class="placeholder:text-muted-foreground"
+						<Select.Trigger>
+							<span class="placeholder:text-muted-foreground"
 								>{createInstructorName || 'Assign an instructor'}</span
-							></Select.Trigger
-						>
+							>
+						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="0">Unassigned</Select.Item>
 							{#each data.instructors || [] as instructor}
