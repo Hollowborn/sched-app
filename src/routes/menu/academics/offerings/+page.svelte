@@ -123,7 +123,7 @@
 						value={academicYear}
 						onValueChange={(v) => {
 							if (v) {
-								academicYear = v.value;
+								academicYear = v;
 								handleFilterChange();
 							}
 						}}
@@ -145,7 +145,7 @@
 						value={semester}
 						onValueChange={(v) => {
 							if (v) {
-								semester = v.value;
+								semester = v;
 								handleFilterChange();
 							}
 						}}
