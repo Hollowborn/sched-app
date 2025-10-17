@@ -76,7 +76,7 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		items: [
 			{
 				title: 'User Management',
-				url: '/menu/admin/users/create',
+				url: '/menu/admin/users',
 				roles: ['Admin']
 			},
 			{
