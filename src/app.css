@@ -177,6 +177,9 @@ body {
 }
 
 @layer base {
+	::selection {
+		@apply bg-accent text-accent-foreground;
+	}
 	* {
 		@apply border-border outline-ring/50;
 	}
