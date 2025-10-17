@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Fetch all users from both Supabase Auth and our public users table
 	const [
-		{ data: authUsers, error: authUsersError },
+		{ data: authUsersData, error: authUsersError },
 		{ data: userProfiles, error: userProfilesError },
 		{ data: colleges, error: collegesError }
 	] = await Promise.all([
@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	// Combine the auth user data (like last_sign_in_at) with our profile data (role, username)
-	const combinedUsers = authUsers.users.map((authUser) => {
+	const combinedUsers = authUsersData.users.map((authUser) => {
 		const profile = userProfiles.find((p) => p.id === authUser.id);
 		return {
 			...authUser, // Includes id, email, last_sign_in_at, etc.
@@ -61,23 +61,93 @@ export const load: PageServerLoad = async ({ locals }) => {
 		users: combinedUsers,
 		colleges: colleges || [],
 		stats: { total: totalUsers, ...roleCounts },
-		profile: locals.profile
+		profile: locals.profile,
+		validRoles: ['Admin', 'Dean', 'Registrar']
 	};
 };
 
 // --- ACTIONS ---
 export const actions: Actions = {
-	// Action to create a new user (auth + profile)
 	createUser: async ({ request }) => {
-		// ... (logic from your old create user page, adapted slightly)
+		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
+
+		const formData = await request.formData();
+		const email = formData.get('email')?.toString().trim();
+		const password = formData.get('password')?.toString();
+		const username = formData.get('username')?.toString().trim();
+		const role = formData.get('role')?.toString();
+		const college_id_str = formData.get('college_id')?.toString();
+		const college_id = college_id_str ? Number(college_id_str) : null;
+
+		if (!email || !password || !username || !role) {
+			return fail(400, { message: 'Email, password, username, and role are required.' });
+		}
+		if (password.length < 8) {
+			return fail(400, { message: 'Password must be at least 8 characters long.' });
+		}
+
+		let newAuthUser = null;
+		try {
+			// Step 1: Create the user in Supabase Auth
+			const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+				email,
+				password,
+				email_confirm: true // Auto-confirm email
+			});
+
+			if (authError) throw new Error(authError.message);
+			newAuthUser = authData.user;
+
+			// Step 2: Create the corresponding profile in the public.users table
+			const { error: profileError } = await supabaseAdmin.from('users').insert({
+				id: newAuthUser.id,
+				username,
+				role,
+				college_id,
+				email
+			});
+
+			if (profileError) throw new Error(profileError.message);
+
+			return { message: 'User created successfully.' };
+		} catch (err: any) {
+			// Rollback: If profile creation fails, delete the auth user
+			if (newAuthUser) {
+				await supabaseAdmin.auth.admin.deleteUser(newAuthUser.id);
+			}
+			console.error('Create user error:', err.message);
+			return fail(500, { message: err.message || 'Failed to create user.' });
+		}
 	},
 
-	// Action to update a user's profile (role, college, etc.)
-	updateUser: async ({ request, locals }) => {
-		// ...
+	updateUser: async ({ request }) => {
+		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
+
+		const formData = await request.formData();
+		const id = formData.get('id')?.toString();
+		const username = formData.get('username')?.toString().trim();
+		const role = formData.get('role')?.toString();
+		const college_id_str = formData.get('college_id')?.toString();
+		const college_id = college_id_str ? Number(college_id_str) : null;
+
+		if (!id || !username || !role) {
+			return fail(400, { message: 'User ID, username, and role are required.' });
+		}
+
+		// Update public.users profile
+		const { error: profileError } = await supabaseAdmin
+			.from('users')
+			.update({ username, role, college_id })
+			.eq('id', id);
+
+		if (profileError) {
+			console.error('Update user error:', profileError);
+			return fail(500, { message: 'Failed to update user profile.' });
+		}
+
+		return { message: 'User updated successfully.' };
 	},
 
-	// Action to toggle a user's account status (enable/disable)
 	updateUserStatus: async ({ request }) => {
 		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
 		const formData = await request.formData();
@@ -98,7 +168,6 @@ export const actions: Actions = {
 		return { message: `User successfully ${shouldDisable ? 'disabled' : 'enabled'}.` };
 	},
 
-	// Action to send a password reset link
 	sendPasswordReset: async ({ request }) => {
 		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
 		const formData = await request.formData();
@@ -118,7 +187,6 @@ export const actions: Actions = {
 		return { message: 'Password reset link sent successfully.' };
 	},
 
-	// Action to permanently delete a user
 	deleteUser: async ({ request }) => {
 		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
 		const formData = await request.formData();
