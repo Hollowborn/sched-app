@@ -54,6 +54,7 @@
 	let deleteOpen = $state(false);
 
 	// Form State
+	let formCollegeCreateId = $state<string | undefined>('');
 	let formUsername = $state('');
 	let formEmail = $state('');
 	let formPassword = $state('');
@@ -100,6 +101,10 @@
 		if (interval > 1) return Math.floor(interval) + ' minutes ago';
 		return 'Just now';
 	}
+
+	const formCollegeName = $derived(
+		data.colleges?.find((c) => c.id.toString() === formCollegeCreateId)?.college_name
+	);
 </script>
 
 <div class="space-y-6">
@@ -188,7 +193,7 @@
 										<div class="font-medium">{user.username}</div>
 										<div class="text-sm text-muted-foreground">{user.email}</div>
 									</Table.Cell>
-									<Table.Cell><Badge>{user.role}</Badge></Table.Cell>
+									<Table.Cell><Badge variant="outline">{user.role}</Badge></Table.Cell>
 									<Table.Cell>{user.colleges?.college_name || 'N/A'}</Table.Cell>
 									<Table.Cell>{timeAgo(user.last_sign_in_at)}</Table.Cell>
 									<Table.Cell>
@@ -208,25 +213,68 @@
 													<Pencil class="mr-2 h-4 w-4" /> Edit
 												</DropdownMenu.Item>
 
-												<DropdownMenu.Item>
-													<form method="POST" action="?/updateUserStatus" use:enhance>
+												<DropdownMenu.Item
+													on:select={(e: CustomEvent) => e.preventDefault()}
+													class="p-0 focus:bg-transparent focus:text-inherit"
+												>
+													<form
+														method="POST"
+														action="?/updateUserStatus"
+														use:enhance={() => {
+															const toastId = toast.loading('Updating status...');
+															return async ({ update, result }) => {
+																if (result.type === 'success') {
+																	toast.success(result.data?.message, { id: toastId });
+																	invalidateAll();
+																} else if (result.type === 'failure') {
+																	toast.error(result.data?.message, { id: toastId });
+																}
+																await update({ reset: false });
+															};
+														}}
+														class="w-full"
+													>
 														<input type="hidden" name="id" value={user.id} />
 														<input type="hidden" name="status" value={user.status} />
-														<button type="submit" class="flex items-center w-full">
+														<button
+															type="submit"
+															class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
+														>
 															{#if user.status === 'active'}
-																<ToggleLeft class="mr-2 h-4 w-4" /> Disable
+																<ToggleLeft class="mr-4 h-4 w-4" /> Disable
 															{:else}
-																<ToggleRight class="mr-2 h-4 w-4" /> Enable
+																<ToggleRight class="mr-4 h-4 w-4" /> Enable
 															{/if}
 														</button>
 													</form>
 												</DropdownMenu.Item>
 
-												<DropdownMenu.Item>
-													<form method="POST" action="?/sendPasswordReset" use:enhance>
+												<DropdownMenu.Item
+													on:select={(e: CustomEvent) => e.preventDefault()}
+													class="p-0 focus:bg-transparent focus:text-inherit"
+												>
+													<form
+														method="POST"
+														action="?/sendPasswordReset"
+														use:enhance={() => {
+															const toastId = toast.loading('Sending reset link...');
+															return async ({ update, result }) => {
+																if (result.type === 'success') {
+																	toast.success(result.data?.message, { id: toastId });
+																} else if (result.type === 'failure') {
+																	toast.error(result.data?.message, { id: toastId });
+																}
+																await update({ reset: false });
+															};
+														}}
+														class="w-full"
+													>
 														<input type="hidden" name="email" value={user.email} />
-														<button type="submit" class="flex items-center w-full">
-															<KeyRound class="mr-2 h-4 w-4" /> Send Reset
+														<button
+															type="submit"
+															class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
+														>
+															<KeyRound class="mr-4 h-4 w-4" /> Send Reset
 														</button>
 													</form>
 												</DropdownMenu.Item>
@@ -256,4 +304,199 @@
 </div>
 
 <!-- Modals -->
-<!-- ... (Create, Edit, Delete modals will go here, similar to other pages) ... -->
+<Dialog.Root bind:open={createOpen}>
+	<Dialog.Content class="overflow-hidden">
+		<Dialog.Header>
+			<Dialog.Title>Create New User</Dialog.Title>
+			<Dialog.Description>
+				A temporary password will be set. The user should reset it upon first login.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/createUser"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Creating user...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						createOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			<div class="grid gap-4 py-4">
+				<div class="space-y-2">
+					<Label for="create-username">Username</Label>
+					<Input id="create-username" name="username" required />
+				</div>
+				<div class="space-y-2">
+					<Label for="create-email">Email</Label>
+					<Input id="create-email" name="email" type="email" required />
+				</div>
+				<div class="space-y-2">
+					<Label for="create-password">Temporary Password</Label>
+					<Input id="create-password" name="password" type="password" required />
+				</div>
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label>Role</Label>
+						<Select.Root type="single" name="role" bind:value={formRole}>
+							<Select.Trigger><span class="">{formRole || 'Select a role'}</span></Select.Trigger>
+							<Select.Content>
+								{#each data.validRoles as role}
+									<Select.Item value={role}>{role}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+					<div class="space-y-2">
+						<Label>College (for Deans)</Label>
+						<Select.Root type="single" name="college_id" bind:value={formCollegeCreateId}>
+							<Select.Trigger
+								><span class="truncate max-w-32">{formCollegeName || 'Optional'}</span
+								></Select.Trigger
+							>
+							<Select.Content>
+								<Select.Item value="">N/A</Select.Item>
+								{#each data.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+					Create User
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={editOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Edit User: {selectedUser?.username}</Dialog.Title>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/updateUser"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Saving changes...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						invalidateAll();
+						editOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="id" value={selectedUser?.id} />
+			<div class="grid gap-4 py-4">
+				<div class="space-y-2">
+					<Label>Username</Label>
+					<Input name="username" bind:value={formUsername} required />
+				</div>
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label>Role</Label>
+						<Select.Root type="single" name="role" bind:value={formRole}>
+							<Select.Trigger><span>{formRole || 'Select a role'}</span></Select.Trigger>
+							<Select.Content>
+								{#each data.validRoles as role}
+									<Select.Item value={role}>{role}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+					<div class="space-y-2">
+						<Label>College (for Deans)</Label>
+						<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
+							<Select.Trigger>
+								<span class="truncate max-w-32">
+									{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
+										'N/A'}
+								</span>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="">N/A</Select.Item>
+								{#each data.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+					Save Changes
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+{#if selectedUser}
+	<Dialog.Root bind:open={deleteOpen}>
+		<Dialog.Content>
+			<Dialog.Header>
+				<Dialog.Title>Are you absolutely sure?</Dialog.Title>
+				<Dialog.Description>
+					This will permanently delete the user <strong>{selectedUser.username}</strong>
+					({selectedUser.email}). This action cannot be undone.
+				</Dialog.Description>
+			</Dialog.Header>
+			<form
+				method="POST"
+				action="?/deleteUser"
+				use:enhance={() => {
+					isSubmitting = true;
+					const toastId = toast.loading('Deleting user...');
+					return async ({ update, result }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							toast.success(result.data?.message, { id: toastId });
+							invalidateAll();
+							deleteOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error(result.data?.message, { id: toastId });
+						}
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="id" value={selectedUser.id} />
+				<Dialog.Footer>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => (deleteOpen = false)}
+						disabled={isSubmitting}>Cancel</Button
+					>
+					<Button type="submit" variant="destructive" disabled={isSubmitting}>
+						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+						Yes, Delete User
+					</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
