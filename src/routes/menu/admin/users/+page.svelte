@@ -29,6 +29,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { error } from '@sveltejs/kit';
 
 	type User = {
 		id: string;
@@ -229,6 +230,7 @@
 																} else if (result.type === 'failure') {
 																	toast.error(result.data?.message, { id: toastId });
 																}
+																console.log('UID: ' + user.id);
 																await update({ reset: false });
 															};
 														}}
@@ -264,6 +266,7 @@
 																} else if (result.type === 'failure') {
 																	toast.error(result.data?.message, { id: toastId });
 																}
+																console.log('result: ' + result);
 																await update({ reset: false });
 															};
 														}}
