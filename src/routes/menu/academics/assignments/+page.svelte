@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { Calendar, BookOpen, Search, Filter } from '@lucide/svelte';
+	import { tick } from 'svelte'; // Import tick from svelte
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
@@ -20,6 +21,7 @@
 		subjects: {
 			subject_code: string;
 			subject_name: string;
+			college_id: number; // Added for easier lookup
 			colleges: { college_name: string };
 		} | null;
 		instructors: { id: number; name: string } | null;
@@ -34,18 +36,28 @@
 	let searchQuery = $state('');
 	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
 
+	let selectedInstructorIds = $state<{ [key: number]: string | undefined }>({});
+
+	$effect(() => {
+		const initialIds: { [key: number]: string | undefined } = {};
+		if (data.classes) {
+			for (const c of data.classes) {
+				initialIds[c.id] = c.instructors?.id.toString() ?? '0';
+			}
+		}
+		selectedInstructorIds = initialIds;
+	});
+
 	// --- Derived State ---
 	const filteredClasses: ClassOffering[] = $derived.by(() => {
 		let classes = data.classes || [];
 
-		// Apply status filter first
 		if (statusFilter === 'assigned') {
 			classes = classes.filter((c) => c.instructors !== null);
 		} else if (statusFilter === 'unassigned') {
 			classes = classes.filter((c) => c.instructors === null);
 		}
 
-		// Apply search query
 		if (!searchQuery) return classes;
 		const lowerQuery = searchQuery.toLowerCase();
 		return classes.filter((c) => {
@@ -78,8 +90,13 @@
 		return years;
 	}
 
-	// Corrected handler: Finds the form by ID and submits it.
-	function handleAssignmentChange(classId: number) {
+	// --- THE FIX IS HERE ---
+	// Make the function async and add `await tick()`
+	async function handleAssignmentChange(classId: number) {
+		// Wait for Svelte to flush pending state changes to the DOM.
+		// This ensures the hidden input inside the Select component has the new value.
+		await tick();
+
 		const form = document.getElementById(`assign-form-${classId}`) as HTMLFormElement;
 		if (form) {
 			form.requestSubmit();
@@ -188,30 +205,35 @@
 										return async ({ update, result }) => {
 											if (result.type === 'success') {
 												toast.success(result.data?.message, { id: toastId });
-												await invalidateAll(); // Refresh data to update workloads
+												await invalidateAll();
 											} else if (result.type === 'failure') {
 												toast.error(result.data?.message, { id: toastId });
 											}
-											await update({ reset: false }); // Don't reset the form
+											await update({ reset: false });
 										};
 									}}
 								>
 									<input type="hidden" name="classId" value={classItem.id} />
 									<Select.Root
-										name="instructorId"
 										type="single"
-										value={classItem.instructors?.id.toString()}
-										onValueChange={() => handleAssignmentChange(classItem.id)}
+										name="instructorId"
+										bind:value={selectedInstructorIds[classItem.id]}
+										onValueChange={() => {
+											handleAssignmentChange(classItem.id);
+										}}
 									>
 										<Select.Trigger class="w-full">
-											{#if classItem.instructors}
-												<span
-													>{classItem.instructors.name}
-													({data.instructors.find((i) => i.id === classItem.instructors?.id)
-														?.current_load || 0} /
-													{data.instructors.find((i) => i.id === classItem.instructors?.id)
-														?.max_load || 18})</span
-												>
+											{#if selectedInstructorIds[classItem.id] && selectedInstructorIds[classItem.id] !== '0'}
+												{@const instructor = data.instructors.find(
+													(i) => i.id.toString() === selectedInstructorIds[classItem.id]
+												)}
+												{#if instructor}
+													<span
+														>{instructor.name} ({instructor.current_load} / {instructor.max_load})</span
+													>
+												{:else}
+													<span class="text-muted-foreground">Unassigned</span>
+												{/if}
 											{:else}
 												<span class="text-muted-foreground">Unassigned</span>
 											{/if}
@@ -239,8 +261,8 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
-	<Label class="text-muted-foreground text-center"
-		>Showing results for <span class="font-bold">{semester}</span> of Academic Year:
-		<span class="font-bold">{academicYear}</span></Label
-	>
+	<div class="text-center text-sm text-muted-foreground">
+		Showing results for <span class="font-bold">{semester}</span> of Academic Year:
+		<span class="font-bold">{academicYear}</span>
+	</div>
 </div>
