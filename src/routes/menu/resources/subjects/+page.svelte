@@ -147,7 +147,7 @@
 
 	<!-- <Card.Root> -->
 	<!-- <Card.Content class=""> -->
-	<div class="border-2 rounded-2xl p-1 overflow-x-auto">
+	<div class="border rounded-md p-1 overflow-hidden">
 		<Table.Root>
 			<Table.Header class="">
 				<Table.Row>
