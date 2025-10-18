@@ -4,7 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 
 /**
- * First hook: Initializes Supabase client.
+ * Hook 1: Initializes Supabase client for every server request.
  */
 const supabase: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
@@ -18,9 +18,6 @@ const supabase: Handle = async ({ event, resolve }) => {
 		}
 	});
 
-	/**
-	 * Helper to get a validated session.
-	 */
 	event.locals.safeGetSession = async () => {
 		const {
 			data: { session }
@@ -48,15 +45,15 @@ const supabase: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Second hook: Populates user, session, and profile into locals.
+ * Hook 2: Fetches the user's session and profile, making it available on `event.locals`.
+ * This is the single source of truth for user data on the server.
  */
 const auth: Handle = async ({ event, resolve }) => {
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;
 
-	// --- NEWLY ADDED PROFILE LOGIC ---
-	// If the user is authenticated, fetch their profile from the database.
+	// If a user is authenticated, fetch their profile from the database.
 	if (user) {
 		const { data: profile } = await event.locals.supabase
 			.from('users')
@@ -64,14 +61,13 @@ const auth: Handle = async ({ event, resolve }) => {
 			.eq('id', user.id)
 			.single();
 
-		// Add the profile to locals. It will be `null` if no profile is found.
 		event.locals.profile = profile;
 	} else {
-		// Ensure profile is null if there is no user
 		event.locals.profile = null;
 	}
 
 	return resolve(event);
 };
 
+// The `sequence` helper ensures hooks run in order and complete before the page load.
 export const handle: Handle = sequence(supabase, auth);
