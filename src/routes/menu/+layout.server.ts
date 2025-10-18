@@ -121,13 +121,13 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		throw redirect(303, '/login');
 	}
 
-	let profile: { username: string; role: string } | null = null;
+	let profile: { username: string; role: string; college_id: number } | null = null;
 	let filteredNav: NavItem[] = [];
 
 	if (user) {
 		const { data, error } = await locals.supabase
 			.from('users')
-			.select('username, role')
+			.select('username, role, college_id')
 			.eq('id', user.id)
 			.single();
 
