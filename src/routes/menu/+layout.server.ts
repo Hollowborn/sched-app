@@ -114,38 +114,20 @@ function filterNavByRole(navItems: NavItem[], userRole: string | null): NavItem[
 	}, []);
 }
 
-export const load: LayoutServerLoad = async ({ locals }) => {
-	const { session, user } = locals;
-
-	if (!session) {
+export const load: LayoutServerLoad = async ({ locals, url }) => {
+	if (!locals.session && !url.pathname.startsWith('/login')) {
 		throw redirect(303, '/login');
 	}
-
 	let profile: { username: string; role: string; college_id: number } | null = null;
-	let filteredNav: NavItem[] = [];
 
-	if (user) {
-		const { data, error } = await locals.supabase
-			.from('users')
-			.select('username, role, college_id')
-			.eq('id', user.id)
-			.single();
+	const userRole = locals.profile?.role || null;
+	const filteredNav = filterNavByRole(ALL_NAV_ITEMS_DATA, userRole);
 
-		if (error || !data) {
-			console.error('Error fetching user profile:', error?.message);
-		} else {
-			profile = data;
-			filteredNav = filterNavByRole(ALL_NAV_ITEMS_DATA, data.role);
-		}
-	}
-
-	// For debugging: log what's being sent to the client
-	// console.log('Filtered Nav Items:', JSON.stringify(filteredNav, null, 2));
-
+	// Pass the data (which now includes the profile from the root hook) to the client.
 	return {
-		session,
-		user,
-		profile,
+		session: locals.session,
+		user: locals.user,
+		profile: locals.profile,
 		navItems: filteredNav
 	};
 };
