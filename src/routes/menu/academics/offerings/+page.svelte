@@ -235,10 +235,10 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
-	<Label class="text-muted-foreground text-center"
-		>Showing results for <span class="font-bold">{semester}</span> of Academic Year:
-		<span class="font-bold">{academicYear}</span></Label
-	>
+	<div class="text-center text-sm text-muted-foreground">
+		Showing results for <span class="font-bold">{semester}</span> of Academic Year:
+		<span class="font-bold">{academicYear}</span>
+	</div>
 </div>
 
 <!-- === MODALS === -->
