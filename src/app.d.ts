@@ -9,13 +9,13 @@ declare global {
 			safeGetSession: () => Promise<{ session: Session | null; user: User | null }>;
 			session: Session | null;
 			user: User | null;
-			profile: { username: string; role: string } | null;
+			profile: { username: string; role: string; college_id: number } | null;
 		}
 		interface PageData {
 			session: Session | null;
 			user: User | null;
 			// The profile contains the role fetched from the DB
-			profile: { username: string; role: string } | null;
+			profile: { username: string; role: string; college_id: number } | null;
 			// The filtered navigation items
 			navItems: NavItem[];
 		}
