@@ -1,0 +1,246 @@
+<script lang="ts">
+	import type { ActionData, PageData } from './$types';
+	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { Calendar, BookOpen, Search, Filter } from '@lucide/svelte';
+
+	// Shadcn Components
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Card from '$lib/components/ui/card';
+	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+
+	type ClassOffering = {
+		id: number;
+		subjects: {
+			subject_code: string;
+			subject_name: string;
+			colleges: { college_name: string };
+		} | null;
+		instructors: { id: number; name: string } | null;
+		blocks: { block_name: string } | null;
+	};
+
+	let { data } = $props<{ data: PageData; form: ActionData }>();
+
+	// --- State Management ---
+	let academicYear = $state(data.filters.academic_year);
+	let semester = $state(data.filters.semester);
+	let searchQuery = $state('');
+	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
+
+	// --- Derived State ---
+	const filteredClasses: ClassOffering[] = $derived.by(() => {
+		let classes = data.classes || [];
+
+		// Apply status filter first
+		if (statusFilter === 'assigned') {
+			classes = classes.filter((c) => c.instructors !== null);
+		} else if (statusFilter === 'unassigned') {
+			classes = classes.filter((c) => c.instructors === null);
+		}
+
+		// Apply search query
+		if (!searchQuery) return classes;
+		const lowerQuery = searchQuery.toLowerCase();
+		return classes.filter((c) => {
+			const subjectCode = c.subjects?.subject_code.toLowerCase() || '';
+			const subjectName = c.subjects?.subject_name.toLowerCase() || '';
+			const blockName = c.blocks?.block_name.toLowerCase() || '';
+			return (
+				subjectCode.includes(lowerQuery) ||
+				subjectName.includes(lowerQuery) ||
+				blockName.includes(lowerQuery)
+			);
+		});
+	});
+
+	// --- Event Handlers ---
+	function handleFilterChange() {
+		const params = new URLSearchParams(window.location.search);
+		params.set('year', academicYear);
+		params.set('semester', semester);
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
+	}
+
+	function generateAcademicYears() {
+		const currentYear = new Date().getFullYear();
+		const years = [];
+		for (let i = -2; i <= 2; i++) {
+			const startYear = currentYear + i;
+			years.push(`${startYear}-${startYear + 1}`);
+		}
+		return years;
+	}
+
+	// Corrected handler: Finds the form by ID and submits it.
+	function handleAssignmentChange(classId: number) {
+		const form = document.getElementById(`assign-form-${classId}`) as HTMLFormElement;
+		if (form) {
+			form.requestSubmit();
+		}
+	}
+</script>
+
+<div class="space-y-6">
+	<header>
+		<h1 class="text-3xl font-bold tracking-tight">Instructor Assignments</h1>
+		<p class="text-muted-foreground mt-1">
+			Assign instructors to class offerings for the selected academic term.
+		</p>
+	</header>
+
+	<Card.Root>
+		<Card.Content class="p-4 flex items-center justify-between gap-4">
+			<div class="flex flex-1 items-center gap-4">
+				<!-- Term Filters -->
+				<div class="flex items-center gap-2">
+					<Calendar class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={academicYear}
+						onValueChange={(v) => {
+							if (v) {
+								academicYear = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-[150px]"><span>{academicYear}</span></Select.Trigger>
+						<Select.Content>
+							{#each generateAcademicYears() as year}
+								<Select.Item value={year}>{year}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="flex items-center gap-2">
+					<BookOpen class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={semester}
+						onValueChange={(v) => {
+							if (v) {
+								semester = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-[150px]"><span>{semester}</span></Select.Trigger>
+						<Select.Content>
+							<Select.Item value="1st Semester">1st Semester</Select.Item>
+							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+							<Select.Item value="Summer">Summer</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<!-- Search -->
+				<div class="relative w-full max-w-sm">
+					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+					<Input
+						placeholder="Search by subject or block..."
+						class="pl-8"
+						bind:value={searchQuery}
+					/>
+				</div>
+			</div>
+			<!-- Status Toggles -->
+			<ToggleGroup.Root type="single" variant="outline" bind:value={statusFilter}>
+				<ToggleGroup.Item value="all">All</ToggleGroup.Item>
+				<ToggleGroup.Item value="assigned">Assigned</ToggleGroup.Item>
+				<ToggleGroup.Item value="unassigned">Unassigned</ToggleGroup.Item>
+			</ToggleGroup.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<div class="border rounded-md">
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Subject</Table.Head>
+					<Table.Head>Block</Table.Head>
+					<Table.Head class="w-[40%]">Instructor</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#if filteredClasses.length > 0}
+					{#each filteredClasses as classItem (classItem.id)}
+						<Table.Row class="hover:bg-muted/50">
+							<Table.Cell>
+								<div class="font-medium">{classItem.subjects?.subject_code}</div>
+								<div class="text-sm text-muted-foreground">
+									{classItem.subjects?.subject_name}
+								</div>
+							</Table.Cell>
+							<Table.Cell>{classItem.blocks?.block_name}</Table.Cell>
+							<Table.Cell>
+								<form
+									method="POST"
+									action="?/assignInstructor"
+									id="assign-form-{classItem.id}"
+									use:enhance={() => {
+										const toastId = toast.loading('Saving assignment...');
+										return async ({ update, result }) => {
+											if (result.type === 'success') {
+												toast.success(result.data?.message, { id: toastId });
+												await invalidateAll(); // Refresh data to update workloads
+											} else if (result.type === 'failure') {
+												toast.error(result.data?.message, { id: toastId });
+											}
+											await update({ reset: false }); // Don't reset the form
+										};
+									}}
+								>
+									<input type="hidden" name="classId" value={classItem.id} />
+									<Select.Root
+										name="instructorId"
+										type="single"
+										value={classItem.instructors?.id.toString()}
+										onValueChange={() => handleAssignmentChange(classItem.id)}
+									>
+										<Select.Trigger class="w-full">
+											{#if classItem.instructors}
+												<span
+													>{classItem.instructors.name}
+													({data.instructors.find((i) => i.id === classItem.instructors?.id)
+														?.current_load || 0} /
+													{data.instructors.find((i) => i.id === classItem.instructors?.id)
+														?.max_load || 18})</span
+												>
+											{:else}
+												<span class="text-muted-foreground">Unassigned</span>
+											{/if}
+										</Select.Trigger>
+										<Select.Content>
+											<Select.Item value="0">Unassigned</Select.Item>
+											{#each data.instructors as instructor}
+												<Select.Item value={instructor.id.toString()}>
+													{instructor.name} ({instructor.current_load} / {instructor.max_load})
+												</Select.Item>
+											{/each}
+										</Select.Content>
+									</Select.Root>
+								</form>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={3} class="h-24 text-center">
+							No class offerings match your current filters.
+						</Table.Cell>
+					</Table.Row>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
+	<Label class="text-muted-foreground text-center"
+		>Showing results for <span class="font-bold">{semester}</span> of Academic Year:
+		<span class="font-bold">{academicYear}</span></Label
+	>
+</div>
