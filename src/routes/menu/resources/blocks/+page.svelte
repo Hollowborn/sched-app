@@ -57,7 +57,7 @@
 	let programCreateId = $state('');
 
 	// Block State
-	let bulkGenerateOpen = $state(false);
+	let bulkGenerateOpen = $state(true);
 	let blockDeleteOpen = $state(false);
 	let selectedBlock = $state<Block | null>(null);
 
@@ -249,7 +249,7 @@
 									<Label>Program</Label>
 									<Select.Root type="single" name="program_id" bind:value={genProgramId}>
 										<Select.Trigger>
-											<span
+											<span class="truncate max-w-48"
 												>{data.programs.find((p) => p.id.toString() === genProgramId)
 													?.program_name || 'Select Program'}</span
 											>
