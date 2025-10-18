@@ -158,7 +158,7 @@ export const actions: Actions = {
 
 		const shouldDisable = currentStatus === 'active';
 		const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-			ban_duration: shouldDisable ? '3650d' : 'none' // Effectively permanent ban or no ban
+			ban_duration: '100y' // Effectively permanent ban or no ban
 		});
 
 		if (updateError) {
