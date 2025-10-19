@@ -113,7 +113,7 @@
 	</header>
 
 	<Card.Root>
-		<Card.Content class="p-4 flex items-center justify-between gap-4">
+		<Card.Content class="m-2 flex items-center justify-between gap-4 overflow-auto ">
 			<div class="flex flex-1 items-center gap-4">
 				<!-- Term Filters -->
 				<div class="flex items-center gap-2">

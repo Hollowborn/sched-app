@@ -114,9 +114,9 @@
 	</header>
 
 	<Card.Root>
-		<Card.Content class="p-4 flex items-center justify-between gap-4">
-			<div class="flex flex-1 items-center gap-4">
-				<div class="flex items-center gap-2">
+		<Card.Content class="m-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+			<div class="flex flex-col sm:flex-row flex-wrap flex-1 items-center gap-4 w-full md:w-auto">
+				<div class="flex w-full sm:w-auto items-center gap-2">
 					<Calendar class="h-4 w-4 text-muted-foreground" />
 					<Select.Root
 						type="single"
@@ -128,17 +128,17 @@
 							}
 						}}
 					>
-						<Select.Trigger class="w-[150px]">
+						<Select.Trigger class="w-full sm:w-[150px] bg-accent">
 							<span>{academicYear || 'Academic Year'}</span>
 						</Select.Trigger>
 						<Select.Content>
 							{#each generateAcademicYears() as year}
-								<Select.Item value={year}>{year}</Select.Item>
+								<Select.Item {value}>{year}</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>
-				<div class="flex items-center gap-2">
+				<div class="flex w-full sm:w-auto items-center gap-2">
 					<BookOpen class="h-4 w-4 text-muted-foreground" />
 					<Select.Root
 						type="single"
@@ -150,7 +150,7 @@
 							}
 						}}
 					>
-						<Select.Trigger class="w-[150px]">
+						<Select.Trigger class="w-full sm:w-[150px]">
 							<span>{semester || 'Semester'}</span>
 						</Select.Trigger>
 						<Select.Content>
@@ -160,7 +160,7 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
-				<div class="relative w-full max-w-sm">
+				<div class="relative w-full sm:max-w-sm">
 					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Search code, subject, instructor..."
@@ -169,8 +169,9 @@
 					/>
 				</div>
 			</div>
+
 			{#if data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role)}
-				<Button onclick={() => (createOpen = true)}>
+				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create Offering
 				</Button>
