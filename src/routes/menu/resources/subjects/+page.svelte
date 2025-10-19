@@ -149,7 +149,7 @@
 	<!-- <Card.Content class=""> -->
 	<div class="border rounded-md p-1 overflow-hidden">
 		<Table.Root>
-			<Table.Header class="">
+			<Table.Header>
 				<Table.Row>
 					<Table.Head class="w-[120px]">Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>
@@ -165,8 +165,10 @@
 				{#if filteredSubjects.length > 0}
 					{#each filteredSubjects as subject (subject.id)}
 						<Table.Row class="hover:bg-muted/50">
-							<Table.Cell class="font-medium">{subject.subject_code}</Table.Cell>
-							<Table.Cell>{subject.subject_name}</Table.Cell>
+							<Table.Cell class="font-medium"
+								><Badge variant="outline">{subject.subject_code}</Badge></Table.Cell
+							>
+							<Table.Cell class="font-light">{subject.subject_name}</Table.Cell>
 							<Table.Cell>
 								<Badge variant="secondary">{subject.colleges?.college_name || 'N/A'}</Badge>
 							</Table.Cell>
