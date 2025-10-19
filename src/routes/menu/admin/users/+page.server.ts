@@ -148,24 +148,50 @@ export const actions: Actions = {
 		return { message: 'User updated successfully.' };
 	},
 
-	updateUserStatus: async ({ request }) => {
+	updateUserStatus: async ({ request, locals }) => {
+		if (locals.profile?.role !== 'Admin') {
+			return fail(403, { message: 'Forbidden: You do not have permission to modify user status.' });
+		}
 		if (!supabaseAdmin) return fail(500, { message: 'Admin client not configured.' });
+
 		const formData = await request.formData();
 		const userId = formData.get('id')?.toString();
 		const currentStatus = formData.get('status')?.toString();
 
-		if (!userId) return fail(400, { message: 'User ID is required.' });
-
-		const shouldDisable = currentStatus === 'active';
-		const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-			ban_duration: '100y' // Effectively permanent ban or no ban
-		});
-
-		if (updateError) {
-			return fail(500, { message: `Failed to ${shouldDisable ? 'disable' : 'enable'} user.` });
+		if (!userId) {
+			return fail(400, { message: 'User ID is required.' });
 		}
 
-		return { message: `User successfully ${shouldDisable ? 'disabled' : 'enabled'}.` };
+		const shouldDisable = currentStatus === 'active';
+		const newStatus = shouldDisable ? 'disabled' : 'active';
+
+		// --- THE FIX IS HERE ---
+
+		// Step 1: Update the Supabase Auth user to actually ban/unban them.
+		const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+			ban_duration: shouldDisable ? '3650d' : 'none' // Effectively permanent ban or no ban
+		});
+
+		if (authError) {
+			// Add detailed logging so you can see the actual error from Supabase in your server console.
+			console.error('Supabase Auth update error:', authError);
+			return fail(500, { message: `Failed to ${newStatus} user in authentication system.` });
+		}
+
+		// Step 2: Update the 'status' column in your public.users table to match.
+		const { error: profileError } = await locals.supabase
+			.from('users')
+			.update({ status: newStatus })
+			.eq('id', userId);
+
+		if (profileError) {
+			// If this fails, you have an inconsistency. It's a server error.
+			console.error('Error updating user profile status:', profileError);
+			// You could attempt to roll back the auth change here, but for now, logging is key.
+			return fail(500, { message: 'Failed to update user profile status.' });
+		}
+
+		return { message: `User successfully ${newStatus}.` };
 	},
 
 	sendPasswordReset: async ({ request }) => {
