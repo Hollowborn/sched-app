@@ -128,12 +128,12 @@
 							}
 						}}
 					>
-						<Select.Trigger class="w-full sm:w-[150px] bg-accent">
+						<Select.Trigger class="w-full sm:w-[150px] shadow-sm">
 							<span>{academicYear || 'Academic Year'}</span>
 						</Select.Trigger>
 						<Select.Content>
 							{#each generateAcademicYears() as year}
-								<Select.Item {value}>{year}</Select.Item>
+								<Select.Item value={year}>{year}</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -150,7 +150,7 @@
 							}
 						}}
 					>
-						<Select.Trigger class="w-full sm:w-[150px]">
+						<Select.Trigger class="w-full sm:w-[150px] shadow-sm">
 							<span>{semester || 'Semester'}</span>
 						</Select.Trigger>
 						<Select.Content>
@@ -164,14 +164,14 @@
 					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Search code, subject, instructor..."
-						class="pl-8"
+						class="pl-8 shadow"
 						bind:value={searchQuery}
 					/>
 				</div>
 			</div>
 
 			{#if data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role)}
-				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
+				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto ">
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create Offering
 				</Button>
