@@ -67,6 +67,16 @@
 		}
 		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
 	}
+	// as it does
+	function generateAcademicYears() {
+		const currentYear = new Date().getFullYear();
+		const years = [];
+		for (let i = -2; i <= 2; i++) {
+			const startYear = currentYear + i;
+			years.push(`${startYear}-${startYear + 1}`);
+		}
+		return years;
+	}
 </script>
 
 <div class="space-y-6">
@@ -91,7 +101,11 @@
 					}}
 				>
 					<Select.Trigger class="w-[150px]"><span>{academicYear}</span></Select.Trigger>
-					<Select.Content></Select.Content>
+					<Select.Content>
+						{#each generateAcademicYears() as years}
+							<Select.Item value={years}>{years}</Select.Item>
+						{/each}
+					</Select.Content>
 				</Select.Root>
 			</div>
 			<div class="flex items-center gap-2">
