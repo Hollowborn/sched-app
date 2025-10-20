@@ -115,13 +115,13 @@
 	</header>
 
 	<Card.Root>
-		<Card.Content class="p-4 flex items-center justify-between gap-4">
+		<Card.Content class="m-2 flex items-center justify-between gap-4">
 			<div class="flex flex-1 items-center gap-4">
 				<div class="relative w-full max-w-sm">
 					<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Search by name, building, or type..."
-						class="pl-10"
+						class="pl-10 shadow"
 						bind:value={searchQuery}
 					/>
 				</div>
