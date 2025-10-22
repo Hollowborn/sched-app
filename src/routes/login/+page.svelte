@@ -24,7 +24,7 @@
 
 <div class="flex flex-col min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
 	<div class="w-full max-w-4xl">
-		<Card.Root class="overflow-hidden shadow-2xl dark:shadow-blue-950/20">
+		<Card.Root class=" overflow-hidden shadow-2xl dark:shadow-blue-950/20">
 			<Card.Content class="grid p-0 md:grid-cols-2">
 				<!-- Login Form Section -->
 				<div class="p-6 sm:p-10 flex flex-col justify-center">
@@ -161,10 +161,15 @@
 			/>
 		</a> -->
 	</div>
-	<div class="fixed items-center mt-6 bottom-0">
+	<h1
+		class="absolute top-0 left-0 m-4 text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight mb-2"
+	>
+		<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span>
+	</h1>
+	<!-- <div class="fixed items-center mt-6 bottom-0">
 		<Separator />
 		<Label class="m-2 text-muted-foreground text-sm"
 			>Copyright <a href="https://github.com/Hollowborn" target="_blank">@Finnex</a> 2025</Label
 		>
-	</div>
+	</div> -->
 </div>
