@@ -192,7 +192,7 @@ export const actions: Actions = {
 				semester,
 				college_id,
 				created_by: locals.user?.id,
-				status: 'Draft'
+				status: 'draft'
 			})
 			.select('id')
 			.single();
@@ -369,7 +369,7 @@ export const actions: Actions = {
 
 		const { error: updateError } = await locals.supabase
 			.from('timetables')
-			.update({ status: 'Published' })
+			.update({ status: 'published' })
 			.eq('id', timetableId);
 
 		if (updateError) {
