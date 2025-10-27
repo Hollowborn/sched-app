@@ -3,8 +3,9 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { dndzone } from 'svelte-dnd-action';
+	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
+	import { tick } from 'svelte';
 	import {
 		Calendar,
 		BookOpen,
@@ -18,7 +19,8 @@
 		Eye,
 		Trash2,
 		LoaderCircle,
-		CheckCircle
+		CheckCircle,
+		GripVertical
 	} from '@lucide/svelte';
 
 	// Shadcn Components
@@ -31,11 +33,13 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Separator } from '$lib/components/ui/separator';
 
+	// Type Definitions matching server load function
 	type UnscheduledClass = {
-		id: number; // class_id
+		id: string; // <-- MODIFIED: Now a unique string like "101-Lecture" for dndzone
+		original_class_id: number; // <-- ADDED: Store the original numeric ID
 		course_type: 'Lecture' | 'Lab';
 		hours: number;
-		subjects: { subject_code: string; subject_name: string; college_id: number };
+		subjects: { id: number; subject_code: string; subject_name: string; college_id: number };
 		blocks: { id: number; block_name: string };
 		instructors: { id: number; name: string } | null;
 	};
@@ -49,6 +53,7 @@
 		room_id: number;
 		rooms: { room_name: string };
 		class: {
+			// Note the nesting from the server query
 			id: number; // class_id
 			subjects: { subject_code: string; subject_name: string };
 			instructors: { name: string } | null;
@@ -70,8 +75,8 @@
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
 	let selectedTimetableId = $state(data.filters.timetableId?.toString() ?? undefined);
-	let unscheduledList = $state<UnscheduledClass[]>(data.unscheduledClasses || []);
-	let scheduleGrid = $state<ScheduledItem[]>(data.scheduleData || []);
+	let unscheduledList = $state<UnscheduledClass[]>([]); // Will be populated by $effect
+	let scheduleGrid = $state<{ [key: string]: ScheduledItem[] }>({}); // Store grid data keyed by "day-startTime"
 	let isSubmitting = $state(false); // For modal forms
 
 	// State for the "Create Timetable" modal
@@ -93,22 +98,46 @@
 	let editRoomId = $state<string | undefined>('');
 	let editAvailableRooms = $state<Room[]>([]);
 
+	// Populate scheduleGrid when data loads/changes
+	$effect(() => {
+		const grid: { [key: string]: ScheduledItem[] } = {};
+		(data.scheduleData || []).forEach((item) => {
+			const key = `${item.day_of_week}-${item.start_time.substring(0, 5)}`; // Key by "Monday-08:00"
+			if (!grid[key]) {
+				grid[key] = [];
+			}
+			grid[key].push(item);
+		});
+		scheduleGrid = grid;
+
+		// --- DND FIX ---
+		// Map the server data to create a list with UNIQUE string IDs for dndzone.
+		// The `id` property on each item *must* be unique.
+		unscheduledList = (data.unscheduledClasses || []).map((item) => ({
+			...item,
+			original_class_id: item.id, // Store the original numeric class_id
+			id: `${item.id}-${item.course_type}` // Create the new unique string id, e.g., "101-Lecture"
+		}));
+	});
+
 	// Dnd configuration
-	const flipDurationMs = 200;
+	const flipDurationMs = 150;
 	function handleDndConsider(
 		e: CustomEvent<{
 			items: UnscheduledClass[];
-			info: { id: any; source: Element; trigger: Element };
+			info: { id: string; sourceType: string; trigger: TRIGGERS }; // <-- MODIFIED: id is string
 		}>
 	) {
-		unscheduledList = e.detail.items;
+		// This updates the list while dragging for visual feedback
+		// unscheduledList = e.detail.items;
 	}
 	function handleDndFinalize(
 		e: CustomEvent<{
 			items: UnscheduledClass[];
-			info: { id: any; source: Element; trigger: Element };
+			info: { id: string; sourceType: string; trigger: TRIGGERS }; // <-- MODIFIED: id is string
 		}>
 	) {
+		// This updates the list if the item is dropped back into the source list
 		unscheduledList = e.detail.items;
 	}
 
@@ -125,7 +154,6 @@
 		if (selectedTimetableId) {
 			params.set('timetableId', selectedTimetableId);
 		}
-		// Use replaceState: false to allow back button navigation between timetable views
 		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true, replaceState: false });
 	}
 
@@ -139,31 +167,52 @@
 		return years;
 	}
 
-	function handleDropOnGrid(day: string, startTime: string, droppedItem: UnscheduledClass) {
-		// Calculate end time
-		const duration = droppedItem.hours;
-		const end = calculateEndTime(startTime, duration);
+	async function handleDropOnGrid(
+		day: string,
+		startTime: string,
+		droppedItemInfo: { id: string; sourceType: string }
+	) {
+		if (droppedItemInfo.sourceType !== 'unscheduled') return; // Only handle drops from the unscheduled list
 
-		// Pre-filter rooms based on capacity and type
-		// Note: A proper capacity check needs block size data, which isn't loaded here yet.
-		// For now, let's filter just by type if it's a lab.
-		const requiredType = droppedItem.course_type === 'Lab' ? 'Lab' : undefined; // Or maybe allow Lab in Lecture?
+		// droppedItemInfo.id is now the unique string, e.g., "101-Lecture"
+		// Find the item in our *modified* list
+		const droppedItemData = unscheduledList.find((item) => item.id === droppedItemInfo.id);
+		if (!droppedItemData) return;
+
+		// Calculate end time
+		const duration = droppedItemData.hours;
+		const end = calculateEndTimeString(startTime, duration);
+
+		// --- Basic Room Filtering (Client-side estimate) ---
+		// TODO: Enhance this with block capacity check and real-time availability check via server later
+		const requiredType = droppedItemData.course_type === 'Lab' ? 'Lab' : undefined;
 		availableRooms = data.rooms.filter(
 			(r) => !requiredType || r.type === requiredType
-			// && r.capacity >= ?? // Needs block size
+			// && r.capacity >= blockCapacity // Need block capacity data
 		);
-		// TODO: Add a check here against `scheduleGrid` to see if rooms are actually free
+
+		// Filter rooms already booked in this exact slot (client-side approximation)
+		const bookedRoomIds = (scheduleGrid[`${day}-${startTime}`] || []).map((item) => item.room_id);
+		availableRooms = availableRooms.filter((r) => !bookedRoomIds.includes(r.id));
+
+		if (availableRooms.length === 0) {
+			toast.error('No suitable rooms available for this slot.', {
+				description: `Check capacity and type requirements for ${droppedItemData.subjects.subject_code}.`
+			});
+			return; // Don't open modal if no rooms fit
+		}
 
 		// Open the modal
-		itemToSchedule = droppedItem;
+		itemToSchedule = droppedItemData;
 		scheduleDay = day;
-		scheduleStartTime = startTime;
-		scheduleEndTime = end;
+		scheduleStartTime = startTime; // "HH:MM"
+		scheduleEndTime = end; // "HH:MM"
 		scheduleRoomId = undefined; // Reset room selection
+		await tick(); // Ensure state updates before opening modal
 		scheduleModalOpen = true;
 	}
 
-	function calculateEndTime(startTime: string, durationHours: number): string {
+	function calculateEndTimeString(startTime: string, durationHours: number): string {
 		try {
 			const [hours, minutes] = startTime.split(':').map(Number);
 			const totalMinutes = hours * 60 + minutes + durationHours * 60;
@@ -178,34 +227,36 @@
 	function openEditModal(scheduleEntry: ScheduledItem) {
 		itemToEdit = scheduleEntry;
 		editRoomId = scheduleEntry.room_id.toString();
-		// TODO: Filter available rooms for editing as well
+		// TODO: Filter available rooms for editing based on the *original* time slot
 		editAvailableRooms = data.rooms;
 		editModalOpen = true;
 	}
 
-	// --- Time Slot Generation --- (Simplified to 1-hour slots for now)
+	// --- Time Slot Generation --- (1-hour slots, 7 AM to 7 PM)
 	const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const timeSlots = Array.from({ length: 12 }, (_, i) => {
-		// 7 AM to 6 PM
+		// 7 AM to 6 PM (12 slots)
 		const hour = 7 + i;
 		const nextHour = hour + 1;
 		const formattedHour = hour < 10 ? `0${hour}` : hour;
-		const formattedNextHour = nextHour < 10 ? `0${nextHour}` : nextHour;
 		return {
 			start: `${formattedHour}:00`,
-			end: `${formattedNextHour}:00`
+			end: `${nextHour.toString().padStart(2, '0')}:00`
 		};
 	});
 
-	// --- Effects for Toasts ---
+	// --- Effects for Toasts from Form Actions ---
 	$effect(() => {
-		if (form?.scheduleError) {
-			toast.error(form.scheduleError);
-			form.scheduleError = undefined; // Clear error after showing
-		}
-		if (form?.message && !form?.scheduleError) {
+		// Check for specific error keys from server actions
+		const errorKey = form?.createError || form?.scheduleError;
+		if (errorKey) {
+			toast.error(errorKey);
+			// Clear the specific error after showing
+			if (form?.createError) form.createError = undefined;
+			if (form?.scheduleError) form.scheduleError = undefined;
+		} else if (form?.message) {
 			toast.success(form.message);
-			form.message = undefined; // Clear message after showing
+			form.message = undefined; // Clear success message
 		}
 	});
 </script>
@@ -214,7 +265,9 @@
 	<header class="flex justify-between items-center">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Master Scheduler</h1>
-			<p class="text-muted-foreground mt-1">Visually assign classes to time slots and rooms.</p>
+			<p class="text-muted-foreground mt-1">
+				Visually assign classes to time slots and rooms for the selected timetable.
+			</p>
 		</div>
 		{#if selectedTimetable}
 			<div class="flex items-center gap-2">
@@ -222,9 +275,26 @@
 					>{selectedTimetable.status}</Badge
 				>
 				{#if selectedTimetable.status === 'Draft' && data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role)}
-					<form method="POST" action="?/publishTimetable" use:enhance>
+					<form
+						method="POST"
+						action="?/publishTimetable"
+						use:enhance={() => {
+							const toastId = toast.loading('Publishing timetable...');
+							return async ({ update, result }) => {
+								if (result.type === 'success') {
+									toast.success(result.data?.message, { id: toastId });
+									await invalidateAll(); // Refresh to new status
+								} else if (result.type === 'failure') {
+									toast.error(result.data?.message, { id: toastId });
+								}
+								await update({ reset: false });
+							};
+						}}
+					>
 						<input type="hidden" name="timetableId" value={selectedTimetable.id} />
-						<Button type="submit" size="sm"><CheckCircle class="mr-2 h-4 w-4" /> Publish</Button>
+						<Button type="submit" size="sm" variant="outline"
+							><CheckCircle class="mr-2 h-4 w-4" /> Publish</Button
+						>
 					</form>
 				{/if}
 			</div>
@@ -233,7 +303,7 @@
 
 	<!-- Filter Control Panel -->
 	<Card.Root>
-		<Card.Content class="p-4 flex items-center gap-4">
+		<Card.Content class="p-4 flex flex-wrap items-center gap-4">
 			<div class="flex items-center gap-2">
 				<Calendar class="h-4 w-4 text-muted-foreground" />
 				<Select.Root
@@ -272,8 +342,8 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<div class="flex-1 flex items-center gap-2">
-				<Label for="timetable-select" class="shrink-0">Timetable:</Label>
+			<div class="flex-1 flex items-center gap-2 min-w-[300px]">
+				<Label for="timetable-select" class="shrink-0 font-medium">Active Timetable:</Label>
 				<Select.Root
 					id="timetable-select"
 					type="single"
@@ -281,8 +351,15 @@
 					onValueChange={(v) => {
 						if (v === 'new') {
 							createTimetableOpen = true;
+							// Prevent selecting the placeholder
+							tick().then(
+								() => (selectedTimetableId = data.filters.timetableId?.toString() ?? undefined)
+							);
 						} else if (v) {
 							selectedTimetableId = v;
+							handleFilterChange();
+						} else {
+							selectedTimetableId = undefined;
 							handleFilterChange();
 						}
 					}}
@@ -303,48 +380,61 @@
 	</Card.Root>
 
 	{#if !selectedTimetableId}
-		<div class="text-center py-10 text-muted-foreground">
-			Please select or create a timetable above to begin scheduling.
-		</div>
+		<Card.Root>
+			<Card.Content class="text-center py-16 text-muted-foreground">
+				<p>Please select or create a timetable above to begin scheduling.</p>
+			</Card.Content>
+		</Card.Root>
+	{:else if selectedTimetable?.status === 'Published'}
+		<Card.Root>
+			<Card.Content class="text-center py-16 text-muted-foreground">
+				<p>This timetable is published and cannot be edited. Select a draft or create a new one.</p>
+			</Card.Content>
+		</Card.Root>
 	{:else}
 		<!-- Main Scheduler Layout -->
-		<div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
+		<div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
 			<!-- Unscheduled Classes Panel -->
-			<div class="space-y-4 lg:sticky lg:top-20">
-				<h2 class="text-lg font-semibold">Available Classes</h2>
+			<div class="space-y-4 lg:sticky lg:top-[var(--header-height,60px)]">
+				<h2 class="text-lg font-semibold px-1">Available Classes ({unscheduledList.length})</h2>
 				<div
-					class="space-y-3 max-h-[70vh] overflow-y-auto border rounded-lg p-3"
-					use:dndzone={{ items: unscheduledList, flipDurationMs }}
+					class="space-y-3 max-h-[calc(100vh-180px)] overflow-y-auto border rounded-lg p-2 bg-muted/30"
+					use:dndzone={{
+						items: unscheduledList,
+						flipDurationMs,
+						dragDisabled: selectedTimetable?.status === 'Published',
+						type: 'unscheduled' // Identify the source zone
+					}}
 					onconsider={handleDndConsider}
 					onfinalize={handleDndFinalize}
 				>
-					{#each unscheduledList as classItem (`${classItem.id}-${classItem.course_type}`)}
-						<div animate:flip={{ duration: flipDurationMs }}>
+					<!-- MODIFIED: Use the new unique string `id` as the key -->
+					{#each unscheduledList as classItem (classItem.id)}
+						<div animate:flip={{ duration: flipDurationMs }} class="unscheduled-item-source">
 							<Card.Root
-								class="cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
+								class="cursor-grab active:cursor-grabbing bg-card shadow-sm hover:shadow-md transition-shadow"
 							>
-								<Card.Content class="p-3">
-									<div class="flex justify-between items-start">
-										<p class="font-semibold">{classItem.subjects.subject_code}</p>
-										<Badge variant="outline">{classItem.course_type} ({classItem.hours}h)</Badge>
-									</div>
-									<p class="text-sm text-muted-foreground">{classItem.subjects.subject_name}</p>
-									<p class="text-xs text-muted-foreground mt-1">
-										{classItem.instructors?.name || 'Unassigned'}
-									</p>
-									<div class="flex justify-between items-center mt-2">
-										<Badge variant="secondary">{classItem.blocks.block_name}</Badge>
-										{#if data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role) && selectedTimetable?.status === 'Draft'}
-											<!-- The button is now just visual, drag the card instead -->
-											<span class="text-xs text-muted-foreground">Drag to schedule</span>
-										{/if}
+								<Card.Content class="p-3 flex gap-2">
+									<GripVertical class="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+									<div class="flex-1">
+										<div class="flex justify-between items-start">
+											<p class="font-semibold">{classItem.subjects.subject_code}</p>
+											<Badge variant="outline">{classItem.course_type} ({classItem.hours}h)</Badge>
+										</div>
+										<p class="text-sm text-muted-foreground">{classItem.subjects.subject_name}</p>
+										<p class="text-xs text-muted-foreground mt-1">
+											{classItem.instructors?.name || 'Unassigned'}
+										</p>
+										<div class="flex justify-between items-center mt-2">
+											<Badge variant="secondary">{classItem.blocks.block_name}</Badge>
+										</div>
 									</div>
 								</Card.Content>
 							</Card.Root>
 						</div>
 					{/each}
 					{#if unscheduledList.length === 0}
-						<p class="text-sm text-muted-foreground text-center py-4">
+						<p class="text-sm text-muted-foreground text-center py-6">
 							All classes scheduled for this timetable.
 						</p>
 					{/if}
@@ -352,64 +442,87 @@
 			</div>
 
 			<!-- Timetable Grid -->
-			<div class="border rounded-lg overflow-x-auto">
+			<div class="border rounded-lg overflow-x-auto relative">
 				<div
-					class="grid grid-cols-[auto_repeat(6,_minmax(120px,_1fr))] text-center font-medium text-sm sticky top-0 bg-background z-10"
+					class="grid grid-cols-[auto_repeat(6,_minmax(140px,_1fr))] text-center font-medium text-sm sticky top-0 bg-background z-10 shadow-sm"
 				>
-					<div class="p-2 border-b border-r"><Clock class="h-4 w-4 mx-auto" /></div>
+					<div class="p-2 border-b border-r sticky left-0 bg-background z-10">
+						<Clock class="h-4 w-4 mx-auto" />
+					</div>
 					{#each days as day}
 						<div class="p-2 border-b border-r">{day}</div>
 					{/each}
 				</div>
-				<div class="grid grid-cols-[auto_repeat(6,_minmax(120px,_1fr))]">
+				<!-- Grid Body: Re-structured with nested loops -->
+				<div class="grid grid-cols-[auto_repeat(6,_minmax(140px,_1fr))]">
 					{#each timeSlots as slot (slot.start)}
+						<!-- Time Label Cell -->
 						<div
-							class="p-1 text-xs text-muted-foreground border-r flex items-center justify-center"
+							class="p-2 text-xs font-medium text-muted-foreground border-b border-r text-right sticky left-0 bg-background z-10"
 						>
 							{slot.start}
 						</div>
+
+						<!-- Day Cells for this Time Slot -->
 						{#each days as day (day)}
+							{@const slotKey = `${day}-${slot.start}`}
 							<div
-								class="border-r border-t min-h-[70px] p-1 relative"
-								use:dndzone={{ items: [{ day, start: slot.start }], dropFromOthersDisabled: true }}
-								onconsider={(e) => {
-									// Add hover styling
-									(e.target as HTMLElement).style.backgroundColor = 'hsl(var(--primary) / 0.1)';
+								class="border-r border-t min-h-[70px] p-0.5 relative hover:bg-muted/50 transition-colors"
+								use:dndzone={{
+									items: scheduleGrid[slotKey] || [], // Pass existing items if any
+									dropFromOthersDisabled: false,
+									type: 'grid' // Identify the target zone
 								}}
-								onfinalize={(e) => {
-									// Remove hover styling
-									(e.target as HTMLElement).style.backgroundColor = '';
-									// Only handle drops from the unscheduled list
-									if (e.detail.info.source.classList.contains('unscheduled-item-source')) {
-										// Find the dropped item data using its ID
-										const droppedIdParts = e.detail.info.id.split('-'); // e.g., "classId-Type"
-										const droppedClassId = Number(droppedIdParts[0]);
-										const droppedType = droppedIdParts[1];
-										const droppedItemData = unscheduledList.find(
-											(item) => item.id === droppedClassId && item.course_type === droppedType
-										);
-										if (droppedItemData) {
-											handleDropOnGrid(day, slot.start, droppedItemData);
-										}
+								onconsider={(
+									e: CustomEvent<{
+										items: ScheduledItem[];
+										info: { id: string; sourceType: string }; // <-- MODIFIED: id is string
+									}>
+								) => {
+									// Highlight cell on hover
+									if (e.detail.info.sourceType !== 'grid') {
+										// Don't highlight if dragging within grid
+										(e.target as HTMLElement).style.outline = '2px dashed hsl(var(--primary))';
+										(e.target as HTMLElement).style.outlineOffset = '-2px';
 									}
+								}}
+								onfinalize={(
+									e: CustomEvent<{
+										items: ScheduledItem[];
+										info: { id: string; sourceType: string }; // <-- MODIFIED: id is string
+									}>
+								) => {
+									(e.target as HTMLElement).style.outline = ''; // Remove highlight
+
+									// Check if the drop originated from the unscheduled list
+									if (e.detail.info.sourceType === 'unscheduled') {
+										handleDropOnGrid(day, slot.start, {
+											id: e.detail.info.id as string,
+											sourceType: 'unscheduled'
+										});
+									}
+									// TODO: Handle drops originating FROM the grid (reordering/moving)
 								}}
 							>
 								<!-- Render existing scheduled items for this slot -->
-								{#each scheduleGrid.filter((s) => s.day_of_week === day && s.start_time.startsWith(slot.start)) as scheduledItem (scheduledItem.id)}
+								{#each scheduleGrid[slotKey] || [] as scheduledItem (scheduledItem.id)}
+									{@const durationFactor =
+										(new Date(`1970-01-01T${scheduledItem.end_time}`) -
+											new Date(`1970-01-01T${scheduledItem.start_time}`)) /
+										(1000 * 60 * 60)}
 									<button
 										type="button"
-										class="absolute inset-x-1 top-1 bg-primary/80 text-primary-foreground p-1.5 rounded text-left text-[10px] leading-tight hover:bg-primary z-10 shadow cursor-pointer"
-										style="height: calc({(new Date(`1970-01-01T${scheduledItem.end_time}`) -
-											new Date(`1970-01-01T${scheduledItem.start_time}`)) /
-											(1000 * 60 * 60)} * (70px + 1px) - 2px);"
+										class="absolute inset-x-0.5 top-0.5 bg-primary/80 text-primary-foreground p-1 rounded text-left text-[10px] leading-tight hover:bg-primary z-10 shadow cursor-pointer group overflow-hidden"
+										style="height: calc({durationFactor} * (70px + 1px) - 2px);"
 										onclick={() => openEditModal(scheduledItem)}
+										title="Click to edit or unschedule"
 									>
-										<p class="font-bold">
+										<p class="font-bold truncate">
 											{scheduledItem.class.subjects.subject_code} ({scheduledItem.course_type[0]})
 										</p>
-										<p class="text-xs">{scheduledItem.rooms.room_name}</p>
-										<p class="text-xs">{scheduledItem.class.instructors?.name || 'N/A'}</p>
-										<p class="text-xs">{scheduledItem.class.blocks.block_name}</p>
+										<p class="text-xs truncate">{scheduledItem.rooms.room_name}</p>
+										<p class="text-xs truncate">{scheduledItem.class.instructors?.name || 'N/A'}</p>
+										<p class="text-xs truncate">{scheduledItem.class.blocks.block_name}</p>
 									</button>
 								{/each}
 							</div>
@@ -421,7 +534,6 @@
 	{/if}
 </div>
 
-<!-- Modals -->
 <Dialog.Root bind:open={createTimetableOpen}>
 	<Dialog.Content>
 		<Dialog.Header>
@@ -485,12 +597,11 @@
 			<Dialog.Title>Schedule Class</Dialog.Title>
 			{#if itemToSchedule}
 				<Dialog.Description>
-					Confirm room for <strong
+					Confirm room for <strong class="text-primary"
 						>{itemToSchedule.subjects.subject_code} ({itemToSchedule.course_type})</strong
 					>
-					for block
-					<strong>{itemToSchedule.blocks.block_name}</strong> on {scheduleDay} from {scheduleStartTime}
-					to {scheduleEndTime}.
+					for block <strong class="text-primary">{itemToSchedule.blocks.block_name}</strong>
+					on {scheduleDay} from {scheduleStartTime} to {scheduleEndTime}.
 				</Dialog.Description>
 			{/if}
 		</Dialog.Header>
@@ -514,7 +625,8 @@
 			}}
 		>
 			<input type="hidden" name="timetable_id" value={selectedTimetableId} />
-			<input type="hidden" name="class_id" value={itemToSchedule?.id} />
+			<!-- MODIFIED: Use the original numeric ID for the form submission -->
+			<input type="hidden" name="class_id" value={itemToSchedule?.original_class_id} />
 			<input type="hidden" name="day_of_week" value={scheduleDay} />
 			<input type="hidden" name="start_time" value={scheduleStartTime} />
 			<input type="hidden" name="end_time" value={scheduleEndTime} />
@@ -524,13 +636,19 @@
 				<div class="space-y-2">
 					<Label for="schedule-room">Room</Label>
 					<Select.Root type="single" name="room_id" bind:value={scheduleRoomId}>
-						<Select.Trigger><Select.Value placeholder="Select an available room" /></Select.Trigger>
+						<Select.Trigger><span>"Select an available room"</span></Select.Trigger>
 						<Select.Content>
-							{#each availableRooms as room}
-								<Select.Item value={room.id.toString()}
-									>{room.room_name} (Cap: {room.capacity})</Select.Item
-								>
-							{/each}
+							{#if availableRooms.length > 0}
+								{#each availableRooms as room}
+									<Select.Item value={room.id.toString()}
+										>{room.room_name} (Cap: {room.capacity}, {room.type})</Select.Item
+									>
+								{/each}
+							{:else}
+								<div class="p-4 text-center text-sm text-muted-foreground">
+									No rooms match criteria for this slot.
+								</div>
+							{/if}
 						</Select.Content>
 					</Select.Root>
 				</div>
@@ -557,23 +675,26 @@
 	>
 		<Dialog.Content>
 			<Dialog.Header>
-				<Dialog.Title>Edit Scheduled Class</Dialog.Title>
+				<Dialog.Title>Scheduled Class Details</Dialog.Title>
 				<Dialog.Description>
-					Editing: <strong
-						>{itemToEdit.class.subjects.subject_code} ({itemToEdit.course_type})</strong
-					>
-					for block
-					<strong>{itemToEdit.class.blocks.block_name}</strong> on {itemToEdit.day_of_week} at {itemToEdit.start_time.substring(
-						0,
-						5
-					)}.
+					<strong>{itemToEdit.class.subjects.subject_code} ({itemToEdit.course_type})</strong> for
+					<strong>{itemToEdit.class.blocks.block_name}</strong>
 				</Dialog.Description>
 			</Dialog.Header>
-			<!-- TODO: Add Edit Form (similar to add, but action="?/updateScheduleEntry") -->
+			<div class="py-4 space-y-2 text-sm">
+				<p><strong>Instructor:</strong> {itemToEdit.class.instructors?.name || 'N/A'}</p>
+				<p><strong>Room:</strong> {itemToEdit.rooms.room_name}</p>
+				<p>
+					<strong>Time:</strong>
+					{itemToEdit.day_of_week}, {itemToEdit.start_time.substring(0, 5)} - {itemToEdit.end_time.substring(
+						0,
+						5
+					)}
+				</p>
+			</div>
 			<form
 				method="POST"
 				action="?/deleteScheduleEntry"
-				class="pt-4"
 				use:enhance={() => {
 					isSubmitting = true;
 					const toastId = toast.loading('Unscheduling class...');
@@ -591,28 +712,46 @@
 				}}
 			>
 				<input type="hidden" name="scheduleId" value={itemToEdit.id} />
-				<div class="flex justify-between">
-					<Button type="submit" variant="destructive" disabled={isSubmitting}>
+				<Dialog.Footer class="justify-between">
+					<Button
+						type="submit"
+						variant="destructive"
+						disabled={isSubmitting || selectedTimetable?.status === 'Published'}
+					>
 						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
 						Unschedule Class
 					</Button>
 					<Button type="button" variant="outline" onclick={() => (editModalOpen = false)}
-						>Cancel</Button
+						>Close</Button
 					>
-				</div>
+				</Dialog.Footer>
+				{#if selectedTimetable?.status === 'Published'}
+					<p class="text-xs text-destructive mt-2 text-right">
+						Cannot unschedule from a published timetable.
+					</p>
+				{/if}
 			</form>
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}
 
 <style>
-	/* Add some basic styling for the grid cells */
-	[use\:dndzone] {
+	/* Make grid cells at least this high */
+	.grid > div[use\:dndzone] {
 		min-height: 70px;
 	}
 	/* Add visual cue for draggable items */
 	[aria-grabbed='true'] {
-		opacity: 0.7;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		opacity: 0.6;
+		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+		border: 1px solid hsl(var(--primary));
+	}
+	/* Style for scheduled items to take up vertical space */
+	.scheduled-item {
+		/* background-color: hsl(var(--primary) / 0.8); */
+		/* color: hsl(var(--primary-foreground)); */
+		border-left: 3px solid hsl(var(--primary));
+		background-color: hsl(var(--primary) / 0.05);
+		color: hsl(var(--foreground));
 	}
 </style>
