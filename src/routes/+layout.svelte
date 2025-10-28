@@ -25,3 +25,9 @@
 </svelte:head>
 
 {@render children?.()}
+
+<style>
+	html {
+		scroll-behavior: smooth;
+	}
+</style>
