@@ -2,6 +2,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import { toggleMode } from 'mode-watcher';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import {
 		CalendarClock,
 		GraduationCap,
@@ -18,6 +20,7 @@
 		Blocks,
 		Waypoints
 	} from 'lucide-svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
 
 	let y = $state(0); // Scroll position
 	let scrolled = $state(false);
@@ -97,8 +100,9 @@
 				<a href="/login">
 					<Button
 						size="lg"
-						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow"
-						>Login to smart-sched <Rocket class="ml-2 h-5 w-5" /></Button
+						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow animate-pulse "
+						>Login to <div><span class="font-semibold">smart</span>-sched</div>
+						<Rocket class="ml-2 h-5 w-5" /></Button
 					>
 				</a>
 			</div>
@@ -280,11 +284,11 @@
 						</p>
 					</div>
 				</div>
-				<img
+				<!-- <img
 					src={processImage}
 					alt="Scheduling process flow"
 					class="mt-12 rounded-lg shadow-xl hidden md:block"
-				/>
+				/> -->
 			</div>
 		</section>
 
@@ -320,14 +324,93 @@
 					><span class="font-light">-sched</span> . All rights reserved.
 				</p>
 				<div class="mt-4 md:mt-0 space-x-4">
-					<a href="#features" class="hover:text-primary transition-colors">Features</a>
+					<!-- Bottom Right Features (commented due to redundancy) -->
+					<!-- <a href="#features" class="hover:text-primary transition-colors">Features</a>
 					<a href="#how-it-works" class="hover:text-primary transition-colors">How it Works</a>
-					<a href="/login" class="hover:text-primary transition-colors">Login</a>
+					<a href="/login" class="hover:text-primary transition-colors">Login</a> -->
+					<div class="inline-flex items-center space-x-2">
+						<Label for="themeSwitcher">Change theme</Label>
+						<Switch id="themeSwitcher" onclick={toggleMode} class="animate-in" />
+					</div>
 				</div>
 			</div>
 		</footer>
 	</main>
 </div>
+{#if scrolled}
+	<div class="fixed bottom-8 right-8 z-50 animate-bounce">
+		<button
+			class="button bg-primary/80 hover:bg-primary"
+			on:click={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+		>
+			<svg class="svgIcon" viewBox="0 0 384 512">
+				<path
+					d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"
+				></path>
+			</svg>
+		</button>
+	</div>
+{/if}
 
 <svelte:window bind:scrollY={y} />
+
 <!-- Hero Section -->
+
+<style>
+	.button {
+		width: 50px;
+		height: 50px;
+		border-radius: 50%;
+		/* background-color: rgb(20, 20, 20); */
+		border: none;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0px 0px 0px 4px rgba(180, 160, 255, 0.253);
+		cursor: pointer;
+		transition-duration: 0.3s;
+		overflow: hidden;
+		position: relative;
+	}
+
+	.svgIcon {
+		width: 12px;
+		transition-duration: 0.3s;
+	}
+
+	.svgIcon path {
+		fill: white;
+	}
+
+	.button:hover {
+		width: 140px;
+		border-radius: 50px;
+		transition-duration: 0.3s;
+
+		align-items: center;
+	}
+
+	.button:hover .svgIcon {
+		/* width: 20px; */
+		transition-duration: 0.3s;
+		transform: translateY(-200%);
+	}
+
+	.button::before {
+		position: absolute;
+		bottom: -20px;
+		content: 'Back to Top';
+		color: white;
+		/* transition-duration: .3s; */
+		font-size: 0px;
+	}
+
+	.button:hover::before {
+		font-size: 13px;
+		opacity: 1;
+		bottom: unset;
+		/* transform: translateY(-30px); */
+		transition-duration: 0.3s;
+	}
+</style>
