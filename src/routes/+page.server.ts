@@ -10,6 +10,6 @@ export const load = async ({ locals }) => {
 	if (session) {
 		throw redirect(303, '/menu'); // or your desired authenticated page
 	} else {
-		throw redirect(303, '/login'); // or your desired public page
+		throw redirect(303, '/home'); // or your desired public page
 	}
 };
