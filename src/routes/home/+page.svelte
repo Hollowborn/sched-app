@@ -51,8 +51,11 @@
 				href="/"
 				class="flex items-center space-x-2 text-lg font-bold text-foreground"
 			>
-				<!-- <img src="/logo.svg" alt="SmartSched Logo" class="h-8 w-8" /> -->
-				<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span>
+				<!-- <img src="/logo.svg" alt="smart-sched Logo" class="h-8 w-8" /> -->
+				<div class="text-2xl">
+					<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span
+					>
+				</div>
 			</a>
 
 			<!-- Navigation Links -->
@@ -84,7 +87,8 @@
 				<h1
 					class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-foreground drop-shadow-lg"
 				>
-					Effortless Academic Timetables.<br /><span class="text-primary">SmartSched</span> Your Campus.
+					Effortless Academic Timetables.<br /><span class="text-primary">smart</span>-sched Your
+					Campus.
 				</h1>
 				<p class="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
 					Streamlining course, instructor, and room allocations for your university, reducing
@@ -94,7 +98,7 @@
 					<Button
 						size="lg"
 						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow"
-						>Login to SmartSched <Rocket class="ml-2 h-5 w-5" /></Button
+						>Login to smart-sched <Rocket class="ml-2 h-5 w-5" /></Button
 					>
 				</a>
 			</div>
@@ -136,7 +140,7 @@
 						<div
 							class="absolute -bottom-4 -left-4 bg-primary/20 p-4 rounded-lg backdrop-blur-sm text-foreground text-sm font-semibold italic"
 						>
-							Before SmartSched...
+							Before <span class="text-primary">smart</span>-sched...
 						</div>
 					</div>
 				</div>
@@ -299,7 +303,7 @@
 						size="lg"
 						variant="secondary"
 						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow"
-						>Access SmartSched Now <Rocket class="ml-2 h-5 w-5" /></Button
+						>Access smart-sched Now <Rocket class="ml-2 h-5 w-5" /></Button
 					>
 				</a>
 			</div>
@@ -310,7 +314,11 @@
 			<div
 				class="container mx-auto px-4 text-center text-sm md:flex md:justify-between md:items-center"
 			>
-				<p>&copy; {new Date().getFullYear()} SmartSched. All rights reserved.</p>
+				<p>
+					&copy; {new Date().getFullYear()}<span class="font-semibold text-primary">
+						&nbsp; smart</span
+					><span class="font-light">-sched</span> . All rights reserved.
+				</p>
 				<div class="mt-4 md:mt-0 space-x-4">
 					<a href="#features" class="hover:text-primary transition-colors">Features</a>
 					<a href="#how-it-works" class="hover:text-primary transition-colors">How it Works</a>
