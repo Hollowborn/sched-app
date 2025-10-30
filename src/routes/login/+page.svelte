@@ -2,7 +2,7 @@
 	import type { ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { AlertCircle, LoaderCircle } from '@lucide/svelte';
+	import { AlertCircle, LoaderCircle, ChevronLeft } from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -22,7 +22,9 @@
 	let formErrors = $derived(form?.formErrors || {});
 </script>
 
-<div class="flex flex-col min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+<div
+	class="flex flex-col min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 to-background p-4"
+>
 	<div class="w-full max-w-4xl">
 		<Card.Root class=" overflow-hidden shadow-2xl dark:shadow-blue-950/20">
 			<Card.Content class="grid p-0 md:grid-cols-2">
@@ -166,6 +168,9 @@
 	>
 		<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span>
 	</h1>
+	<div class="absolute top-0 right-0 m-4">
+		<Button variant="secondary" href="/home"><ChevronLeft />Go back</Button>
+	</div>
 	<!-- <div class="fixed items-center mt-6 bottom-0">
 		<Separator />
 		<Label class="m-2 text-muted-foreground text-sm"
