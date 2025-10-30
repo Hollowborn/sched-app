@@ -18,7 +18,10 @@
 		CheckCircle2,
 		Clock,
 		Blocks,
-		Waypoints
+		Waypoints,
+		SunMoon,
+		ChevronDown,
+		Sparkle
 	} from 'lucide-svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 
@@ -81,11 +84,6 @@
 		<section
 			class="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-background"
 		>
-			<img
-				src={heroImage}
-				alt="Abstract scheduling background"
-				class="absolute inset-0 w-full h-full object-cover opacity-20"
-			/>
 			<div class="relative z-10 text-center max-w-4xl px-4 space-y-6">
 				<h1
 					class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-foreground drop-shadow-lg"
@@ -160,7 +158,9 @@
 				</h2>
 
 				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<ShieldCheck class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Role-Based Access</h3>
@@ -172,7 +172,9 @@
 						<!-- <img src={featuresImage1} alt="Role-based access" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<Database class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Centralized Resources</h3>
@@ -184,7 +186,9 @@
 						<!-- <img src={featuresImage2} alt="Resource management" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<Workflow class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Academic Planning</h3>
@@ -196,7 +200,9 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<Laptop class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Intuitive Scheduler</h3>
@@ -208,7 +214,9 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<Users class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">User Management</h3>
@@ -219,7 +227,9 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 space-y-4 hover:shadow-md transition-shadow">
+					<Card.Root
+						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
+					>
 						<div class="flex items-center gap-3">
 							<CheckCircle2 class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Conflict-Free Output</h3>
@@ -240,7 +250,7 @@
 				<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12">
 					Simple Steps to a Smarter Timetable
 				</h2>
-				<div class="grid md:grid-cols-3 gap-8 items-start">
+				<div class="flex-col gap-8 items-start">
 					<div class="space-y-4 text-center">
 						<div
 							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
@@ -254,7 +264,7 @@
 						</p>
 					</div>
 					<div class="flex justify-center items-center my-4 md:my-0">
-						<Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-0" />
+						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-0" /> -->
 					</div>
 					<div class="space-y-4 text-center">
 						<div
@@ -269,7 +279,7 @@
 						</p>
 					</div>
 					<div class="flex justify-center items-center my-4 md:my-0 md:col-span-1 md:col-start-2">
-						<Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-180" />
+						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-180" /> -->
 					</div>
 					<div class="space-y-4 text-center md:col-start-3">
 						<div
@@ -321,7 +331,7 @@
 				<p>
 					&copy; {new Date().getFullYear()}<span class="font-semibold text-primary">
 						&nbsp; smart</span
-					><span class="font-light">-sched</span> . All rights reserved.
+					><span class="font-light">-sched</span>. All rights reserved.
 				</p>
 				<div class="mt-4 md:mt-0 space-x-4">
 					<!-- Bottom Right Features (commented due to redundancy) -->
@@ -329,7 +339,7 @@
 					<a href="#how-it-works" class="hover:text-primary transition-colors">How it Works</a>
 					<a href="/login" class="hover:text-primary transition-colors">Login</a> -->
 					<div class="inline-flex items-center space-x-2">
-						<Label for="themeSwitcher">Change theme</Label>
+						<Label for="themeSwitcher"><SunMoon />Change theme</Label>
 						<Switch id="themeSwitcher" onclick={toggleMode} class="animate-in" />
 					</div>
 				</div>
