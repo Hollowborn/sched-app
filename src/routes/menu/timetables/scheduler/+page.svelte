@@ -3,7 +3,6 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
 	import {
@@ -20,8 +19,18 @@
 		Trash2,
 		LoaderCircle,
 		CheckCircle,
-		GripVertical
+		GripVertical,
+		ChevronLeft,
+		ChevronRight
 	} from '@lucide/svelte';
+
+	// New state for filters
+	// let selectedRoomFilter = $state<string | undefined>(undefined);
+	// let selectedBlockFilter = $state<string | undefined>(undefined);
+	// let selectedInstructorFilter = $state<string | undefined>(undefined);
+
+	// State for drag and drop
+	let draggedItem: UnscheduledClass | null = $state(null);
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
@@ -35,8 +44,7 @@
 
 	// Type Definitions matching server load function
 	type UnscheduledClass = {
-		id: string; // <-- MODIFIED: Now a unique string like "101-Lecture" for dndzone
-		original_class_id: number; // <-- ADDED: Store the original numeric ID
+		id: number; // Original numeric ID
 		course_type: 'Lecture' | 'Lab';
 		hours: number;
 		subjects: { id: number; subject_code: string; subject_name: string; college_id: number };
@@ -69,12 +77,33 @@
 		features: string[] | null;
 	};
 
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	type Instructor = { id: number; name: string };
+	type Block = { id: number; block_name: string };
+
+	let { data, form } = $props<{
+		data: PageData & {
+			filters: {
+				academic_year: string;
+				semester: '1st Semester' | '2nd Semester' | 'Summer';
+				timetableId: number | null;
+				room_id?: string;
+				block_id?: string;
+				instructor_id?: string;
+			};
+			allRooms: Room[];
+			allBlocks: Block[];
+			allInstructors: Instructor[];
+		};
+		form: ActionData;
+	}>();
 
 	// --- Component & Dnd State ---
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
 	let selectedTimetableId = $state(data.filters.timetableId?.toString() ?? undefined);
+	let selectedRoomFilter = $state<string | undefined>(data.filters.room_id);
+	let selectedBlockFilter = $state<string | undefined>(data.filters.block_id);
+	let selectedInstructorFilter = $state<string | undefined>(data.filters.instructor_id);
 	let unscheduledList = $state<UnscheduledClass[]>([]); // Will be populated by $effect
 	let scheduleGrid = $state<{ [key: string]: ScheduledItem[] }>({}); // Store grid data keyed by "day-startTime"
 	let isSubmitting = $state(false); // For modal forms
@@ -101,7 +130,7 @@
 	// Populate scheduleGrid when data loads/changes
 	$effect(() => {
 		const grid: { [key: string]: ScheduledItem[] } = {};
-		(data.scheduleData || []).forEach((item) => {
+		(data.scheduleData || []).forEach((item: ScheduledItem) => {
 			const key = `${item.day_of_week}-${item.start_time.substring(0, 5)}`; // Key by "Monday-08:00"
 			if (!grid[key]) {
 				grid[key] = [];
@@ -110,40 +139,13 @@
 		});
 		scheduleGrid = grid;
 
-		// --- DND FIX ---
-		// Map the server data to create a list with UNIQUE string IDs for dndzone.
-		// The `id` property on each item *must* be unique.
-		unscheduledList = (data.unscheduledClasses || []).map((item) => ({
-			...item,
-			original_class_id: item.id, // Store the original numeric class_id
-			id: `${item.id}-${item.course_type}` // Create the new unique string id, e.g., "101-Lecture"
-		}));
+		// Populate unscheduledList directly from data, no dndzone specific ID modification needed
+		unscheduledList = data.unscheduledClasses || [];
 	});
-
-	// Dnd configuration
-	const flipDurationMs = 150;
-	function handleDndConsider(
-		e: CustomEvent<{
-			items: UnscheduledClass[];
-			info: { id: string; sourceType: string; trigger: TRIGGERS }; // <-- MODIFIED: id is string
-		}>
-	) {
-		// This updates the list while dragging for visual feedback
-		// unscheduledList = e.detail.items;
-	}
-	function handleDndFinalize(
-		e: CustomEvent<{
-			items: UnscheduledClass[];
-			info: { id: string; sourceType: string; trigger: TRIGGERS }; // <-- MODIFIED: id is string
-		}>
-	) {
-		// This updates the list if the item is dropped back into the source list
-		unscheduledList = e.detail.items;
-	}
 
 	// --- Derived State ---
 	const selectedTimetable = $derived(
-		data.availableTimetables.find((t) => t.id === Number(selectedTimetableId))
+		data.availableTimetables.find((t: any) => t.id === Number(selectedTimetableId))
 	);
 
 	// --- Event Handlers ---
@@ -153,6 +155,15 @@
 		params.set('semester', semester);
 		if (selectedTimetableId) {
 			params.set('timetableId', selectedTimetableId);
+		}
+		if (selectedRoomFilter) {
+			params.set('room_id', selectedRoomFilter);
+		}
+		if (selectedBlockFilter) {
+			params.set('block_id', selectedBlockFilter);
+		}
+		if (selectedInstructorFilter) {
+			params.set('instructor_id', selectedInstructorFilter);
 		}
 		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true, replaceState: false });
 	}
@@ -167,16 +178,94 @@
 		return years;
 	}
 
-	async function handleDropOnGrid(
-		day: string,
-		startTime: string,
-		droppedItemInfo: { id: string; sourceType: string }
-	) {
-		if (droppedItemInfo.sourceType !== 'unscheduled') return; // Only handle drops from the unscheduled list
+	// Navigation helper functions
+	function getCurrentFilterIndex(filterType: 'room' | 'block' | 'instructor', currentValue?: string): number {
+		if (!currentValue) return -1;
+		const id = parseInt(currentValue);
+		
+		if (filterType === 'room') {
+			return data.allRooms.findIndex((r: Room) => r.id === id);
+		} else if (filterType === 'block') {
+			return data.allBlocks.findIndex((b: Block) => b.id === id);
+		} else if (filterType === 'instructor') {
+			return data.allInstructors.findIndex((i: Instructor) => i.id === id);
+		}
+		return -1;
+	}
 
-		// droppedItemInfo.id is now the unique string, e.g., "101-Lecture"
-		// Find the item in our *modified* list
-		const droppedItemData = unscheduledList.find((item) => item.id === droppedItemInfo.id);
+	function navigateFilter(filterType: 'room' | 'block' | 'instructor', direction: 'prev' | 'next') {
+		let currentValue: string | undefined;
+		let list: Room[] | Block[] | Instructor[];
+		let setFilter: (value: string | undefined) => void;
+
+		if (filterType === 'room') {
+			currentValue = selectedRoomFilter;
+			list = data.allRooms;
+			setFilter = (v) => { selectedRoomFilter = v; };
+		} else if (filterType === 'block') {
+			currentValue = selectedBlockFilter;
+			list = data.allBlocks;
+			setFilter = (v) => { selectedBlockFilter = v; };
+		} else {
+			currentValue = selectedInstructorFilter;
+			list = data.allInstructors;
+			setFilter = (v) => { selectedInstructorFilter = v; };
+		}
+
+		const currentIndex = getCurrentFilterIndex(filterType, currentValue);
+		let newIndex = currentIndex;
+
+		if (direction === 'prev') {
+			newIndex = currentIndex - 1;
+			if (newIndex < 0) newIndex = list.length - 1; // Wrap to end
+		} else {
+			newIndex = currentIndex + 1;
+			if (newIndex >= list.length) newIndex = 0; // Wrap to beginning
+		}
+
+		setFilter(list[newIndex].id.toString());
+		handleFilterChange();
+	}
+
+	const hasRoomFilter = $derived(!!selectedRoomFilter);
+	const hasBlockFilter = $derived(!!selectedBlockFilter);
+	const hasInstructorFilter = $derived(!!selectedInstructorFilter);
+
+	function handleDragStart(event: DragEvent, classItem: UnscheduledClass) {
+		if (selectedTimetable?.status === 'Published') {
+			event.preventDefault();
+			return;
+		}
+		draggedItem = classItem;
+		event.dataTransfer?.setData('text/plain', JSON.stringify(classItem));
+		event.dataTransfer?.setDragImage(event.currentTarget as Element, 0, 0);
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault(); // Necessary to allow dropping
+		if (selectedTimetable?.status === 'Published') {
+			return;
+		}
+		const target = event.currentTarget as HTMLElement;
+		target.style.outline = '2px dashed hsl(var(--primary))';
+		target.style.outlineOffset = '-2px';
+	}
+
+	function handleDragLeave(event: DragEvent) {
+		const target = event.currentTarget as HTMLElement;
+		target.style.outline = '';
+	}
+
+	async function handleDrop(event: DragEvent, day: string, startTime: string) {
+		event.preventDefault();
+		const target = event.currentTarget as HTMLElement;
+		target.style.outline = ''; // Remove highlight
+
+		if (selectedTimetable?.status === 'Published') {
+			return;
+		}
+
+		const droppedItemData: UnscheduledClass | null = draggedItem;
 		if (!droppedItemData) return;
 
 		// Calculate end time
@@ -184,12 +273,8 @@
 		const end = calculateEndTimeString(startTime, duration);
 
 		// --- Basic Room Filtering (Client-side estimate) ---
-		// TODO: Enhance this with block capacity check and real-time availability check via server later
 		const requiredType = droppedItemData.course_type === 'Lab' ? 'Lab' : undefined;
-		availableRooms = data.rooms.filter(
-			(r) => !requiredType || r.type === requiredType
-			// && r.capacity >= blockCapacity // Need block capacity data
-		);
+		availableRooms = data.allRooms.filter((r: Room) => !requiredType || r.type === requiredType);
 
 		// Filter rooms already booked in this exact slot (client-side approximation)
 		const bookedRoomIds = (scheduleGrid[`${day}-${startTime}`] || []).map((item) => item.room_id);
@@ -210,6 +295,7 @@
 		scheduleRoomId = undefined; // Reset room selection
 		await tick(); // Ensure state updates before opening modal
 		scheduleModalOpen = true;
+		draggedItem = null; // Reset dragged item
 	}
 
 	function calculateEndTimeString(startTime: string, durationHours: number): string {
@@ -228,7 +314,7 @@
 		itemToEdit = scheduleEntry;
 		editRoomId = scheduleEntry.room_id.toString();
 		// TODO: Filter available rooms for editing based on the *original* time slot
-		editAvailableRooms = data.rooms;
+		editAvailableRooms = data.allRooms;
 		editModalOpen = true;
 	}
 
@@ -243,21 +329,6 @@
 			start: `${formattedHour}:00`,
 			end: `${nextHour.toString().padStart(2, '0')}:00`
 		};
-	});
-
-	// --- Effects for Toasts from Form Actions ---
-	$effect(() => {
-		// Check for specific error keys from server actions
-		const errorKey = form?.createError || form?.scheduleError;
-		if (errorKey) {
-			toast.error(errorKey);
-			// Clear the specific error after showing
-			if (form?.createError) form.createError = undefined;
-			if (form?.scheduleError) form.scheduleError = undefined;
-		} else if (form?.message) {
-			toast.success(form.message);
-			form.message = undefined; // Clear success message
-		}
 	});
 </script>
 
@@ -282,10 +353,10 @@
 							const toastId = toast.loading('Publishing timetable...');
 							return async ({ update, result }) => {
 								if (result.type === 'success') {
-									toast.success(result.data?.message, { id: toastId });
+									toast.success(String(result.data?.message), { id: toastId });
 									await invalidateAll(); // Refresh to new status
 								} else if (result.type === 'failure') {
-									toast.error(result.data?.message, { id: toastId });
+									toast.error(String(result.data?.message), { id: toastId });
 								}
 								await update({ reset: false });
 							};
@@ -345,7 +416,6 @@
 			<div class="flex-1 flex items-center gap-2 min-w-[300px]">
 				<Label for="timetable-select" class="shrink-0 font-medium">Active Timetable:</Label>
 				<Select.Root
-					id="timetable-select"
 					type="single"
 					value={selectedTimetableId}
 					onValueChange={(v) => {
@@ -376,6 +446,142 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
+
+			<!-- New Filters with Navigation -->
+			<div class="flex items-center gap-2">
+				<DoorOpen class="h-4 w-4 text-muted-foreground" />
+				{#if hasRoomFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('room', 'prev')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+				{/if}
+				<Select.Root
+					type="single"
+					value={selectedRoomFilter}
+					onValueChange={(v) => {
+						selectedRoomFilter = v === '' ? undefined : v;
+						handleFilterChange();
+					}}
+				>
+					<Select.Trigger class="w-[150px]">
+						<span
+							>{data.allRooms.find((r: Room) => r.id.toString() === selectedRoomFilter)?.room_name ||
+								'All Rooms'}</span
+						>
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="">All Rooms</Select.Item>
+						{#each data.allRooms as room}
+							<Select.Item value={room.id.toString()}>{room.room_name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				{#if hasRoomFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('room', 'next')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+				{/if}
+			</div>
+
+			<div class="flex items-center gap-2">
+				<Users class="h-4 w-4 text-muted-foreground" />
+				{#if hasBlockFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('block', 'prev')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+				{/if}
+				<Select.Root
+					type="single"
+					value={selectedBlockFilter}
+					onValueChange={(v) => {
+						selectedBlockFilter = v === '' ? undefined : v;
+						handleFilterChange();
+					}}
+				>
+					<Select.Trigger class="w-[150px]">
+						<span
+							>{data.allBlocks.find((b: Block) => b.id.toString() === selectedBlockFilter)?.block_name ||
+								'All Blocks'}</span
+						>
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="">All Blocks</Select.Item>
+						{#each data.allBlocks as block}
+							<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				{#if hasBlockFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('block', 'next')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+				{/if}
+			</div>
+
+			<div class="flex items-center gap-2">
+				<UserIcon class="h-4 w-4 text-muted-foreground" />
+				{#if hasInstructorFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('instructor', 'prev')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+				{/if}
+				<Select.Root
+					type="single"
+					value={selectedInstructorFilter}
+					onValueChange={(v) => {
+						selectedInstructorFilter = v === '' ? undefined : v;
+						handleFilterChange();
+					}}
+				>
+					<Select.Trigger class="w-[150px]">
+						<span
+							>{data.allInstructors.find((i: Instructor) => i.id.toString() === selectedInstructorFilter)
+								?.name || 'All Instructors'}</span
+						>
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="">All Instructors</Select.Item>
+						{#each data.allInstructors as instructor}
+							<Select.Item value={instructor.id.toString()}>{instructor.name}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				{#if hasInstructorFilter}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => navigateFilter('instructor', 'next')}
+						class="h-8 w-8 p-0"
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+				{/if}
+			</div>
 		</Card.Content>
 	</Card.Root>
 
@@ -399,18 +605,13 @@
 				<h2 class="text-lg font-semibold px-1">Available Classes ({unscheduledList.length})</h2>
 				<div
 					class="space-y-3 max-h-[calc(100vh-180px)] overflow-y-auto border rounded-lg p-2 bg-muted/30"
-					use:dndzone={{
-						items: unscheduledList,
-						flipDurationMs,
-						dragDisabled: selectedTimetable?.status === 'Published',
-						type: 'unscheduled' // Identify the source zone
-					}}
-					onconsider={handleDndConsider}
-					onfinalize={handleDndFinalize}
 				>
-					<!-- MODIFIED: Use the new unique string `id` as the key -->
 					{#each unscheduledList as classItem (classItem.id)}
-						<div animate:flip={{ duration: flipDurationMs }} class="unscheduled-item-source">
+						<div
+							draggable="true"
+							ondragstart={(e) => handleDragStart(e, classItem)}
+							class="unscheduled-item-source"
+						>
 							<Card.Root
 								class="cursor-grab active:cursor-grabbing bg-card shadow-sm hover:shadow-md transition-shadow"
 							>
@@ -468,47 +669,15 @@
 							{@const slotKey = `${day}-${slot.start}`}
 							<div
 								class="border-r border-t min-h-[70px] p-0.5 relative hover:bg-muted/50 transition-colors"
-								use:dndzone={{
-									items: scheduleGrid[slotKey] || [], // Pass existing items if any
-									dropFromOthersDisabled: false,
-									type: 'grid' // Identify the target zone
-								}}
-								onconsider={(
-									e: CustomEvent<{
-										items: ScheduledItem[];
-										info: { id: string; sourceType: string }; // <-- MODIFIED: id is string
-									}>
-								) => {
-									// Highlight cell on hover
-									if (e.detail.info.sourceType !== 'grid') {
-										// Don't highlight if dragging within grid
-										(e.target as HTMLElement).style.outline = '2px dashed hsl(var(--primary))';
-										(e.target as HTMLElement).style.outlineOffset = '-2px';
-									}
-								}}
-								onfinalize={(
-									e: CustomEvent<{
-										items: ScheduledItem[];
-										info: { id: string; sourceType: string }; // <-- MODIFIED: id is string
-									}>
-								) => {
-									(e.target as HTMLElement).style.outline = ''; // Remove highlight
-
-									// Check if the drop originated from the unscheduled list
-									if (e.detail.info.sourceType === 'unscheduled') {
-										handleDropOnGrid(day, slot.start, {
-											id: e.detail.info.id as string,
-											sourceType: 'unscheduled'
-										});
-									}
-									// TODO: Handle drops originating FROM the grid (reordering/moving)
-								}}
+								ondragover={handleDragOver}
+								ondragleave={handleDragLeave}
+								ondrop={(e) => handleDrop(e, day, slot.start)}
 							>
 								<!-- Render existing scheduled items for this slot -->
 								{#each scheduleGrid[slotKey] || [] as scheduledItem (scheduledItem.id)}
 									{@const durationFactor =
-										(new Date(`1970-01-01T${scheduledItem.end_time}`) -
-											new Date(`1970-01-01T${scheduledItem.start_time}`)) /
+										(Number(new Date(`1970-01-01T${scheduledItem.end_time}`)) -
+										Number(new Date(`1970-01-01T${scheduledItem.start_time}`))) /
 										(1000 * 60 * 60)}
 									<button
 										type="button"
@@ -555,7 +724,7 @@
 						createTimetableOpen = false;
 						// Let SvelteKit handle the redirect from the server action
 					} else if (result.type === 'failure') {
-						toast.error(result.data?.createError || 'Failed to create.', { id: toastId });
+						toast.error(String(result.data?.createError) || 'Failed to create.', { id: toastId });
 					}
 					await update({ reset: false }); // Don't reset filters
 				};
@@ -614,19 +783,21 @@
 				return async ({ update, result }) => {
 					isSubmitting = false;
 					if (result.type === 'success') {
-						toast.success(result.data?.message, { id: toastId });
+						toast.success(String(result.data?.message), { id: toastId });
 						scheduleModalOpen = false;
-						invalidateAll(); // Reload all data
 					} else if (result.type === 'failure') {
-						toast.error(result.data?.scheduleError || 'Failed to schedule.', { id: toastId });
+						toast.error(String(result.data?.scheduleError) || 'Failed to schedule.', { id: toastId });
 					}
 					await update({ reset: false });
+					// Invalidate after update to ensure fresh data
+					if (result.type === 'success') {
+						await invalidateAll();
+					}
 				};
 			}}
 		>
 			<input type="hidden" name="timetable_id" value={selectedTimetableId} />
-			<!-- MODIFIED: Use the original numeric ID for the form submission -->
-			<input type="hidden" name="class_id" value={itemToSchedule?.original_class_id} />
+			<input type="hidden" name="class_id" value={itemToSchedule?.id} />
 			<input type="hidden" name="day_of_week" value={scheduleDay} />
 			<input type="hidden" name="start_time" value={scheduleStartTime} />
 			<input type="hidden" name="end_time" value={scheduleEndTime} />
@@ -636,7 +807,7 @@
 				<div class="space-y-2">
 					<Label for="schedule-room">Room</Label>
 					<Select.Root type="single" name="room_id" bind:value={scheduleRoomId}>
-						<Select.Trigger><span>"Select an available room"</span></Select.Trigger>
+						<Select.Trigger><span>{scheduleRoomId || "Select an available room"}</span></Select.Trigger>
 						<Select.Content>
 							{#if availableRooms.length > 0}
 								{#each availableRooms as room}
@@ -700,14 +871,17 @@
 					const toastId = toast.loading('Unscheduling class...');
 					return async ({ update, result }) => {
 						isSubmitting = false;
-						if (result.type === 'success') {
-							toast.success(result.data?.message, { id: toastId });
-							editModalOpen = false;
-							invalidateAll(); // Reload all data
-						} else if (result.type === 'failure') {
-							toast.error(result.data?.scheduleError || 'Failed.', { id: toastId });
-						}
+					if (result.type === 'success') {
+						toast.success(String(result.data?.message), { id: toastId });
+						editModalOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(String(result.data?.scheduleError) || 'Failed.', { id: toastId });
+					}
 						await update({ reset: false });
+						// Invalidate after update to ensure fresh data
+						if (result.type === 'success') {
+							await invalidateAll();
+						}
 					};
 				}}
 			>

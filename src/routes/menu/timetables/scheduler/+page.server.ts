@@ -47,6 +47,11 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	const timetable_id_str = url.searchParams.get('timetableId');
 	let selectedTimetableId: number | null = timetable_id_str ? parseInt(timetable_id_str) : null;
 
+	// New filters
+	const room_id_filter = url.searchParams.get('room_id');
+	const block_id_filter = url.searchParams.get('block_id');
+	const instructor_id_filter = url.searchParams.get('instructor_id');
+
 	// --- 2. Fetch Available Timetables for the selected term ---
 	let timetableQuery = locals.supabase
 		.from('timetables')
@@ -76,10 +81,14 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	// --- 3. Fetch Data based on Filters (only if a timetable is selected/exists) ---
 	let classes: any[] = [];
 	let scheduleData: any[] = [];
-	let rooms: any[] = [];
-	let instructors: any[] = [];
-	let blocks: any[] = [];
 	let unscheduledClasses: any[] = [];
+
+	// Fetch all rooms, instructors, and blocks for filter dropdowns
+	const [{ data: allRooms }, { data: allInstructors }, { data: allBlocks }] = await Promise.all([
+		locals.supabase.from('rooms').select('id, room_name, capacity, type, features'),
+		locals.supabase.from('instructors').select('id, name'),
+		locals.supabase.from('blocks').select('id, block_name, program_id, year_level')
+	]);
 
 	if (selectedTimetableId) {
 		// Fetch ALL classes for the term (+ college filter for Dean)
@@ -95,10 +104,6 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			)
 			.eq('academic_year', academic_year)
 			.eq('semester', semester);
-
-		// Apply college filter for Deans AFTER fetching all classes for the term
-		// This ensures Admins see all classes but Deans only see relevant ones in the 'unscheduled' list later
-		// let deanCollegeId = (userRole === 'Dean' && locals.profile?.college_id) ? locals.profile.college_id : null;
 
 		const { data: fetchedClasses, error: classesError } = await classesQuery;
 		if (classesError) {
@@ -117,7 +122,9 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
                     id,
                     subjects!inner (subject_code, subject_name),
                     instructors (name),
-                    blocks!inner (block_name)
+                    blocks!inner (block_name),
+                    instructor_id,
+                    block_id
                 ),
                 rooms (room_name)
             `
@@ -128,34 +135,43 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 			console.error('Schedule Data Error:', scheduleError);
 			throw error(500, 'Could not load schedule data.');
 		}
-		scheduleData = fetchedScheduleData || [];
 
-		// Fetch supporting data for dropdowns and display
-		const [{ data: fetchedRooms }, { data: fetchedInstructors }, { data: fetchedBlocks }] =
-			await Promise.all([
-				locals.supabase.from('rooms').select('*'),
-				locals.supabase.from('instructors').select('id, name'),
-				// Only fetch blocks relevant to the classes fetched for the term
-				locals.supabase
-					.from('blocks')
-					.select('id, block_name, program_id, year_level')
-					.in(
-						'id',
-						classes.map((c) => c.block_id)
-					)
-			]);
-
-		rooms = fetchedRooms || [];
-		instructors = fetchedInstructors || [];
-		blocks = fetchedBlocks || []; // Use filtered blocks
+		// Transform Supabase's 'classes' (plural) to 'class' (singular) to match frontend expectations
+		const transformedScheduleData = (fetchedScheduleData || []).map((entry: any) => {
+			const { classes, ...rest } = entry;
+			return {
+				...rest,
+				class: classes // Rename 'classes' to 'class'
+			};
+		});
+		
+		// Apply filters to schedule data (client-side filtering)
+		let filteredScheduleData = transformedScheduleData;
+		if (room_id_filter) {
+			filteredScheduleData = filteredScheduleData.filter(
+				(entry) => entry.room_id === parseInt(room_id_filter)
+			);
+		}
+		if (block_id_filter) {
+			filteredScheduleData = filteredScheduleData.filter(
+				(entry) => entry.class?.block_id === parseInt(block_id_filter)
+			);
+		}
+		if (instructor_id_filter) {
+			filteredScheduleData = filteredScheduleData.filter(
+				(entry) => entry.class?.instructor_id === parseInt(instructor_id_filter)
+			);
+		}
+		scheduleData = filteredScheduleData;
 
 		// --- 4. Calculate Unscheduled Classes ---
-		const scheduledClassEntries = new Map<string, { lecture: boolean; lab: boolean }>();
+		const scheduledClassEntries = new Map<number, { lecture: boolean; lab: boolean }>();
 		scheduleData.forEach((entry) => {
-			const classKey = entry.classes?.id; // Use optional chaining
+			const classKey = entry.class?.id; // Use 'class' (singular) after transformation
 			if (!classKey) return; // Skip if class data is missing
 
-			const key = `${classKey}-${entry.course_type}`;
+			// Use original class ID for tracking scheduled status
+			const key = classKey;
 			if (!scheduledClassEntries.has(key)) {
 				scheduledClassEntries.set(key, { lecture: false, lab: false });
 			}
@@ -164,19 +180,35 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		});
 
 		// Filter classes based on Dean's college *before* calculating unscheduled
-		const relevantClasses =
+		let filteredClasses =
 			userRole === 'Dean' && locals.profile?.college_id
 				? classes.filter((cls) => cls.subjects?.college_id === locals.profile?.college_id)
 				: classes;
 
-		unscheduledClasses = relevantClasses.flatMap((cls) => {
+		// Apply additional filters from URL search params
+		if (room_id_filter) {
+			// This filter is tricky for unscheduled classes as they don't have a room yet.
+			// We'll apply it to classes that *could* be scheduled in that room type.
+			// For now, we'll skip filtering unscheduled by room_id directly.
+			// A more complex solution would involve checking room types vs. class types (Lecture/Lab)
+		}
+		if (block_id_filter) {
+			filteredClasses = filteredClasses.filter((cls) => cls.block_id === parseInt(block_id_filter));
+		}
+		if (instructor_id_filter) {
+			filteredClasses = filteredClasses.filter(
+				(cls) => cls.instructor_id === parseInt(instructor_id_filter)
+			);
+		}
+
+		unscheduledClasses = filteredClasses.flatMap((cls) => {
 			// Ensure cls.subjects exists before accessing its properties
 			if (!cls.subjects) return [];
 
 			const needsLec = Number(cls.subjects.lecture_hours) > 0;
 			const needsLab = Number(cls.subjects.lab_hours) > 0;
-			const scheduledLec = scheduledClassEntries.get(`${cls.id}-Lecture`)?.lecture ?? false;
-			const scheduledLab = scheduledClassEntries.get(`${cls.id}-Lab`)?.lab ?? false;
+			const scheduledLec = scheduledClassEntries.get(cls.id)?.lecture ?? false;
+			const scheduledLab = scheduledClassEntries.get(cls.id)?.lab ?? false;
 
 			const items = [];
 			if (needsLec && !scheduledLec) {
@@ -194,11 +226,18 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		selectedTimetable,
 		unscheduledClasses,
 		scheduleData,
-		rooms,
-		instructors,
-		blocks, // Pass all blocks needed for filtering/selection
+		allRooms: allRooms || [],
+		allInstructors: allInstructors || [],
+		allBlocks: allBlocks || [],
 		profile: locals.profile,
-		filters: { academic_year, semester, timetableId: selectedTimetableId }
+		filters: {
+			academic_year,
+			semester,
+			timetableId: selectedTimetableId,
+			room_id: room_id_filter || undefined,
+			block_id: block_id_filter || undefined,
+			instructor_id: instructor_id_filter || undefined
+		}
 	};
 };
 
@@ -233,7 +272,7 @@ export const actions: Actions = {
 				semester,
 				college_id,
 				created_by: locals.user?.id,
-				status: 'draft' // Ensure this matches ENUM ('Draft', 'Published', 'Archived')
+				status: 'Draft' // Ensure this matches ENUM ('Draft', 'Published', 'Archived')
 			})
 			.select('id')
 			.single();
@@ -360,8 +399,7 @@ export const actions: Actions = {
 			day_of_week,
 			start_time,
 			end_time,
-			course_type,
-			status: 'Draft' // Always add as Draft initially
+			course_type
 		});
 
 		if (insertError) {
@@ -415,7 +453,7 @@ export const actions: Actions = {
 
 		const { error: updateError } = await locals.supabase
 			.from('timetables')
-			.update({ status: 'published' }) // Ensure this matches ENUM
+			.update({ status: 'Published' }) // Ensure this matches ENUM
 			.eq('id', timetableId);
 
 		if (updateError) {
