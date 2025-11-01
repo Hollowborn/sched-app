@@ -21,7 +21,9 @@
 		Waypoints,
 		SunMoon,
 		ChevronDown,
-		Sparkle
+		Sparkle,
+		ChevronUp,
+		ArrowUp
 	} from 'lucide-svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 
@@ -58,7 +60,9 @@
 				class="flex items-center space-x-2 text-lg font-bold text-foreground"
 			>
 				<!-- <img src="/logo.svg" alt="smart-sched Logo" class="h-8 w-8" /> -->
-				<div class="text-2xl">
+				<div
+					class="text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight mb-2"
+				>
 					<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span
 					>
 				</div>
@@ -66,10 +70,14 @@
 
 			<!-- Navigation Links -->
 			<div class="flex items-center space-x-6">
-				<a href="#features" class="text-sm font-medium hover:text-primary transition-colors"
+				<a
+					href="#features"
+					class="hidden md:flex text-sm font-medium hover:text-primary transition-colors"
 					>Features</a
 				>
-				<a href="#how-it-works" class="text-sm font-medium hover:text-primary transition-colors"
+				<a
+					href="#how-it-works"
+					class="hidden md:flex text-sm font-medium hover:text-primary transition-colors"
 					>How it Works</a
 				>
 				<a href="/login" class="text-sm font-medium">
@@ -312,14 +320,16 @@
 					Join your university in embracing a smarter, more efficient way to manage academic
 					timetables.
 				</p>
-				<a href="/login">
+				<div>
+					<Button class="bg-white/45">Explore Options</Button>
 					<Button
 						size="lg"
 						variant="secondary"
+						href="/login"
 						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow"
 						>Access smart-sched Now <Rocket class="ml-2 h-5 w-5" /></Button
 					>
-				</a>
+				</div>
 			</div>
 		</section>
 
@@ -349,78 +359,22 @@
 </div>
 {#if scrolled}
 	<div class="fixed bottom-8 right-8 z-50 animate-bounce">
-		<button
-			class="button bg-primary/80 hover:bg-primary"
-			on:click={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+		<Button
+			class="button bg-primary/80 hover:bg-primary "
+			onclick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
 		>
-			<svg class="svgIcon" viewBox="0 0 384 512">
+			<!-- Icon Options -->
+			<!-- <ChevronUp /> -->
+			<ArrowUp />
+			<!-- <svg class="svgIcon" viewBox="0 0 384 512">
 				<path
 					d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"
 				></path>
-			</svg>
-		</button>
+			</svg> -->
+		</Button>
 	</div>
 {/if}
 
 <svelte:window bind:scrollY={y} />
 
 <!-- Hero Section -->
-
-<style>
-	.button {
-		width: 50px;
-		height: 50px;
-		border-radius: 50%;
-		/* background-color: rgb(20, 20, 20); */
-		border: none;
-		font-weight: 600;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0px 0px 0px 4px rgba(180, 160, 255, 0.253);
-		cursor: pointer;
-		transition-duration: 0.3s;
-		overflow: hidden;
-		position: relative;
-	}
-
-	.svgIcon {
-		width: 12px;
-		transition-duration: 0.3s;
-	}
-
-	.svgIcon path {
-		fill: white;
-	}
-
-	.button:hover {
-		width: 140px;
-		border-radius: 50px;
-		transition-duration: 0.3s;
-
-		align-items: center;
-	}
-
-	.button:hover .svgIcon {
-		/* width: 20px; */
-		transition-duration: 0.3s;
-		transform: translateY(-200%);
-	}
-
-	.button::before {
-		position: absolute;
-		bottom: -20px;
-		content: 'Back to Top';
-		color: white;
-		/* transition-duration: .3s; */
-		font-size: 0px;
-	}
-
-	.button:hover::before {
-		font-size: 13px;
-		opacity: 1;
-		bottom: unset;
-		/* transform: translateY(-30px); */
-		transition-duration: 0.3s;
-	}
-</style>
