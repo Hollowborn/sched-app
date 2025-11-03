@@ -329,7 +329,7 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="create-email">Email Address</Label>
-					<Input id="create-email" name="email" type="email" required />
+					<Input id="create-email" name="email" type="email" placeholder="Optional" />
 				</div>
 				<div class="space-y-2">
 					<Label for="create-college">College</Label>
