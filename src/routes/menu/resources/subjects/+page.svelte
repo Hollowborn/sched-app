@@ -44,7 +44,7 @@
 	let createName = $state('');
 	let createLecHours = $state(3.0);
 	let createLabHours = $state(0.0);
-	let createCollegeId = $state('');
+	let createCollegeId = $state<string[]>([]);
 
 	let editCode = $state('');
 	let editName = $state('');
@@ -53,8 +53,11 @@
 	let editCollegeId = $state('');
 
 	// --- Derived State ---
-	const createCollegeName = $derived(
-		data.colleges?.find((c) => c.id.toString() === createCollegeId)?.college_name
+	const createCollegeNames = $derived(
+		createCollegeId
+			.map((id) => data.colleges?.find((c) => c.id.toString() === id)?.college_name)
+			.filter(Boolean)
+			.join(', ') || 'Select colleges'
 	);
 	const editCollegeName = $derived(
 		data.colleges?.find((c) => c.id.toString() === editCollegeId)?.college_name
@@ -279,9 +282,9 @@
 				</div>
 				<div class="grid grid-cols-4 items-center gap-4">
 					<Label for="create-college" class="text-right">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={createCollegeId}>
+					<Select.Root type="multiple" name="college_id" bind:value={createCollegeId}>
 						<Select.Trigger class="col-span-3">
-							<span>{createCollegeName || 'Select a college'}</span>
+							<span class="truncate max-w-64">{createCollegeNames || 'Select a college'}</span>
 						</Select.Trigger>
 						<Select.Content>
 							{#if data.colleges}
