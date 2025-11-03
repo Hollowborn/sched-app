@@ -120,35 +120,54 @@ export const actions: Actions = {
 		}
 		const formData = await request.formData();
 		const program_id = Number(formData.get('program_id'));
-		const year_level = Number(formData.get('year_level'));
+		const year_levels = formData.getAll('year_level').map(Number); // Get all selected year levels
 		const count = Number(formData.get('count'));
 		const prefix = formData.get('prefix')?.toString()?.trim() || '';
 
-		if (!program_id || !year_level || !count) {
-			return fail(400, { message: 'Program, year level, and count are required.' });
+		if (!program_id || year_levels.length === 0 || !count) {
+			return fail(400, { message: 'Program, at least one year level, and count are required.' });
 		}
 
 		const newBlocks = [];
-		for (let i = 0; i < count; i++) {
-			const suffix = String.fromCharCode(65 + i); // A, B, C...
-			newBlocks.push({
-				program_id,
-				year_level,
-				block_name: `${prefix}${year_level}${suffix}`
+		// Generate blocks for each year level
+		for (const year_level of year_levels) {
+			for (let i = 0; i < count; i++) {
+				const suffix = String.fromCharCode(65 + i); // A, B, C...
+				newBlocks.push({
+					program_id,
+					year_level,
+					// Example: "BSCS1A" for BS Computer Science, Year 1, Block A
+					block_name: `${prefix}${year_level}${suffix}`
+				});
+			}
+		}
+
+		// Check for existing blocks before inserting
+		const { data: existingBlocks, error: checkError } = await locals.supabase
+			.from('blocks')
+			.select('block_name')
+			.eq('program_id', program_id)
+			.in(
+				'block_name',
+				newBlocks.map((b) => b.block_name)
+			);
+
+		if (existingBlocks?.length > 0) {
+			return fail(409, {
+				message: `Some blocks already exist: ${existingBlocks.map((b) => b.block_name).join(', ')}`
 			});
 		}
 
 		const { error: insertError } = await locals.supabase.from('blocks').insert(newBlocks);
 
 		if (insertError) {
-			if (insertError.code === '23505') {
-				return fail(409, { message: 'One or more blocks you tried to generate already exist.' });
-			}
+			console.error('Block generation error:', insertError);
 			return fail(500, { message: 'Failed to generate blocks.' });
 		}
+
 		return {
 			status: 201,
-			message: `${count} blocks generated successfully.`,
+			message: `${newBlocks.length} blocks generated successfully across ${year_levels.length} year level(s).`,
 			action: 'generateBlocks'
 		};
 	},

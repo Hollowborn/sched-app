@@ -63,7 +63,7 @@
 
 	// Block Form State
 	let genProgramId = $state('');
-	let genYearLevel = $state('');
+	let genYearLevel = $state<string[]>([]);
 	let genCount = $state(2);
 	let genPrefix = $state('');
 
@@ -265,7 +265,7 @@
 								</div>
 								<div class="space-y-2">
 									<Label>Year Level</Label>
-									<Select.Root type="single" name="year_level" bind:value={genYearLevel}>
+									<Select.Root type="multiple" name="year_level" bind:value={genYearLevel}>
 										<Select.Trigger>
 											<span
 												>{genYearLevel
