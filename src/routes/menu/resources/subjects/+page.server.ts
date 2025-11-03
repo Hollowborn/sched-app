@@ -54,28 +54,35 @@ export const actions: Actions = {
 		const subject_name = formData.get('subject_name')?.toString()?.trim();
 		const lecture_hours = Number(formData.get('lecture_hours'));
 		const lab_hours = Number(formData.get('lab_hours'));
-		const college_id = Number(formData.get('college_id'));
+		const college_ids = formData.getAll('college_id').map((id) => Number(id));
 
 		// Basic Validation
-		if (!subject_code || !subject_name || !college_id) {
+		if (!subject_code || !subject_name || !college_ids) {
 			return fail(400, { message: 'Subject code, name, and college are required.' });
 		}
 
-		const { error: insertError } = await locals.supabase.from('subjects').insert({
+		// Create an array of subject entries for each college
+		const subjectEntries = college_ids.map((college_id) => ({
 			subject_code,
 			subject_name,
 			lecture_hours,
 			lab_hours,
 			college_id
-		});
+		}));
+
+		// Insert multiple entries at once
+		const { error: insertError } = await locals.supabase.from('subjects').insert(subjectEntries);
 
 		if (insertError) {
-			console.error('Error creating subject:', insertError);
-			return fail(500, { message: 'Failed to create subject. Please try again.' });
+			console.error('Error creating subjects:', insertError);
+			return fail(500, { message: 'Failed to create subjects. Please try again.' });
 		}
 
-		// Return a unique action identifier for the client-side logic.
-		return { status: 201, message: 'Subject created successfully.', action: 'createSubject' };
+		return {
+			status: 201,
+			message: `Subject created successfully for ${college_ids.length} college(s).`,
+			action: 'createSubject'
+		};
 	},
 
 	// UPDATE ACTION
