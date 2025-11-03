@@ -96,12 +96,10 @@
 				<h1
 					class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-foreground drop-shadow-lg"
 				>
-					Effortless Academic Timetables.<br /><span class="text-primary">smart</span>-sched Your
-					Campus.
+					<span class="text-primary">smart</span>-sched your timetables.
 				</h1>
 				<p class="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-					Streamlining course, instructor, and room allocations for your university, reducing
-					conflicts and administrative burden.
+					Making timetable schedules easier to create and manage.
 				</p>
 				<a href="/login">
 					<Button
