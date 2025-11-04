@@ -237,7 +237,7 @@
 	{:else}
 		<div class="border rounded-md">
 			<Table.Root>
-				<Table.Header>
+				<Table.Header class="bg-muted/50">
 					<Table.Row>
 						<Table.Head>Name</Table.Head>
 						<Table.Head>College</Table.Head>

@@ -152,7 +152,7 @@
 	<!-- <Card.Content class=""> -->
 	<div class="border rounded-md p-1 overflow-hidden">
 		<Table.Root>
-			<Table.Header>
+			<Table.Header class="bg-muted/50">
 				<Table.Row>
 					<Table.Head class="w-[120px]">Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>

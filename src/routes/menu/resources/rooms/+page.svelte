@@ -183,7 +183,7 @@
 	{:else}
 		<div class="border rounded-md">
 			<Table.Root>
-				<Table.Header>
+				<Table.Header class="bg-muted/50">
 					<Table.Row>
 						<Table.Head>Room Name</Table.Head>
 						<Table.Head>Building</Table.Head>
