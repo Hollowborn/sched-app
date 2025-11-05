@@ -131,20 +131,28 @@ export const actions: Actions = {
 		}
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
+		const ids = formData.get('ids')?.toString().split(',').map(Number);
 
-		if (!id) {
-			return fail(400, { message: 'Invalid subject ID.' });
+		if (!id && !ids) {
+			return fail(400, { message: 'Invalid subject ID(s).' });
 		}
 
-		const { error: deleteError } = await locals.supabase.from('subjects').delete().eq('id', id);
+		const { error: deleteError } = await locals.supabase
+			.from('subjects')
+			.delete()
+			.in('id', ids || [id]);
 
 		if (deleteError) {
-			console.error('Error deleting subject:', deleteError);
+			console.error('Error deleting subjects:', deleteError);
 			return fail(500, {
-				message: 'Failed to delete subject. It might be in use in a schedule.'
+				message: 'Failed to delete subjects. They might be in use in a schedule.'
 			});
 		}
 
-		return { status: 200, message: 'Subject deleted successfully.', action: 'deleteSubject' };
+		return {
+			status: 200,
+			message: `Successfully deleted ${ids ? ids.length : 1} subject(s).`,
+			action: 'deleteSubject'
+		};
 	}
 };
