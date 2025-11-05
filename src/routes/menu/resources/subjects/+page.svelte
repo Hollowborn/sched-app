@@ -9,6 +9,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
+	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
@@ -105,6 +106,59 @@
 		selectedSubject = subject;
 		deleteOpen = true;
 	}
+
+	// Multi-select handlers
+	function toggleSelectAll(checked: boolean) {
+		if (checked) {
+			selectedRows = new Set(filteredSubjects.map((s) => s.id));
+		} else {
+			selectedRows.clear();
+		}
+	}
+
+	function toggleSelectRow(id: number, checked: boolean) {
+		if (checked) {
+			selectedRows.add(id);
+		} else {
+			selectedRows.delete(id);
+		}
+	}
+
+	function deleteSelected() {
+		if (selectedRows.size === 0) return;
+
+		const selectedIds = Array.from(selectedRows);
+		const formData = new FormData();
+		formData.append('ids', selectedIds.join(','));
+
+		const toastId = toast.loading(`Deleting ${selectedIds.length} subjects...`);
+
+		fetch('?/deleteSubject', {
+			method: 'POST',
+			body: formData
+		})
+			.then(async (response) => {
+				const result = await response.json();
+				if (response.ok) {
+					toast.success(result.message, { id: toastId });
+					selectedRows.clear();
+					invalidateAll();
+				} else {
+					toast.error(result.message || 'Failed to delete subjects', { id: toastId });
+				}
+			})
+			.catch((error) => {
+				toast.error('An error occurred while deleting subjects', { id: toastId });
+			});
+	}
+	// Multi-select state
+	let selectedRows = $state<Set<number>>(new Set());
+	let isAllSelected = $derived(
+		filteredSubjects.length > 0 && selectedRows.size === filteredSubjects.length
+	);
+	let isIndeterminate = $derived(
+		selectedRows.size > 0 && selectedRows.size < filteredSubjects.length
+	);
 </script>
 
 <div class="space-y-6">
@@ -139,13 +193,33 @@
 					{/if}
 				</Select.Content>
 			</Select.Root>
+			{#if selectedRows.size > 0}
+				<div class="text-sm text-muted-foreground">
+					{selectedRows.size} of {filteredSubjects.length} row{selectedRows.size === 1 ? '' : 's'} selected
+				</div>
+			{/if}
 		</div>
-		{#if data.profile?.role === 'Admin'}
-			<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
-				<PlusCircle class="mr-2 h-4 w-4" />
-				Add Subject
-			</Button>
-		{/if}
+		<div class="flex items-center gap-2">
+			{#if data.profile?.role === 'Admin'}
+				{#if selectedRows.size > 0}
+					<Button variant="destructive" onclick={deleteSelected} disabled={isSubmitting}>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete Selected
+					</Button>
+				{:else}
+					<Button variant="outline" onclick={deleteSelected} disabled={isSubmitting}>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete Selected
+					</Button>
+				{/if}
+			{/if}
+			{#if data.profile?.role === 'Admin'}
+				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
+					<PlusCircle class="mr-2 h-4 w-4" />
+					Add Subject
+				</Button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- <Card.Root> -->
@@ -154,6 +228,15 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
+					{#if data.profile?.role === 'Admin'}
+						<Table.Head class="w-[50px]">
+							<Checkbox
+								checked={isAllSelected}
+								indeterminate={isIndeterminate}
+								onCheckedChange={toggleSelectAll}
+							/>
+						</Table.Head>
+					{/if}
 					<Table.Head class="w-[120px]">Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>
 					<Table.Head>College</Table.Head>
@@ -168,6 +251,14 @@
 				{#if filteredSubjects.length > 0}
 					{#each filteredSubjects as subject (subject.id)}
 						<Table.Row class="hover:bg-muted/50">
+							{#if data.profile?.role === 'Admin'}
+								<Table.Cell>
+									<Checkbox
+										checked={selectedRows.has(subject.id)}
+										onCheckedChange={(checked) => toggleSelectRow(subject.id, checked)}
+									/>
+								</Table.Cell>
+							{/if}
 							<Table.Cell class="font-medium"
 								><Badge variant="outline">{subject.subject_code}</Badge></Table.Cell
 							>

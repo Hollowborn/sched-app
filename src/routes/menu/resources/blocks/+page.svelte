@@ -24,6 +24,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Collapsible from '$lib/components/ui/collapsible';
+	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte'; // <-- 1. IMPORT CHECKBOX
 
 	// --- Type Definitions ---
 	type Program = {
@@ -60,6 +61,7 @@
 	let bulkGenerateOpen = $state(true);
 	let blockDeleteOpen = $state(false);
 	let selectedBlock = $state<Block | null>(null);
+	let selectedBlocksSet = $state(new Set<number>()); // <-- 2. STATE FOR SELECTION
 
 	// Block Form State
 	let genProgramId = $state('');
@@ -102,7 +104,69 @@
 		return programs.filter((p) => p.program_name.toLowerCase().includes(lowerQuery));
 	});
 
-	// --- Event Handlers ---
+	// --- 3. DERIVED STATE FOR SELECTION ---
+	const selectedBlocksCount = $derived(selectedBlocksSet.size);
+
+	const allFilteredBlocksSelected = $derived(
+		filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocksSet.has(b.id))
+	);
+
+	const someFilteredBlocksSelected = $derived(
+		selectedBlocksCount > 0 && !allFilteredBlocksSelected
+	);
+
+	// This determines the header checkbox state: true, false, or 'indeterminate'
+	const headerCheckboxState = $derived(
+		allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
+	);
+
+	// This determines the delete button variant
+	const deleteButtonVariant = $derived(selectedBlocksCount > 0 ? 'destructive' : 'outline');
+
+	// --- 4. EVENT HANDLERS ---
+
+	// UPDATED: This function now accepts the `checked` argument from the event
+	function handleHeaderCheckboxChange(checked: boolean | 'indeterminate') {
+		// The `checked` argument is the new state of the checkbox *after* the click.
+		// If it was 'indeterminate', the new state is 'true'.
+		const shouldSelectAll = checked === true;
+
+		if (shouldSelectAll) {
+			for (const block of filteredBlocks) {
+				selectedBlocksSet.add(block.id);
+			}
+		} else {
+			// This handles `checked === false`
+			for (const block of filteredBlocks) {
+				selectedBlocksSet.delete(block.id);
+			}
+		}
+	}
+
+	// UPDATED: This function now explicitly checks for `true`
+	function handleRowCheckboxChange(blockId: number, checked: boolean | 'indeterminate') {
+		// A row checkbox's new state will be `true` or `false`.
+		if (checked === true) {
+			selectedBlocksSet.add(blockId);
+		} else {
+			// This handles `false`
+			selectedBlocksSet.delete(blockId);
+		}
+	}
+
+	function handleDeleteSelected() {
+		// This is where you would open a new confirmation modal
+		// For now, it just shows a toast.
+		if (selectedBlocksCount === 0) return;
+		toast.info(`Delete button clicked for ${selectedBlocksCount} item(s).`, {
+			description: 'IDs: ' + Array.from(selectedBlocksSet).join(', ')
+		});
+		// In a real scenario, you'd open a modal and then
+		// call a form action, clearing the set on success:
+		// selectedBlocksSet.clear();
+	}
+
+	// --- Event Handlers (Original) ---
 	function openProgramEditModal(program: Program) {
 		selectedProgram = program;
 		programFormName = program.program_name;
@@ -119,6 +183,7 @@
 		selectedBlock = block;
 		blockDeleteOpen = true;
 	}
+	$inspect(selectedBlocksCount, selectedBlocksSet);
 </script>
 
 <div class="space-y-8">
@@ -314,22 +379,36 @@
 				</Card.Root>
 			</Collapsible.Root>
 
+			<!-- 5. UPDATED BLOCKS CARD -->
 			<Card.Root>
 				<Card.Header>
-					<div class="flex items-center justify-between">
+					<div class="flex items-center justify-between gap-4">
 						<div>
 							<Card.Title>Manage Block Sections</Card.Title>
 							<Card.Description>View and manage individual student blocks.</Card.Description>
 						</div>
-						<div class="relative w-full max-w-sm">
-							<Search
-								class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-							/>
-							<Input
-								placeholder="Search by block or program..."
-								class="pl-10"
-								bind:value={searchQuery}
-							/>
+						<div class="flex items-center gap-2">
+							<!-- NEW DELETE BUTTON -->
+							<Button
+								variant={deleteButtonVariant}
+								disabled={isSubmitting || selectedBlocksCount === 0}
+								onclick={handleDeleteSelected}
+							>
+								<Trash2 class="mr-2 h-4 w-4" />
+								Delete ({selectedBlocksCount})
+							</Button>
+
+							<!-- SEARCH INPUT -->
+							<div class="relative w-full max-w-sm">
+								<Search
+									class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+								/>
+								<Input
+									placeholder="Search by block or program..."
+									class="pl-10"
+									bind:value={searchQuery}
+								/>
+							</div>
 						</div>
 					</div>
 				</Card.Header>
@@ -338,6 +417,13 @@
 						<Table.Root>
 							<Table.Header class="bg-muted/50">
 								<Table.Row>
+									<!-- NEW HEADER CHECKBOX -->
+									<Table.Head class="w-12">
+										<Checkbox
+											checked={headerCheckboxState}
+											onCheckedChange={handleHeaderCheckboxChange}
+										/>
+									</Table.Head>
 									<Table.Head>Block Name</Table.Head>
 									<Table.Head>Program</Table.Head>
 									<Table.Head>Year</Table.Head>
@@ -348,6 +434,13 @@
 								{#if filteredBlocks.length > 0}
 									{#each filteredBlocks as block (block.id)}
 										<Table.Row class="hover:bg-muted/50">
+											<!-- NEW ROW CHECKBOX -->
+											<Table.Cell>
+												<Checkbox
+													checked={selectedBlocksSet.has(block.id)}
+													onCheckedChange={(checked) => handleRowCheckboxChange(block.id, checked)}
+												/>
+											</Table.Cell>
 											<Table.Cell class="font-medium">{block.block_name}</Table.Cell>
 											<Table.Cell>{block.programs?.program_name || 'N/A'}</Table.Cell>
 											<Table.Cell>{block.year_level}</Table.Cell>
@@ -366,7 +459,8 @@
 									{/each}
 								{:else}
 									<Table.Row>
-										<Table.Cell colspan={4} class="h-24 text-center">No blocks found.</Table.Cell>
+										<!-- UPDATED COLSPAN -->
+										<Table.Cell colspan={5} class="h-24 text-center">No blocks found.</Table.Cell>
 									</Table.Row>
 								{/if}
 							</Table.Body>
