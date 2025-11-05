@@ -178,7 +178,7 @@
 	<div class="border rounded-md">
 		<Table.Root>
 			<Table.Header>
-				<Table.Row>
+				<Table.Row class="bg-muted/50">
 					<Table.Head>Subject</Table.Head>
 					<Table.Head>Block</Table.Head>
 					<Table.Head class="w-[40%]">Instructor</Table.Head>

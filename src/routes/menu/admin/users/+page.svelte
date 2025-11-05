@@ -176,7 +176,7 @@
 		<Card.Content>
 			<div class="border rounded-md">
 				<Table.Root>
-					<Table.Header>
+					<Table.Header class="bg-muted/50">
 						<Table.Row>
 							<Table.Head>User</Table.Head>
 							<Table.Head>Role</Table.Head>

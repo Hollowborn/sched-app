@@ -181,7 +181,7 @@
 
 	<div class="border rounded-md">
 		<Table.Root>
-			<Table.Header>
+			<Table.Header class="bg-muted/50">
 				<Table.Row>
 					<Table.Head>Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>
