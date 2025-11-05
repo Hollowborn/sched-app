@@ -13,7 +13,8 @@
 		Users,
 		Tag,
 		LayoutGrid,
-		List
+		List,
+		Eye
 	} from '@lucide/svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Switch } from '$lib/components/ui/switch';
@@ -202,8 +203,10 @@
 							<Table.Cell>{room.capacity}</Table.Cell>
 							<Table.Cell>{room.colleges?.college_name || 'General Use'}</Table.Cell>
 							<Table.Cell class="text-right">
-								<Button variant="ghost" size="sm">View Schedule</Button>
-								<Button variant="ghost" size="sm" onclick={() => openEditModal(room)}>Edit</Button>
+								<Button variant="ghost" size="sm"><Eye /></Button>
+								<Button variant="ghost" size="sm" onclick={() => openEditModal(room)}
+									><Pencil /></Button
+								>
 								<Button
 									variant="ghost"
 									size="icon"
