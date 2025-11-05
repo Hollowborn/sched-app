@@ -1,0 +1,16 @@
+.bg-dot-pattern {
+	background-image: radial-gradient(
+		circle at 1px 1px,
+		hsl(var(--muted-foreground) / 0.15) 1px,
+		transparent 0
+	);
+	background-size: 32px 32px;
+	background-position: -19px -19px;
+}
+
+.bg-grid-pattern {
+	background-image:
+		linear-gradient(to right, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px),
+		linear-gradient(to bottom, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px);
+	background-size: 64px 64px;
+}
