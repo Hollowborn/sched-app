@@ -4,6 +4,25 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import { shimmer } from '$lib/actions/shimmer';
+	import { onMount } from 'svelte';
+
+	// Add typing effect with cursor
+	let text = '';
+	const fullText = 'Making timetable schedules easier.';
+	let typeIndex = 0;
+
+	function typeText() {
+		if (typeIndex < fullText.length) {
+			text = fullText.substring(0, typeIndex + 1);
+			typeIndex++;
+			setTimeout(typeText, 100);
+		}
+	}
+
+	onMount(() => {
+		typeText();
+	});
 	import {
 		CalendarClock,
 		GraduationCap,
@@ -90,25 +109,53 @@
 	<!-- Main content slot -->
 	<main class="flex-1">
 		<section
-			class="relative w-full h-[70vh] md:h-[80vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-background"
+			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden bg-dot-pattern bg-grid-pattern px-4 py-16 md:py-24"
 		>
-			<div class="relative z-10 text-center max-w-4xl px-4 space-y-6">
-				<h1
-					class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-foreground drop-shadow-lg"
-				>
-					<span class="text-primary">smart</span>-sched your timetables.
-				</h1>
-				<p class="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+			<!-- Grid background with radial gradient -->
+			<div class="absolute inset-0 bg-gradient-to-r from-transparent via-background to-transparent">
+				<div
+					class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background"
+				></div>
+			</div>
+
+			<!-- Content -->
+			<div class="relative z-10 text-center max-w-4xl space-y-8 md:space-y-10">
+				<span class="relative inline-block" use:shimmer>
+					<Badge variant="outline" class="text-primary/80 text-sm md:text-base">Hello, World</Badge>
+				</span>
+				<div class="space-y-4">
+					<h1
+						class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground drop-shadow-lg"
+					>
+						<span class="text-primary relative">smart</span>-sched your
+					</h1>
+					<div
+						class="inline-block bg-accent text-accent-foreground px-4 py-2 rounded-lg text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold relative overflow-hidden"
+						use:shimmer={{ delay: 2000 }}
+					>
+						timetables.
+					</div>
+				</div>
+				<p class="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
 					Making timetable schedules easier to create and manage.
 				</p>
-				<a href="/login">
-					<Button
-						size="lg"
-						class="px-8 py-3 text-lg mt-6 shadow-lg hover:shadow-xl transition-shadow animate-pulse "
-						>Login to <div><span class="font-semibold">smart</span>-sched</div>
-						<Rocket class="ml-2 h-5 w-5" /></Button
-					>
-				</a>
+				<div class="pt-4">
+					<a href="/login">
+						<div use:shimmer={{ duration: 1500, delay: 3000 }}>
+							<Button
+								size="lg"
+								class="px-6 sm:px-8 py-3 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 relative overflow-hidden group"
+							>
+								<span class="relative z-10">
+									Login to <span class="font-semibold">smart</span>-sched
+									<Rocket
+										class="ml-2 h-5 w-5 inline-block transition-transform group-hover:translate-x-1"
+									/>
+								</span>
+							</Button>
+						</div>
+					</a>
+				</div>
 			</div>
 		</section>
 
