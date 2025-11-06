@@ -40,6 +40,17 @@
 	let searchQuery = $state('');
 	let selectedCollegeId = $state('all');
 
+	// Multi-select state
+	let selectedRows = $state<number[]>([]); // Changed from Set to array for better reactivity
+	let selectedRowCount = $derived(selectedRows.length);
+	let isAllSelected = $derived(
+		filteredSubjects?.length > 0 && selectedRowCount === filteredSubjects?.length
+	);
+	let isIndeterminate = $derived(
+		selectedRowCount > 0 && selectedRowCount < (filteredSubjects?.length || 0)
+	);
+	let hasSelection = $derived(selectedRowCount > 0);
+
 	// --- Form State ---
 	let createCode = $state('');
 	let createName = $state('');
@@ -109,56 +120,20 @@
 
 	// Multi-select handlers
 	function toggleSelectAll(checked: boolean) {
-		if (checked) {
-			selectedRows = new Set(filteredSubjects.map((s) => s.id));
-		} else {
-			selectedRows.clear();
-		}
+		selectedRows = checked ? filteredSubjects.map((s) => s.id) : [];
 	}
 
 	function toggleSelectRow(id: number, checked: boolean) {
 		if (checked) {
-			selectedRows.add(id);
+			selectedRows = [...selectedRows, id];
 		} else {
-			selectedRows.delete(id);
+			selectedRows = selectedRows.filter((rowId) => rowId !== id);
 		}
 	}
 
 	function deleteSelected() {
-		if (selectedRows.size === 0) return;
-
-		const selectedIds = Array.from(selectedRows);
-		const formData = new FormData();
-		formData.append('ids', selectedIds.join(','));
-
-		const toastId = toast.loading(`Deleting ${selectedIds.length} subjects...`);
-
-		fetch('?/deleteSubject', {
-			method: 'POST',
-			body: formData
-		})
-			.then(async (response) => {
-				const result = await response.json();
-				if (response.ok) {
-					toast.success(result.message, { id: toastId });
-					selectedRows.clear();
-					invalidateAll();
-				} else {
-					toast.error(result.message || 'Failed to delete subjects', { id: toastId });
-				}
-			})
-			.catch((error) => {
-				toast.error('An error occurred while deleting subjects', { id: toastId });
-			});
+		if (selectedRows.length === 0) return;
 	}
-	// Multi-select state
-	let selectedRows = $state<Set<number>>(new Set());
-	let isAllSelected = $derived(
-		filteredSubjects.length > 0 && selectedRows.size === filteredSubjects.length
-	);
-	let isIndeterminate = $derived(
-		selectedRows.size > 0 && selectedRows.size < filteredSubjects.length
-	);
 </script>
 
 <div class="space-y-6">
@@ -193,25 +168,48 @@
 					{/if}
 				</Select.Content>
 			</Select.Root>
-			{#if selectedRows.size > 0}
+			{#if selectedRowCount > 0}
 				<div class="text-sm text-muted-foreground">
-					{selectedRows.size} of {filteredSubjects.length} row{selectedRows.size === 1 ? '' : 's'} selected
+					{selectedRowCount} of {filteredSubjects.length} row{selectedRowCount === 1 ? '' : 's'} selected
 				</div>
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
-				{#if selectedRows.size > 0}
-					<Button variant="destructive" onclick={deleteSelected} disabled={isSubmitting}>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete Selected
-					</Button>
-				{:else}
-					<Button variant="outline" onclick={deleteSelected} disabled={isSubmitting}>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete Selected
-					</Button>
-				{/if}
+				<form
+					method="POST"
+					action="?/deleteSubject"
+					use:enhance={() => {
+						if (selectedRows.length === 0) return;
+						isSubmitting = true;
+						const toastId = toast.loading(`Deleting ${selectedRows.length} subjects...`);
+
+						return async ({ update, result }) => {
+							isSubmitting = false;
+							if (result.type === 'success') {
+								toast.success(result.data?.message, { id: toastId });
+								selectedRows = [];
+								await invalidateAll();
+							} else if (result.type === 'failure') {
+								toast.error(result.data?.message || 'Failed to delete subjects', { id: toastId });
+							}
+							await update();
+						};
+					}}
+				>
+					<input type="hidden" name="ids" value={selectedRows.join(',')} />
+					{#if hasSelection}
+						<Button type="submit" variant="destructive" disabled={isSubmitting}>
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete Selected
+						</Button>
+					{:else}
+						<Button type="submit" variant="outline" disabled={true}>
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete Selected
+						</Button>
+					{/if}
+				</form>
 			{/if}
 			{#if data.profile?.role === 'Admin'}
 				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
@@ -233,7 +231,7 @@
 							<Checkbox
 								checked={isAllSelected}
 								indeterminate={isIndeterminate}
-								onCheckedChange={toggleSelectAll}
+								onCheckedChange={(checked) => toggleSelectAll(!!checked)}
 							/>
 						</Table.Head>
 					{/if}
@@ -254,8 +252,8 @@
 							{#if data.profile?.role === 'Admin'}
 								<Table.Cell>
 									<Checkbox
-										checked={selectedRows.has(subject.id)}
-										onCheckedChange={(checked) => toggleSelectRow(subject.id, checked)}
+										checked={selectedRows.includes(subject.id)}
+										onCheckedChange={(checked) => toggleSelectRow(subject.id, !!checked)}
 									/>
 								</Table.Cell>
 							{/if}
