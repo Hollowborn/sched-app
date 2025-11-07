@@ -451,7 +451,7 @@
 							<Table.Body>
 								{#if filteredBlocks.length > 0}
 									{#each filteredBlocks as block (block.id)}
-										<Table.Row class="hover:bg-muted/50">
+										<Table.Row selected={selectedBlocks.includes(block.id)}>
 											<!-- NEW ROW CHECKBOX -->
 											<Table.Cell>
 												<Checkbox

@@ -31,6 +31,8 @@
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
+	// checkbox hover class
+
 	// --- Component State ---
 	let createOpen = $state(false);
 	let editOpen = $state(false);
@@ -168,11 +170,6 @@
 					{/if}
 				</Select.Content>
 			</Select.Root>
-			{#if selectedRowCount > 0}
-				<div class="text-sm text-muted-foreground">
-					{selectedRowCount} of {filteredSubjects.length} row{selectedRowCount === 1 ? '' : 's'} selected
-				</div>
-			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
@@ -201,12 +198,12 @@
 					{#if hasSelection}
 						<Button type="submit" variant="destructive" disabled={isSubmitting}>
 							<Trash2 class="mr-2 h-4 w-4" />
-							Delete Selected
+							Delete ({selectedRowCount})
 						</Button>
 					{:else}
 						<Button type="submit" variant="outline" disabled={true}>
 							<Trash2 class="mr-2 h-4 w-4" />
-							Delete Selected
+							Delete (0)
 						</Button>
 					{/if}
 				</form>
@@ -248,7 +245,7 @@
 			<Table.Body>
 				{#if filteredSubjects.length > 0}
 					{#each filteredSubjects as subject (subject.id)}
-						<Table.Row class="hover:bg-muted/50">
+						<Table.Row selected={selectedRows.includes(subject.id)}>
 							{#if data.profile?.role === 'Admin'}
 								<Table.Cell>
 									<Checkbox
@@ -303,6 +300,11 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
+
+	<div class="text-sm text-muted-foreground">
+		{selectedRowCount} of {filteredSubjects.length} row{selectedRowCount === 1 ? '' : 's'} selected
+	</div>
+
 	<!-- </Card.Content> -->
 	<!-- </Card.Root> -->
 </div>
