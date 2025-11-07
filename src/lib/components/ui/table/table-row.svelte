@@ -18,7 +18,7 @@
 	data-slot="table-row"
 	data-state={selected ? 'selected' : undefined}
 	class={cn(
-		'hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+		'hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted/30 border-b transition-colors',
 		className
 	)}
 	{...restProps}
