@@ -177,17 +177,54 @@ export const actions: Actions = {
 			return fail(403, { message: 'Forbidden: You do not have permission to delete blocks.' });
 		}
 		const formData = await request.formData();
-		const id = Number(formData.get('id'));
+		const id = formData.get('id');
+		const ids = formData.get('ids');
 
+		// Handle bulk delete if ids is provided
+		if (ids) {
+			const blockIds = ids.toString().split(',').map(Number).filter(Boolean);
+			if (blockIds.length === 0) {
+				return fail(400, { message: 'No valid block IDs provided.' });
+			}
+
+			const { error: deleteError } = await locals.supabase
+				.from('blocks')
+				.delete()
+				.in('id', blockIds);
+
+			if (deleteError) {
+				return fail(500, {
+					message: 'Failed to delete blocks. They may be used in class offerings.'
+				});
+			}
+			return {
+				status: 200,
+				message: `Successfully deleted ${blockIds.length} block(s).`,
+				action: 'deleteBlock'
+			};
+		}
+
+		// Handle single delete if id is provided
 		if (!id) {
 			return fail(400, { message: 'Invalid block ID.' });
 		}
 
-		const { error: deleteError } = await locals.supabase.from('blocks').delete().eq('id', id);
+		const blockId = Number(id);
+		if (!blockId) {
+			return fail(400, { message: 'Invalid block ID format.' });
+		}
+
+		const { error: deleteError } = await locals.supabase.from('blocks').delete().eq('id', blockId);
 
 		if (deleteError) {
-			return fail(500, { message: 'Failed to delete block. It may be used in class offerings.' });
+			return fail(500, {
+				message: 'Failed to delete block. It may be used in class offerings.'
+			});
 		}
-		return { status: 200, message: 'Block deleted successfully.', action: 'deleteBlock' };
+		return {
+			status: 200,
+			message: 'Block deleted successfully.',
+			action: 'deleteBlock'
+		};
 	}
 };
