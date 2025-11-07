@@ -61,7 +61,8 @@
 	let bulkGenerateOpen = $state(true);
 	let blockDeleteOpen = $state(false);
 	let selectedBlock = $state<Block | null>(null);
-	let selectedBlocksSet = $state(new Set<number>()); // <-- 2. STATE FOR SELECTION
+	let selectedBlocks = $state<number[]>([]); // Changed from Set to array for better reactivity
+	let selectedBlockCount = $derived(selectedBlocks.length);
 
 	// Block Form State
 	let genProgramId = $state('');
@@ -105,65 +106,55 @@
 	});
 
 	// --- 3. DERIVED STATE FOR SELECTION ---
-	const selectedBlocksCount = $derived(selectedBlocksSet.size);
-
+	// Number of selected blocks (derived from the array length)
+	// `selectedBlockCount` was defined above; keep a consistent name here.
+	// `selectedBlocks` is an array of IDs (number[])
 	const allFilteredBlocksSelected = $derived(
-		filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocksSet.has(b.id))
+	    filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocks.includes(b.id))
 	);
 
 	const someFilteredBlocksSelected = $derived(
-		selectedBlocksCount > 0 && !allFilteredBlocksSelected
+	    selectedBlockCount > 0 && !allFilteredBlocksSelected
 	);
 
-	// This determines the header checkbox state: true, false, or 'indeterminate'
+	// Header checkbox: show checked when all are selected, indeterminate when some selected
 	const headerCheckboxState = $derived(
-		allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
+	    allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
 	);
 
 	// This determines the delete button variant
-	const deleteButtonVariant = $derived(selectedBlocksCount > 0 ? 'destructive' : 'outline');
+	const deleteButtonVariant = $derived(selectedBlockCount > 0 ? 'destructive' : 'outline');
 
 	// --- 4. EVENT HANDLERS ---
 
 	// UPDATED: This function now accepts the `checked` argument from the event
 	function handleHeaderCheckboxChange(checked: boolean | 'indeterminate') {
-		// The `checked` argument is the new state of the checkbox *after* the click.
-		// If it was 'indeterminate', the new state is 'true'.
+		// If header checkbox becomes `true`, select all currently filtered blocks.
+		// If it becomes `false`, clear the selection (consistent with subjects page behavior).
 		const shouldSelectAll = checked === true;
 
 		if (shouldSelectAll) {
-			for (const block of filteredBlocks) {
-				selectedBlocksSet.add(block.id);
-			}
+			selectedBlocks = filteredBlocks.map((b) => b.id);
 		} else {
-			// This handles `checked === false`
-			for (const block of filteredBlocks) {
-				selectedBlocksSet.delete(block.id);
-			}
+			selectedBlocks = [];
 		}
 	}
 
-	// UPDATED: This function now explicitly checks for `true`
+	// Toggle a single row's selection using array operations
 	function handleRowCheckboxChange(blockId: number, checked: boolean | 'indeterminate') {
-		// A row checkbox's new state will be `true` or `false`.
 		if (checked === true) {
-			selectedBlocksSet.add(blockId);
+			if (!selectedBlocks.includes(blockId)) selectedBlocks = [...selectedBlocks, blockId];
 		} else {
-			// This handles `false`
-			selectedBlocksSet.delete(blockId);
+			selectedBlocks = selectedBlocks.filter((id) => id !== blockId);
 		}
 	}
 
 	function handleDeleteSelected() {
-		// This is where you would open a new confirmation modal
-		// For now, it just shows a toast.
-		if (selectedBlocksCount === 0) return;
-		toast.info(`Delete button clicked for ${selectedBlocksCount} item(s).`, {
-			description: 'IDs: ' + Array.from(selectedBlocksSet).join(', ')
+		// Fallback/info-only handler: the actual bulk delete UI uses a form with `use:enhance`.
+		if (selectedBlockCount === 0) return;
+		toast.info(`Delete button clicked for ${selectedBlockCount} item(s).`, {
+			description: 'IDs: ' + selectedBlocks.join(', ')
 		});
-		// In a real scenario, you'd open a modal and then
-		// call a form action, clearing the set on success:
-		// selectedBlocksSet.clear();
 	}
 
 	// --- Event Handlers (Original) ---
@@ -183,7 +174,7 @@
 		selectedBlock = block;
 		blockDeleteOpen = true;
 	}
-	$inspect(selectedBlocksCount, selectedBlocksSet);
+	$inspect(selectedBlockCount, selectedBlocks);
 </script>
 
 <div class="space-y-8">
@@ -388,15 +379,41 @@
 							<Card.Description>View and manage individual student blocks.</Card.Description>
 						</div>
 						<div class="flex items-center gap-2">
-							<!-- NEW DELETE BUTTON -->
-							<Button
-								variant={deleteButtonVariant}
-								disabled={isSubmitting || selectedBlocksCount === 0}
-								onclick={handleDeleteSelected}
+							<!-- BULK DELETE FORM (uses page action) -->
+							<form
+								method="POST"
+								action="?/deleteBlock"
+								use:enhance={() => {
+									if (selectedBlockCount === 0) return;
+									isSubmitting = true;
+									const toastId = toast.loading(`Deleting ${selectedBlockCount} block(s)...`);
+
+									return async ({ update, result }) => {
+										isSubmitting = false;
+										if (result.type === 'success') {
+											toast.success(result.data?.message, { id: toastId });
+											selectedBlocks = [];
+											await invalidateAll();
+										} else if (result.type === 'failure') {
+											toast.error(result.data?.message || 'Failed to delete blocks', { id: toastId });
+										}
+										await update();
+									};
+								}}
 							>
-								<Trash2 class="mr-2 h-4 w-4" />
-								Delete ({selectedBlocksCount})
-							</Button>
+								<input type="hidden" name="ids" value={selectedBlocks.join(',')} />
+								{#if selectedBlockCount > 0}
+									<Button type="submit" variant="destructive" disabled={isSubmitting}>
+										<Trash2 class="mr-2 h-4 w-4" />
+										Delete ({selectedBlockCount})
+									</Button>
+								{:else}
+									<Button type="submit" variant="outline" disabled={true}>
+										<Trash2 class="mr-2 h-4 w-4" />
+										Delete (0)
+									</Button>
+								{/if}
+							</form>
 
 							<!-- SEARCH INPUT -->
 							<div class="relative w-full max-w-sm">
@@ -420,8 +437,9 @@
 									<!-- NEW HEADER CHECKBOX -->
 									<Table.Head class="w-12">
 										<Checkbox
-											checked={headerCheckboxState}
-											onCheckedChange={handleHeaderCheckboxChange}
+											checked={allFilteredBlocksSelected}
+											indeterminate={someFilteredBlocksSelected}
+											onCheckedChange={(checked) => handleHeaderCheckboxChange(!!checked)}
 										/>
 									</Table.Head>
 									<Table.Head>Block Name</Table.Head>
@@ -437,8 +455,8 @@
 											<!-- NEW ROW CHECKBOX -->
 											<Table.Cell>
 												<Checkbox
-													checked={selectedBlocksSet.has(block.id)}
-													onCheckedChange={(checked) => handleRowCheckboxChange(block.id, checked)}
+													checked={selectedBlocks.includes(block.id)}
+													onCheckedChange={(checked) => handleRowCheckboxChange(block.id, !!checked)}
 												/>
 											</Table.Cell>
 											<Table.Cell class="font-medium">{block.block_name}</Table.Cell>
