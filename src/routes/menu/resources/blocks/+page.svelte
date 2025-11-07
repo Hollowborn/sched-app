@@ -110,16 +110,14 @@
 	// `selectedBlockCount` was defined above; keep a consistent name here.
 	// `selectedBlocks` is an array of IDs (number[])
 	const allFilteredBlocksSelected = $derived(
-	    filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocks.includes(b.id))
+		filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocks.includes(b.id))
 	);
 
-	const someFilteredBlocksSelected = $derived(
-	    selectedBlockCount > 0 && !allFilteredBlocksSelected
-	);
+	const someFilteredBlocksSelected = $derived(selectedBlockCount > 0 && !allFilteredBlocksSelected);
 
 	// Header checkbox: show checked when all are selected, indeterminate when some selected
 	const headerCheckboxState = $derived(
-	    allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
+		allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
 	);
 
 	// This determines the delete button variant
@@ -395,7 +393,9 @@
 											selectedBlocks = [];
 											await invalidateAll();
 										} else if (result.type === 'failure') {
-											toast.error(result.data?.message || 'Failed to delete blocks', { id: toastId });
+											toast.error(result.data?.message || 'Failed to delete blocks', {
+												id: toastId
+											});
 										}
 										await update();
 									};
@@ -456,7 +456,8 @@
 											<Table.Cell>
 												<Checkbox
 													checked={selectedBlocks.includes(block.id)}
-													onCheckedChange={(checked) => handleRowCheckboxChange(block.id, !!checked)}
+													onCheckedChange={(checked) =>
+														handleRowCheckboxChange(block.id, !!checked)}
 												/>
 											</Table.Cell>
 											<Table.Cell class="font-medium">{block.block_name}</Table.Cell>
