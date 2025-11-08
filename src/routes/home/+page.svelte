@@ -109,20 +109,15 @@
 	<!-- Main content slot -->
 	<main class="flex-1">
 		<section
-			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden bg-dot-pattern bg-grid-pattern px-4 py-16 md:py-24"
+			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden px-4 py-16 md:py-24"
 		>
 			<!-- Grid background with radial gradient -->
-			<div class="absolute inset-0 bg-gradient-to-r from-transparent via-background to-transparent">
-				<div
-					class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background"
-				></div>
-			</div>
+			<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-background"></div>
 
 			<!-- Content -->
 			<div class="relative z-10 text-center max-w-4xl space-y-8 md:space-y-10">
-				<span class="relative inline-block" use:shimmer>
-					<Badge variant="outline" class="text-primary/80 text-sm md:text-base">Hello, World</Badge>
-				</span>
+				<Badge variant="outline" class="text-primary/80 text-sm md:text-base">Hello, World</Badge>
+
 				<div class="space-y-4">
 					<h1
 						class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground drop-shadow-lg"
@@ -141,19 +136,17 @@
 				</p>
 				<div class="pt-4">
 					<a href="/login">
-						<div use:shimmer={{ duration: 1500, delay: 3000 }}>
-							<Button
-								size="lg"
-								class="px-6 sm:px-8 py-3 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 relative overflow-hidden group"
-							>
-								<span class="relative z-10">
-									Login to <span class="font-semibold">smart</span>-sched
-									<Rocket
-										class="ml-2 h-5 w-5 inline-block transition-transform group-hover:translate-x-1"
-									/>
-								</span>
-							</Button>
-						</div>
+						<Button
+							size="lg"
+							class="px-6 sm:px-8 py-3 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 relative overflow-hidden group"
+						>
+							<span class="relative z-10">
+								Login to <span class="font-semibold">smart</span>-sched
+								<Rocket
+									class="ml-2 h-5 w-5 inline-block transition-transform group-hover:translate-x-1"
+								/>
+							</span>
+						</Button>
 					</a>
 				</div>
 			</div>
