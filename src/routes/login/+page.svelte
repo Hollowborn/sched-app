@@ -20,6 +20,9 @@
 
 	let globalMessage = $derived(form?.message || '');
 	let formErrors = $derived(form?.formErrors || {});
+	function showToastError() {
+		toast.error('This feature is currently not available');
+	}
 </script>
 
 <div
@@ -64,14 +67,14 @@
 								Enter your credentials to access the smart-sched dashboard.
 							</p>
 						</div>
-
-						{#if globalMessage && !formErrors.email && !formErrors.password}
+						<!-- Error Alert -->
+						<!-- {#if globalMessage && !formErrors.email && !formErrors.password}
 							<Alert variant="destructive" class="mt-4">
 								<AlertCircle class="h-4 w-4" />
 								<AlertTitle>Login Failed</AlertTitle>
 								<AlertDescription>{globalMessage}</AlertDescription>
 							</Alert>
-						{/if}
+						{/if} -->
 
 						<div class="space-y-4">
 							<div class="grid gap-2">
@@ -122,7 +125,7 @@
 
 						<div class="mt-4 text-center text-sm">
 							Don't have an account?
-							<a href="##" class="underline">Sign up</a>
+							<a href="#" onclick={showToastError} class="underline">Sign up</a>
 						</div>
 					</form>
 				</div>
