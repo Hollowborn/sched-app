@@ -4,9 +4,9 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import SunIcon from '@lucide/svelte/icons/sun';
-	import MoonIcon from '@lucide/svelte/icons/moon';
+
+	import { SunIcon, MoonIcon, Settings, LogOutIcon } from '@lucide/svelte';
+
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { toast } from 'svelte-sonner';
 	import { toggleMode } from 'mode-watcher';
@@ -90,6 +90,13 @@
 							class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
 						/>
 						Switch Theme
+					</DropdownMenu.Item>
+				</DropdownMenu.Group>
+
+				<DropdownMenu.Group>
+					<DropdownMenu.Item onclick={toggleMode}>
+						<Settings />
+						Settings
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />
