@@ -179,10 +179,13 @@
 	}
 
 	// Navigation helper functions
-	function getCurrentFilterIndex(filterType: 'room' | 'block' | 'instructor', currentValue?: string): number {
+	function getCurrentFilterIndex(
+		filterType: 'room' | 'block' | 'instructor',
+		currentValue?: string
+	): number {
 		if (!currentValue) return -1;
 		const id = parseInt(currentValue);
-		
+
 		if (filterType === 'room') {
 			return data.allRooms.findIndex((r: Room) => r.id === id);
 		} else if (filterType === 'block') {
@@ -201,15 +204,21 @@
 		if (filterType === 'room') {
 			currentValue = selectedRoomFilter;
 			list = data.allRooms;
-			setFilter = (v) => { selectedRoomFilter = v; };
+			setFilter = (v) => {
+				selectedRoomFilter = v;
+			};
 		} else if (filterType === 'block') {
 			currentValue = selectedBlockFilter;
 			list = data.allBlocks;
-			setFilter = (v) => { selectedBlockFilter = v; };
+			setFilter = (v) => {
+				selectedBlockFilter = v;
+			};
 		} else {
 			currentValue = selectedInstructorFilter;
 			list = data.allInstructors;
-			setFilter = (v) => { selectedInstructorFilter = v; };
+			setFilter = (v) => {
+				selectedInstructorFilter = v;
+			};
 		}
 
 		const currentIndex = getCurrentFilterIndex(filterType, currentValue);
@@ -331,6 +340,10 @@
 		};
 	});
 </script>
+
+<svelte:head>
+	<title>Master Scheduler | smart-sched</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<header class="flex justify-between items-center">
@@ -470,8 +483,8 @@
 				>
 					<Select.Trigger class="w-[150px]">
 						<span
-							>{data.allRooms.find((r: Room) => r.id.toString() === selectedRoomFilter)?.room_name ||
-								'All Rooms'}</span
+							>{data.allRooms.find((r: Room) => r.id.toString() === selectedRoomFilter)
+								?.room_name || 'All Rooms'}</span
 						>
 					</Select.Trigger>
 					<Select.Content>
@@ -515,8 +528,8 @@
 				>
 					<Select.Trigger class="w-[150px]">
 						<span
-							>{data.allBlocks.find((b: Block) => b.id.toString() === selectedBlockFilter)?.block_name ||
-								'All Blocks'}</span
+							>{data.allBlocks.find((b: Block) => b.id.toString() === selectedBlockFilter)
+								?.block_name || 'All Blocks'}</span
 						>
 					</Select.Trigger>
 					<Select.Content>
@@ -560,8 +573,9 @@
 				>
 					<Select.Trigger class="w-[150px]">
 						<span
-							>{data.allInstructors.find((i: Instructor) => i.id.toString() === selectedInstructorFilter)
-								?.name || 'All Instructors'}</span
+							>{data.allInstructors.find(
+								(i: Instructor) => i.id.toString() === selectedInstructorFilter
+							)?.name || 'All Instructors'}</span
 						>
 					</Select.Trigger>
 					<Select.Content>
@@ -677,7 +691,7 @@
 								{#each scheduleGrid[slotKey] || [] as scheduledItem (scheduledItem.id)}
 									{@const durationFactor =
 										(Number(new Date(`1970-01-01T${scheduledItem.end_time}`)) -
-										Number(new Date(`1970-01-01T${scheduledItem.start_time}`))) /
+											Number(new Date(`1970-01-01T${scheduledItem.start_time}`))) /
 										(1000 * 60 * 60)}
 									<button
 										type="button"
@@ -786,7 +800,9 @@
 						toast.success(String(result.data?.message), { id: toastId });
 						scheduleModalOpen = false;
 					} else if (result.type === 'failure') {
-						toast.error(String(result.data?.scheduleError) || 'Failed to schedule.', { id: toastId });
+						toast.error(String(result.data?.scheduleError) || 'Failed to schedule.', {
+							id: toastId
+						});
 					}
 					await update({ reset: false });
 					// Invalidate after update to ensure fresh data
@@ -807,7 +823,9 @@
 				<div class="space-y-2">
 					<Label for="schedule-room">Room</Label>
 					<Select.Root type="single" name="room_id" bind:value={scheduleRoomId}>
-						<Select.Trigger><span>{scheduleRoomId || "Select an available room"}</span></Select.Trigger>
+						<Select.Trigger
+							><span>{scheduleRoomId || 'Select an available room'}</span></Select.Trigger
+						>
 						<Select.Content>
 							{#if availableRooms.length > 0}
 								{#each availableRooms as room}
@@ -871,12 +889,12 @@
 					const toastId = toast.loading('Unscheduling class...');
 					return async ({ update, result }) => {
 						isSubmitting = false;
-					if (result.type === 'success') {
-						toast.success(String(result.data?.message), { id: toastId });
-						editModalOpen = false;
-					} else if (result.type === 'failure') {
-						toast.error(String(result.data?.scheduleError) || 'Failed.', { id: toastId });
-					}
+						if (result.type === 'success') {
+							toast.success(String(result.data?.message), { id: toastId });
+							editModalOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error(String(result.data?.scheduleError) || 'Failed.', { id: toastId });
+						}
 						await update({ reset: false });
 						// Invalidate after update to ensure fresh data
 						if (result.type === 'success') {
