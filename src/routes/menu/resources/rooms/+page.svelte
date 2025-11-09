@@ -107,6 +107,10 @@
 	);
 </script>
 
+<svelte:head>
+	<title>Room and Venues Management | smart-sched</title>
+</svelte:head>
+
 <div class="space-y-6">
 	<header>
 		<h1 class="text-3xl font-bold tracking-tight">Rooms & Venues</h1>

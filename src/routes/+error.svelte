@@ -42,6 +42,9 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Error ({$page.status}) | smart-sched</title>
+</svelte:head>
 <div class="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
 	{#if errorDetails}
 		<div class="flex max-w-lg flex-col items-center gap-4">

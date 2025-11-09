@@ -6,6 +6,8 @@
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import { shimmer } from '$lib/actions/shimmer';
 	import { onMount } from 'svelte';
+	import beforeSC from '$lib/assets/img2.png';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	// Add typing effect with cursor
 	let text = '';
@@ -60,6 +62,10 @@
 	const featuresImage3 = 'https://picsum.photos/seed/schedule_feature3/400/300';
 	const processImage = 'https://picsum.photos/seed/schedule_process/800/600';
 </script>
+
+<svelte:head>
+	<title>Home Page | smart-sched</title>
+</svelte:head>
 
 <div class="relative min-h-screen flex flex-col">
 	<!-- Sticky Navbar for Landing Page -->
@@ -181,7 +187,7 @@
 					</div>
 					<div class="relative">
 						<img
-							src={problemSolutionImage}
+							src={beforeSC}
 							alt="Manual scheduling chaos vs. organized digital schedule"
 							class="rounded-lg shadow-xl"
 						/>
@@ -204,13 +210,12 @@
 				</h2>
 
 				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<ShieldCheck class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Role-Based Access</h3>
 						</div>
+						<Separator class="" />
 						<p class="text-muted-foreground">
 							Secure access for Admins, Deans, and Registrars with tailored permissions ensuring
 							data integrity and control.
@@ -218,13 +223,12 @@
 						<!-- <img src={featuresImage1} alt="Role-based access" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<Database class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Centralized Resources</h3>
 						</div>
+						<Separator />
 						<p class="text-muted-foreground">
 							Manage subjects, instructors, rooms, programs, and blocks effortlessly in one unified
 							system.
@@ -232,13 +236,12 @@
 						<!-- <img src={featuresImage2} alt="Resource management" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<Workflow class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Academic Planning</h3>
 						</div>
+						<Separator />
 						<p class="text-muted-foreground">
 							Define class offerings and assign instructors with real-time workload tracking for
 							optimal distribution.
@@ -246,13 +249,12 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<Laptop class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Intuitive Scheduler</h3>
 						</div>
+						<Separator />
 						<p class="text-muted-foreground">
 							Drag-and-drop interface with instant conflict detection for rooms, instructors, and
 							blocks.
@@ -260,26 +262,24 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<Users class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">User Management</h3>
 						</div>
+						<Separator />
 						<p class="text-muted-foreground">
 							Admin console for managing user accounts, roles, and access with ease.
 						</p>
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root
-						class="text-left p-6 space-y-4 hover:shadow-md hover:scale-105 transition duration-300"
-					>
+					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
 						<div class="flex items-center gap-3">
 							<CheckCircle2 class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Conflict-Free Output</h3>
 						</div>
+						<Separator />
 						<p class="text-muted-foreground">
 							Generate and publish error-free timetables, minimizing manual revisions and stress.
 						</p>

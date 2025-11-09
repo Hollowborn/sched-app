@@ -10,6 +10,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table';
 	import * as Card from '$lib/components/ui/card';
+	import { page } from '$app/stores';
 	let { data, children, ...restProps } = $props<
 		{ data: any } & ComponentProps<typeof Sidebar.Root>
 	>();

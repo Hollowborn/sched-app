@@ -175,6 +175,10 @@
 	$inspect(selectedBlockCount, selectedBlocks);
 </script>
 
+<svelte:head>
+	<title>Program & Block Management | smart-sched</title>
+</svelte:head>
+
 <div class="space-y-8">
 	<header>
 		<h1 class="text-3xl font-bold tracking-tight">Programs & Blocks</h1>

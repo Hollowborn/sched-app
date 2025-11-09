@@ -138,6 +138,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Subjects Management | smart-sched</title>
+</svelte:head>
+
 <div class="space-y-6">
 	<header>
 		<h1 class="text-3xl font-bold tracking-tight">Subject & Course Management</h1>

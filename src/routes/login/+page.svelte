@@ -7,6 +7,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import Image1 from '$lib/assets/img1.png';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -24,6 +25,10 @@
 		toast.error('This feature is currently not available');
 	}
 </script>
+
+<svelte:head>
+	<title>Login Page | smart-sched</title>
+</svelte:head>
 
 <div
 	class="flex flex-col min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 to-background p-4"
@@ -135,13 +140,13 @@
 					class="bg-muted relative hidden items-center justify-center md:flex mr-0 md:mr-6 lg:mr-10 rounded-r-lg overflow-hidden"
 				>
 					<img
-						src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+						src={Image1}
 						alt="University campus"
 						class="h-full w-full object-cover dark:brightness-75"
 					/>
-					<div class="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent" />
+					<div class="absolute inset-0" />
 					<div class="absolute bottom-10 left-10 text-white">
-						<h2 class="text-4xl font-bold">smart-sched</h2>
+						<h2 class="text-4xl font-bold"><span>smart</span>-sched</h2>
 						<p class="mt-2 max-w-xs text-lg">Intelligent academic scheduling, simplified.</p>
 					</div>
 				</div>
