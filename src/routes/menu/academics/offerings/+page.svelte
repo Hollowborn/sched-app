@@ -17,6 +17,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
@@ -40,6 +41,12 @@
 	let deleteOpen = $state(false);
 	let selectedClass = $state<ClassOffering | null>(null);
 	let isSubmitting = $state(false);
+
+	// Multi-select state
+	let selectedRows = $state<number[]>([]); // Changed from Set to array for better reactivity
+	let selectedRowCount = $derived(selectedRows.length);
+
+	let hasSelection = $derived(selectedRowCount > 0);
 
 	// Filters
 	let academicYear = $state(data.filters.academic_year);
@@ -103,6 +110,26 @@
 		selectedClass = classItem;
 		deleteOpen = true;
 	}
+
+	// Multi-select handlers
+	function toggleSelectAll(checked: boolean) {
+		selectedRows = checked ? filteredClasses.map((c) => c.id) : [];
+	}
+
+	function toggleSelectRow(id: number, checked: boolean) {
+		if (checked) {
+			selectedRows = [...selectedRows, id];
+		} else {
+			selectedRows = selectedRows.filter((rowId) => rowId !== id);
+		}
+	}
+
+	let isAllSelected = $derived(
+		filteredClasses?.length > 0 && selectedRowCount === filteredClasses?.length
+	);
+	let isIndeterminate = $derived(
+		selectedRowCount > 0 && selectedRowCount < (filteredClasses?.length || 0)
+	);
 </script>
 
 <svelte:head>
@@ -174,12 +201,31 @@
 				</div>
 			</div>
 
-			{#if data.profile?.role && ['Admin', 'Dean', 'Registrar'].includes(data.profile.role)}
-				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto ">
+			<div class="flex gap-2">
+				{#if hasSelection}
+					<Button
+						variant="destructive"
+						disabled={isSubmitting}
+						onclick={() => {
+							selectedClass = null; // Clear single selection
+							deleteOpen = true; // Open modal for bulk delete
+						}}
+					>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete ({selectedRowCount})
+					</Button>
+				{:else}
+					<Button variant="outline" disabled={true}>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete (0)
+					</Button>
+				{/if}
+
+				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create Offering
 				</Button>
-			{/if}
+			</div>
 		</Card.Content>
 	</Card.Root>
 
@@ -187,6 +233,13 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
+					<Table.Head class="w-[50px]">
+						<Checkbox
+							checked={isAllSelected}
+							indeterminate={isIndeterminate}
+							onCheckedChange={toggleSelectAll}
+						/>
+					</Table.Head>
 					<Table.Head>Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>
 					<Table.Head>Block</Table.Head>
@@ -198,7 +251,13 @@
 			<Table.Body>
 				{#if filteredClasses.length > 0}
 					{#each filteredClasses as classItem (classItem.id)}
-						<Table.Row class="hover:bg-muted/50">
+						<Table.Row selected={selectedRows.includes(classItem.id)}>
+							<Table.Cell>
+								<Checkbox
+									checked={selectedRows.includes(classItem.id)}
+									onCheckedChange={(checked) => toggleSelectRow(classItem.id, checked)}
+								/>
+							</Table.Cell>
 							<Table.Cell class="font-medium"
 								>{classItem.subjects?.subject_code || 'N/A'}</Table.Cell
 							>
@@ -240,9 +299,14 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
-	<div class="text-center text-sm text-muted-foreground">
-		Showing results for <span class="font-bold">{semester}</span> of Academic Year:
-		<span class="font-bold">{academicYear}</span>
+	<div class="flex justify-between items-center text-sm text-muted-foreground">
+		<div>
+			{selectedRowCount} of {filteredClasses.length} row{selectedRowCount === 1 ? '' : 's'} selected
+		</div>
+		<div>
+			Showing results for <span class="font-bold">{semester}</span> of Academic Year:
+			<span class="font-bold">{academicYear}</span>
+		</div>
 	</div>
 </div>
 
@@ -336,51 +400,61 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-{#if selectedClass}
-	<Dialog.Root bind:open={deleteOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Are you sure?</Dialog.Title>
-				<Dialog.Description>
+<Dialog.Root bind:open={deleteOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Are you sure?</Dialog.Title>
+			<Dialog.Description>
+				{#if selectedClass}
 					This will permanently delete the class offering for <strong
 						>{selectedClass.subjects?.subject_code}</strong
 					>
-					for block <strong>{selectedClass.blocks?.block_name}</strong>. This cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
-			<form
-				method="POST"
-				action="?/deleteClass"
-				use:enhance={() => {
-					isSubmitting = true;
-					const toastId = toast.loading('Deleting offering...');
-					return async ({ update, result }) => {
-						isSubmitting = false;
-						if (result.type === 'success') {
-							toast.success(result.data?.message, { id: toastId });
-							deleteOpen = false;
-							await invalidateAll();
-						} else if (result.type === 'failure') {
-							toast.error(result.data?.message, { id: toastId });
-						}
-						await update();
-					};
-				}}
-			>
+					for block <strong>{selectedClass.blocks?.block_name}</strong>.
+				{:else if selectedRows.length > 0}
+					This will permanently delete <strong>{selectedRows.length}</strong> selected class offerings.
+				{/if}
+				This action cannot be undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/deleteClass"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Deleting offering...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						deleteOpen = false;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			{#if selectedClass}
 				<input type="hidden" name="id" value={selectedClass.id} />
-				<Dialog.Footer>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => (deleteOpen = false)}
-						disabled={isSubmitting}>Cancel</Button
-					>
-					<Button type="submit" variant="destructive" disabled={isSubmitting}>
-						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
-						Yes, Delete
-					</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
+			{:else}
+				<input type="hidden" name="ids" value={selectedRows.join(',')} />
+			{/if}
+			<Dialog.Footer>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => {
+						deleteOpen = false;
+						if (!selectedClass) selectedRows = []; // Clear multi-selection when canceling
+					}}
+					disabled={isSubmitting}>Cancel</Button
+				>
+				<Button type="submit" variant="destructive" disabled={isSubmitting}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+					Yes, Delete {selectedClass ? 'Offering' : `${selectedRows.length} Offerings`}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
