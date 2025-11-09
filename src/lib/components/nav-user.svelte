@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+
+	// shadcn=svelte components
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 
-	import { SunIcon, MoonIcon, Settings, LogOutIcon } from '@lucide/svelte';
+	import { SunIcon, MoonIcon, Settings, LogOutIcon, ChevronsUpDownIcon } from '@lucide/svelte';
+	import { settingsModalOpen } from '$lib/stores/modalStore.js';
 
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { toast } from 'svelte-sonner';
 	import { toggleMode } from 'mode-watcher';
 	import { page } from '$app/stores';
@@ -94,7 +96,11 @@
 				</DropdownMenu.Group>
 
 				<DropdownMenu.Group>
-					<DropdownMenu.Item onclick={toggleMode}>
+					<DropdownMenu.Item
+						onclick={() => {
+							settingsModalOpen.set(true);
+						}}
+					>
 						<Settings />
 						Settings
 					</DropdownMenu.Item>
