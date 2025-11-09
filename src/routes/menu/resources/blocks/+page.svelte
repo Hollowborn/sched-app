@@ -381,43 +381,24 @@
 							<Card.Description>View and manage individual student blocks.</Card.Description>
 						</div>
 						<div class="flex items-center gap-2">
-							<!-- BULK DELETE FORM (uses page action) -->
-							<form
-								method="POST"
-								action="?/deleteBlock"
-								use:enhance={() => {
-									if (selectedBlockCount === 0) return;
-									isSubmitting = true;
-									const toastId = toast.loading(`Deleting ${selectedBlockCount} block(s)...`);
-
-									return async ({ update, result }) => {
-										isSubmitting = false;
-										if (result.type === 'success') {
-											toast.success(result.data?.message, { id: toastId });
-											selectedBlocks = [];
-											await invalidateAll();
-										} else if (result.type === 'failure') {
-											toast.error(result.data?.message || 'Failed to delete blocks', {
-												id: toastId
-											});
-										}
-										await update();
-									};
-								}}
-							>
-								<input type="hidden" name="ids" value={selectedBlocks.join(',')} />
-								{#if selectedBlockCount > 0}
-									<Button type="submit" variant="destructive" disabled={isSubmitting}>
-										<Trash2 class="mr-2 h-4 w-4" />
-										Delete ({selectedBlockCount})
-									</Button>
-								{:else}
-									<Button type="submit" variant="outline" disabled={true}>
-										<Trash2 class="mr-2 h-4 w-4" />
-										Delete (0)
-									</Button>
-								{/if}
-							</form>
+							{#if selectedBlockCount > 0}
+								<Button
+									variant="destructive"
+									disabled={isSubmitting}
+									onclick={() => {
+										selectedBlock = null; // Clear single selection
+										blockDeleteOpen = true; // Open modal for bulk delete
+									}}
+								>
+									<Trash2 class="mr-2 h-4 w-4" />
+									Delete ({selectedBlockCount})
+								</Button>
+							{:else}
+								<Button variant="outline" disabled={true}>
+									<Trash2 class="mr-2 h-4 w-4" />
+									Delete (0)
+								</Button>
+							{/if}
 
 							<!-- SEARCH INPUT -->
 							<div class="relative w-full max-w-sm">
@@ -661,48 +642,65 @@
 {/if}
 
 <!-- Block Delete Modal -->
-{#if selectedBlock}
-	<Dialog.Root bind:open={blockDeleteOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Are you sure?</Dialog.Title>
-				<Dialog.Description>
-					This will permanently delete the block <strong>{selectedBlock.block_name}</strong>. This
-					action cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
-			<form
-				method="POST"
-				action="?/deleteBlock"
-				use:enhance={() => {
-					isSubmitting = true;
-					const toastId = toast.loading('Deleting block...');
-					return async ({ update, result }) => {
-						isSubmitting = false;
-						if (result.type === 'success') {
-							toast.success(result.data?.message, { id: toastId });
-							invalidateAll();
-							blockDeleteOpen = false;
-						} else if (result.type === 'failure') {
-							toast.error(result.data?.message, { id: toastId });
-						}
-						await update();
-					};
-				}}
-			>
+<Dialog.Root bind:open={blockDeleteOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Are you sure?</Dialog.Title>
+			<Dialog.Description>
+				{#if selectedBlock}
+					This will permanently delete the block <strong>{selectedBlock.block_name}</strong>.
+				{:else if selectedBlocks.length > 0}
+					This will permanently delete <strong>{selectedBlocks.length}</strong> selected blocks.
+				{/if}
+				This action cannot be undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/deleteBlock"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading(
+					selectedBlock ? 'Deleting block...' : `Deleting ${selectedBlocks.length} blocks...`
+				);
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						if (!selectedBlock) selectedBlocks = []; // Clear multi-selection after bulk delete
+						invalidateAll();
+						blockDeleteOpen = false;
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			{#if selectedBlock}
 				<input type="hidden" name="id" value={selectedBlock.id} />
-				<Dialog.Footer>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => (blockDeleteOpen = false)}
-						disabled={isSubmitting}>Cancel</Button
-					>
-					<Button type="submit" variant="destructive" disabled={isSubmitting}>
-						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Yes, Delete
-					</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
+			{:else}
+				<input type="hidden" name="ids" value={selectedBlocks.join(',')} />
+			{/if}
+			<Dialog.Footer>
+				<Button
+					type="button"
+					variant="outline"
+					onclick={() => {
+						blockDeleteOpen = false;
+						if (!selectedBlock) selectedBlocks = []; // Clear multi-selection when canceling
+					}}
+					disabled={isSubmitting}>Cancel</Button
+				>
+				<Button type="submit" variant="destructive" disabled={isSubmitting}>
+					{#if isSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Deleting...
+					{:else}
+						Yes, Delete {selectedBlock ? 'Block' : `${selectedBlocks.length} Blocks`}
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>

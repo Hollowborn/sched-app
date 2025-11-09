@@ -132,10 +132,6 @@
 			selectedRows = selectedRows.filter((rowId) => rowId !== id);
 		}
 	}
-
-	function deleteSelected() {
-		if (selectedRows.length === 0) return;
-	}
 </script>
 
 <svelte:head>
@@ -177,40 +173,24 @@
 		</div>
 		<div class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
-				<form
-					method="POST"
-					action="?/deleteSubject"
-					use:enhance={() => {
-						if (selectedRows.length === 0) return;
-						isSubmitting = true;
-						const toastId = toast.loading(`Deleting ${selectedRows.length} subjects...`);
-
-						return async ({ update, result }) => {
-							isSubmitting = false;
-							if (result.type === 'success') {
-								toast.success(result.data?.message, { id: toastId });
-								selectedRows = [];
-								await invalidateAll();
-							} else if (result.type === 'failure') {
-								toast.error(result.data?.message || 'Failed to delete subjects', { id: toastId });
-							}
-							await update();
-						};
-					}}
-				>
-					<input type="hidden" name="ids" value={selectedRows.join(',')} />
-					{#if hasSelection}
-						<Button type="submit" variant="destructive" disabled={isSubmitting}>
-							<Trash2 class="mr-2 h-4 w-4" />
-							Delete ({selectedRowCount})
-						</Button>
-					{:else}
-						<Button type="submit" variant="outline" disabled={true}>
-							<Trash2 class="mr-2 h-4 w-4" />
-							Delete (0)
-						</Button>
-					{/if}
-				</form>
+				{#if hasSelection}
+					<Button
+						variant="destructive"
+						disabled={isSubmitting}
+						onclick={() => {
+							selectedSubject = null; // Clear single selection
+							deleteOpen = true; // Open modal for bulk delete
+						}}
+					>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete ({selectedRowCount})
+					</Button>
+				{:else}
+					<Button variant="outline" disabled={true}>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete (0)
+					</Button>
+				{/if}
 			{/if}
 			{#if data.profile?.role === 'Admin'}
 				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
@@ -502,8 +482,13 @@
 		<Dialog.Header>
 			<Dialog.Title>Are you sure?</Dialog.Title>
 			<Dialog.Description>
-				This action cannot be undone. This will permanently delete the subject
-				<strong>{selectedSubject?.subject_code} - {selectedSubject?.subject_name}</strong>.
+				{#if selectedSubject}
+					This will permanently delete the subject
+					<strong>{selectedSubject.subject_code} - {selectedSubject.subject_name}</strong>.
+				{:else if selectedRows.length > 0}
+					This will permanently delete <strong>{selectedRows.length}</strong> selected subjects.
+				{/if}
+				This action cannot be undone.
 			</Dialog.Description>
 		</Dialog.Header>
 		<form
@@ -528,12 +513,19 @@
 				};
 			}}
 		>
-			<input type="hidden" name="id" value={selectedSubject?.id} />
+			{#if selectedSubject}
+				<input type="hidden" name="id" value={selectedSubject.id} />
+			{:else}
+				<input type="hidden" name="ids" value={selectedRows.join(',')} />
+			{/if}
 			<Dialog.Footer>
 				<Button
 					type="button"
 					variant="outline"
-					onclick={() => (deleteOpen = false)}
+					onclick={() => {
+						deleteOpen = false;
+						if (!selectedSubject) selectedRows = []; // Clear multi-selection when canceling
+					}}
 					disabled={isSubmitting}>Cancel</Button
 				>
 				<Button type="submit" variant="destructive" disabled={isSubmitting}>
@@ -541,10 +533,10 @@
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 						Deleting...
 					{:else}
-						Yes, Delete Subject
+						Yes, Delete {selectedSubject ? 'Subject' : `${selectedRows.length} Subjects`}
 					{/if}
 				</Button>
 			</Dialog.Footer>
-		</form>
-	</Dialog.Content>
+		</form></Dialog.Content
+	>
 </Dialog.Root>
