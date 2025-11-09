@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { Calendar, BookOpen, Search, Filter } from '@lucide/svelte';
+	import { Calendar, BookOpen, Search, Filter, List, UserCheck, UserX } from '@lucide/svelte';
 	import { tick } from 'svelte'; // Import tick from svelte
 
 	// Shadcn Components
@@ -15,6 +15,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	type ClassOffering = {
 		id: number;
@@ -172,9 +173,36 @@
 			</div>
 			<!-- Status Toggles -->
 			<ToggleGroup.Root type="single" variant="outline" bind:value={statusFilter}>
-				<ToggleGroup.Item value="all">All</ToggleGroup.Item>
-				<ToggleGroup.Item value="assigned">Assigned</ToggleGroup.Item>
-				<ToggleGroup.Item value="unassigned">Unassigned</ToggleGroup.Item>
+				<Tooltip.Provider>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							><ToggleGroup.Item value="all"><List /></ToggleGroup.Item></Tooltip.Trigger
+						>
+						<Tooltip.Content>
+							<p>All</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+				<Tooltip.Provider>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							><ToggleGroup.Item value="assigned"><UserCheck /></ToggleGroup.Item></Tooltip.Trigger
+						>
+						<Tooltip.Content>
+							<p>Assigned</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+				<Tooltip.Provider>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							><ToggleGroup.Item value="unassigned"><UserX /></ToggleGroup.Item></Tooltip.Trigger
+						>
+						<Tooltip.Content>
+							<p>Unassigned</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
 			</ToggleGroup.Root>
 		</Card.Content>
 	</Card.Root>
