@@ -106,13 +106,21 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const id = Number(formData.get('id'));
+		const idParam = formData.get('id');
+		const idsParam = formData.get('ids');
 
-		if (!id) {
-			return fail(400, { message: 'Invalid class offering ID.' });
+		// Handle both single and bulk delete
+		const ids = idsParam
+			? idsParam.toString().split(',').map(Number)
+			: idParam
+				? [Number(idParam)]
+				: [];
+
+		if (ids.length === 0) {
+			return fail(400, { message: 'No class offerings selected for deletion.' });
 		}
 
-		const { error: deleteError } = await locals.supabase.from('classes').delete().eq('id', id);
+		const { error: deleteError } = await locals.supabase.from('classes').delete().in('id', ids);
 
 		if (deleteError) {
 			console.error('Error deleting class offering:', deleteError);
