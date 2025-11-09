@@ -34,6 +34,11 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				roles: ['Admin', 'Dean', 'Registrar']
 			},
 			{
+				title: 'Generate Schedules',
+				url: '/menu/timetables/generate',
+				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
+			},
+			{
 				title: 'View Schedules',
 				url: '/menu/timetables/view',
 				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
