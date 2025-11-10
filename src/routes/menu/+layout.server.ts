@@ -139,8 +139,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 };
 // export const actions: Actions = {
 // 	/**
-// 	 * Updates the user's public profile (e.g., username).
-// 	 */
+
 // 	updateProfile: async ({ request, locals }) => {
 // 		const { user, supabase } = locals;
 // 		if (!user) {
@@ -166,8 +165,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 // 	},
 
 // 	/**
-// 	 * Updates the user's authentication password.
-// 	 */
+
 // 	updatePassword: async ({ request, locals }) => {
 // 		const { supabase } = locals;
 // 		if (!supabase) {
