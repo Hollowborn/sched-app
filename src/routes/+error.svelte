@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Search, ServerCrash, FileQuestionIcon, ShieldAlert } from 'lucide-svelte';
 	import type { ComponentType } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	// 1. Declare a mutable variable with `let`.
 	let errorDetails: {
@@ -48,13 +49,13 @@
 <div class="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
 	{#if errorDetails}
 		<div class="flex max-w-lg flex-col items-center gap-4">
-			<svelte:component
+			<!-- <svelte:component
 				this={errorDetails.icon}
 				class="h-24 w-24 text-primary"
 				stroke-width="1.5"
-			/>
+			/> -->
 			<div class="space-y-2">
-				<h1 class="text-6xl font-bold text-foreground">{$page.status}</h1>
+				<h1 class="text-8xl font-bold text-primary">{$page.status}</h1>
 				<h2 class="text-2xl font-semibold tracking-tight">{errorDetails.title}</h2>
 				<p class="text-foreground">
 					{errorDetails.description || $page.error?.message}
@@ -67,7 +68,15 @@
 			</div>
 
 			<p class="text-xs text-muted-foreground">
-				If you believe this is an error, please <a href="##" class="underline">contact support</a>.
+				If you believe this is an error, please <a
+					href="##"
+					class="underline"
+					onclick={() => {
+						toast.message('Email developer at:', {
+							description: 'charlesithan.amahan@bisu.edu.ph'
+						});
+					}}>contact support</a
+				>.
 			</p>
 		</div>
 	{/if}
