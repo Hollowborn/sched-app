@@ -205,32 +205,34 @@
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#if filteredInstructors.length > 0}
 				{#each filteredInstructors as instructor (instructor.id)}
-					<Card.Root class="flex flex-col">
-						<Card.Header>
-							<Card.Title>{instructor.name}</Card.Title>
-							<Card.Description>{instructor.colleges?.college_name || 'N/A'}</Card.Description>
-						</Card.Header>
-						<Card.Content class="flex-grow">
-							<div class="space-y-2">
-								<Label class="text-xs text-muted-foreground"
-									>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
+					<div class="hover-lift transition-base">
+						<Card.Root class="flex flex-col ">
+							<Card.Header>
+								<Card.Title>{instructor.name}</Card.Title>
+								<Card.Description>{instructor.colleges?.college_name || 'N/A'}</Card.Description>
+							</Card.Header>
+							<Card.Content class="flex-grow">
+								<div class="space-y-2">
+									<Label class="text-xs text-muted-foreground"
+										>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
+									>
+									<Progress
+										value={(instructor.current_load / instructor.max_load) * 100}
+										style="--indicator-color: {getLoadColor(
+											instructor.current_load,
+											instructor.max_load
+										)};"
+									/>
+								</div>
+							</Card.Content>
+							<Card.Footer class="flex justify-end gap-2">
+								<Button variant="outline" size="sm">View Schedule</Button>
+								<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
+									>Edit</Button
 								>
-								<Progress
-									value={(instructor.current_load / instructor.max_load) * 100}
-									style="--indicator-color: {getLoadColor(
-										instructor.current_load,
-										instructor.max_load
-									)};"
-								/>
-							</div>
-						</Card.Content>
-						<Card.Footer class="flex justify-end gap-2">
-							<Button variant="outline" size="sm">View Schedule</Button>
-							<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
-								>Edit</Button
-							>
-						</Card.Footer>
-					</Card.Root>
+							</Card.Footer>
+						</Card.Root>
+					</div>
 				{/each}
 			{:else}
 				<div class="col-span-full text-center text-muted-foreground py-10">

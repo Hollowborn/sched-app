@@ -155,7 +155,7 @@
 	{#if viewMode === 'grid'}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#each filteredRooms as room (room.id)}
-				<Card.Root class="flex flex-col">
+				<Card.Root class="flex flex-col hover-lift transition-base">
 					<Card.Header>
 						<div class="flex justify-between items-start">
 							<div>
