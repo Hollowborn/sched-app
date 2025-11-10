@@ -201,7 +201,7 @@
 				</div>
 			</div>
 
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col md:flex-row gap-2">
 				{#if hasSelection}
 					<Button
 						class="w-full md:w-auto"
