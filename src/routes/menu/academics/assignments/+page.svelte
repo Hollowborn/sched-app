@@ -34,6 +34,7 @@
 	// --- State Management ---
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
+	let colleges = $state(data.filters.college);
 	let searchQuery = $state('');
 	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
 
@@ -78,6 +79,11 @@
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
+		if (colleges) {
+			params.set('college', colleges);
+		} else {
+			params.delete('college');
+		}
 		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
 	}
 
@@ -161,6 +167,32 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
+				{#if data.profile?.role === 'Admin' && data.colleges?.length > 0}
+					<div class="flex items-center gap-2">
+						<Filter class="h-4 w-4 text-muted-foreground" />
+						<Select.Root
+							type="single"
+							value={colleges}
+							onValueChange={(v) => {
+								colleges = v;
+								handleFilterChange();
+							}}
+						>
+							<Select.Trigger class="w-[200px]">
+								<span class="truncate max-w-[200px]">
+									{data.colleges?.find((c) => c.id.toString() === colleges)?.college_name ||
+										'All Colleges'}
+								</span>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="">All Colleges</Select.Item>
+								{#each data.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				{/if}
 				<!-- Search -->
 				<div class="relative w-full max-w-sm">
 					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

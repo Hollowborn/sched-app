@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
+	const college_id = url.searchParams.get('college');
 
 	// --- 1. Fetch Class Offerings for the selected term ---
 	let classQuery = locals.supabase
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.select(
 			`
             id,
-            subjects (id, subject_code, subject_name, college_id, colleges(college_name)),
+            subjects!inner (id, subject_code, subject_name, college_id, colleges(college_name)),
             instructors (id, name),
             blocks (id, block_name)
         `
@@ -29,9 +30,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.eq('academic_year', academic_year)
 		.eq('semester', semester);
 
-	// Deans should only see classes relevant to their college
+	// Handle college filtering based on role and URL params
 	if (userRole === 'Dean' && locals.profile?.college_id) {
+		// Deans should only see classes relevant to their college
 		classQuery = classQuery.eq('subjects.college_id', locals.profile.college_id);
+	} else if (college_id && userRole === 'Admin') {
+		// Admins can filter by any college
+		classQuery = classQuery.eq('subjects.college_id', college_id);
 	}
 
 	const { data: classes, error: classesError } = await classQuery;
@@ -78,11 +83,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		return { ...instructor, current_load };
 	});
 
+	// Fetch colleges for the filter dropdown (only for Admin role)
+	const { data: colleges } =
+		userRole === 'Admin'
+			? await locals.supabase.from('colleges').select('id, college_name')
+			: { data: [] };
+
 	return {
 		classes: classes || [],
 		instructors: instructorsWithLoad || [],
+		colleges: colleges || [],
 		profile: locals.profile,
-		filters: { academic_year, semester }
+		filters: { academic_year, semester, college: college_id }
 	};
 };
 
