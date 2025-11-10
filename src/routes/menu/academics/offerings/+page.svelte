@@ -201,9 +201,10 @@
 				</div>
 			</div>
 
-			<div class="flex gap-2">
+			<div class="flex flex-col gap-2">
 				{#if hasSelection}
 					<Button
+						class="w-full md:w-auto"
 						variant="destructive"
 						disabled={isSubmitting}
 						onclick={() => {
@@ -215,7 +216,7 @@
 						Delete ({selectedRowCount})
 					</Button>
 				{:else}
-					<Button variant="outline" disabled={true}>
+					<Button variant="outline" disabled={true} class="w-full md:w-auto">
 						<Trash2 class="mr-2 h-4 w-4" />
 						Delete (0)
 					</Button>
