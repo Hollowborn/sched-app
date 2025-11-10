@@ -68,7 +68,7 @@
 								</div>
 								<div class="hidden md:block">
 									<Skeleton class="h-8 w-72 rounded-md" />
-									<Skeleton class="mt-2 h-4 w-[450px] rounded-md" />
+									<Skeleton class="mt-2 h-6 w-[450px] rounded-md" />
 								</div>
 							</header>
 
@@ -94,21 +94,21 @@
 								<div class="divide-y md:hidden">
 									{#each Array(5) as _}
 										<div class="p-4 space-y-3">
-											<Skeleton class="h-4 w-3/4 rounded-md" />
-											<Skeleton class="h-4 w-1/2 rounded-md" />
+											<Skeleton class="h-6 w-3/4 rounded-md" />
+											<Skeleton class="h-6 w-1/2 rounded-md" />
 											<Skeleton class="h-10 w-full rounded-md" />
 										</div>
 									{/each}
 								</div>
-
-								<div class="hidden md:block">
+								<!-- Removed md:block on class -->
+								<div class="hidden">
 									<Table.Root>
 										<Table.Header>
 											<Table.Row>
-												<Table.Head><Skeleton class="h-4 w-48 rounded-md" /></Table.Head>
-												<Table.Head><Skeleton class="h-4 w-48 rounded-md" /></Table.Head>
+												<Table.Head><Skeleton class="h-6 w-32 rounded-md" /></Table.Head>
+												<Table.Head><Skeleton class="h-6 w-32 rounded-md" /></Table.Head>
 												<Table.Head class="w-[40%]"
-													><Skeleton class="h-4 w-48 rounded-md" /></Table.Head
+													><Skeleton class="h-6 w-full rounded-md" /></Table.Head
 												>
 											</Table.Row>
 										</Table.Header>
@@ -116,14 +116,13 @@
 											{#each Array(8) as _}
 												<Table.Row class="hover:bg-transparent">
 													<Table.Cell>
-														<Skeleton class="h-4 w-24 rounded-md mb-2" />
-														<Skeleton class="h-4 w-48 rounded-md" />
+														<Skeleton class="h-6 w-32 rounded-md" />
 													</Table.Cell>
 													<Table.Cell>
-														<Skeleton class="h-4 w-32 rounded-md" />
+														<Skeleton class="h-6 w-32 rounded-md" />
 													</Table.Cell>
 													<Table.Cell>
-														<Skeleton class="h-10 w-full rounded-md" />
+														<Skeleton class="h-6 w-full rounded-md" />
 													</Table.Cell>
 												</Table.Row>
 											{/each}
