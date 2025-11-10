@@ -14,16 +14,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
+	const college_id = url.searchParams.get('college');
 
 	// Fetch class offerings for the selected term, joining all necessary related data.
-	const { data: classes, error: classesError } = await locals.supabase
+	let query = locals.supabase
 		.from('classes')
 		.select(
 			`
             id,
             semester,
             academic_year,
-            subjects (id, subject_code, subject_name, college_id),
+            subjects!inner (id, subject_code, subject_name, college_id),
             instructors (id, name),
             blocks (id, block_name)
         `
@@ -31,19 +32,54 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.eq('academic_year', academic_year)
 		.eq('semester', semester);
 
+	if (college_id) {
+		query = query.eq('subjects.college_id', college_id);
+	}
+
+	const { data: classes, error: classesError } = await query;
+
 	if (classesError) {
 		console.error('Error fetching class offerings:', classesError);
 		throw error(500, 'Failed to load class offerings.');
 	}
 
 	// Fetch all necessary data for the "Create" modal dropdowns.
-	const [{ data: subjects }, { data: instructors }, { data: blocks }, { data: colleges }] =
-		await Promise.all([
-			locals.supabase.from('subjects').select('id, subject_code, subject_name, college_id'),
-			locals.supabase.from('instructors').select('id, name'),
-			locals.supabase.from('blocks').select('id, block_name'),
-			locals.supabase.from('colleges').select('id, college_name')
-		]);
+	const [
+		{ data: subjects, error: subjectsError },
+		{ data: instructors },
+		{ data: blocks },
+		{ data: colleges },
+		{ data: programs }
+	] = await Promise.all([
+		locals.supabase
+			.from('subjects')
+			.select('id, subject_code, subject_name, college_id')
+			.order('subject_code'),
+		locals.supabase.from('instructors').select('id, name'),
+		locals.supabase
+			.from('blocks')
+			.select(
+				`
+					id, 
+					block_name, 
+					program_id, 
+					year_level,
+					programs (
+						id,
+						program_name,
+						college_id
+					)
+					`
+			)
+			.order('block_name'),
+		locals.supabase.from('colleges').select('id, college_name').order('college_name'),
+		locals.supabase.from('programs').select('id, program_name, college_id').order('program_name')
+	]);
+
+	if (subjectsError) {
+		console.error('Error fetching subjects:', subjectsError);
+		throw error(500, 'Failed to load subjects.');
+	}
 
 	return {
 		classes: classes || [],
@@ -51,8 +87,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		instructors: instructors || [],
 		blocks: blocks || [],
 		colleges: colleges || [],
+		programs: programs || [],
 		profile: locals.profile,
-		filters: { academic_year, semester }
+		filters: { academic_year, semester, college: college_id }
 	};
 };
 
