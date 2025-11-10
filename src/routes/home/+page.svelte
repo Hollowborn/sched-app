@@ -44,7 +44,8 @@
 		ChevronDown,
 		Sparkle,
 		ChevronUp,
-		ArrowUp
+		ArrowUp,
+		GalleryVerticalEnd
 	} from 'lucide-svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 
@@ -86,7 +87,12 @@
 			>
 				<!-- <img src="/logo.svg" alt="smart-sched Logo" class="h-8 w-8" /> -->
 				<div
-					class="text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight mb-2"
+					class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md"
+				>
+					<GalleryVerticalEnd class="size-4" />
+				</div>
+				<div
+					class="text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight"
 				>
 					<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span
 					>
@@ -378,7 +384,7 @@
 			>
 				<p>
 					&copy; {new Date().getFullYear()}<span class="font-semibold text-primary">
-						&nbsp; smart</span
+						&nbsp smart</span
 					><span class="font-light">-sched</span>. All rights reserved.
 				</p>
 				<div class="mt-4 md:mt-0 space-x-4">
