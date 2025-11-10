@@ -1,188 +1,50 @@
 <script lang="ts">
-	import type { ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	import { toast } from 'svelte-sonner';
-	import { AlertCircle, LoaderCircle, ChevronLeft } from '@lucide/svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { GalleryVerticalEnd } from '@lucide/svelte';
+	import LoginForm from '$lib/components/login-form.svelte';
 	import Image1 from '$lib/assets/img1.png';
-	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
-
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import type { ActionData } from './$types';
 
 	let { form } = $props<{ form?: ActionData }>();
-
-	let email = $state(form?.email || '');
-	let password = $state('');
-	let isSubmitting = $state(false);
-
-	let globalMessage = $derived(form?.message || '');
-	let formErrors = $derived(form?.formErrors || {});
-	function showToastError() {
-		toast.error('This feature is currently not available');
-	}
 </script>
 
 <svelte:head>
 	<title>Login Page | smart-sched</title>
 </svelte:head>
 
-<div
-	class="flex flex-col min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 to-background p-4"
->
-	<div class="w-full max-w-4xl">
-		<Card.Root class=" overflow-hidden shadow-2xl dark:shadow-blue-950/20">
-			<Card.Content class="grid p-0 md:grid-cols-2">
-				<!-- Login Form Section -->
-				<div class="p-6 sm:p-10 flex flex-col justify-center">
-					<form
-						method="POST"
-						action="?/login"
-						class="space-y-6"
-						use:enhance={() => {
-							isSubmitting = true;
-							let toastId: string | number;
-
-							toastId = toast.loading('Verifying credentials...');
-
-							return async ({ update, result }) => {
-								isSubmitting = false;
-
-								if (result.type === 'redirect') {
-									toast.success('Login successful! Redirecting...', { id: toastId });
-								} else if (result.type === 'failure') {
-									const message = result.data?.message || 'Invalid credentials.';
-									toast.error(message, { id: toastId });
-								} else {
-									// This can happen if the action isn't found, for example.
-									toast.error('An unexpected error occurred.', { id: toastId });
-								}
-								console.log('Form submission result:', result);
-								// Allow SvelteKit to complete the navigation or update the form prop
-								await update();
-							};
-						}}
-					>
-						<div class="flex flex-col gap-2 text-center">
-							<h1 class="text-3xl font-bold tracking-tight">Welcome Back</h1>
-							<p class="text-muted-foreground text-balance">
-								Enter your credentials to access the smart-sched dashboard.
-							</p>
-						</div>
-						<!-- Error Alert -->
-						<!-- {#if globalMessage && !formErrors.email && !formErrors.password}
-							<Alert variant="destructive" class="mt-4">
-								<AlertCircle class="h-4 w-4" />
-								<AlertTitle>Login Failed</AlertTitle>
-								<AlertDescription>{globalMessage}</AlertDescription>
-							</Alert>
-						{/if} -->
-
-						<div class="space-y-4">
-							<div class="grid gap-2">
-								<Label for="email">Email</Label>
-								<Input
-									id="email"
-									name="email"
-									type="email"
-									placeholder="dean@university.edu"
-									required
-									bind:value={email}
-									disabled={isSubmitting}
-									class={formErrors.email ? 'border-destructive' : ''}
-								/>
-								{#if formErrors.email}
-									<p class="text-sm font-medium text-destructive">{formErrors.email}</p>
-								{/if}
-							</div>
-
-							<div class="grid gap-2">
-								<div class="flex items-center">
-									<Label for="password">Password</Label>
-									<a href="##" class="ml-auto inline-block text-sm underline">Forgot password?</a>
-								</div>
-								<Input
-									id="password"
-									name="password"
-									type="password"
-									required
-									bind:value={password}
-									disabled={isSubmitting}
-									class={formErrors.password ? 'border-destructive' : ''}
-								/>
-								{#if formErrors.password}
-									<p class="text-sm font-medium text-destructive">{formErrors.password}</p>
-								{/if}
-							</div>
-
-							<Button type="submit" class="w-full" disabled={isSubmitting}>
-								{#if isSubmitting}
-									<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-									Signing In...
-								{:else}
-									Login
-								{/if}
-							</Button>
-						</div>
-
-						<div class="mt-4 text-center text-sm">
-							Don't have an account?
-							<a href="#" onclick={showToastError} class="underline">Sign up</a>
-						</div>
-					</form>
-				</div>
-
-				<!-- Image Section -->
+<div class="grid min-h-svh lg:grid-cols-2">
+	<div class="flex flex-col gap-4 p-6 md:p-10">
+		<div class="flex justify-center gap-2 md:justify-start">
+			<a href="/" class="flex items-center gap-2 font-medium">
 				<div
-					class="bg-muted relative hidden items-center justify-center md:flex mr-0 md:mr-6 lg:mr-10 rounded-r-lg overflow-hidden"
+					class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md"
 				>
-					<img
-						src={Image1}
-						alt="University campus"
-						class="h-full w-full object-cover dark:brightness-75"
-					/>
-					<div class="absolute inset-0" />
-					<div class="absolute bottom-10 left-10 text-white">
-						<h2 class="text-4xl font-bold"><span>smart</span>-sched</h2>
-						<p class="mt-2 max-w-xs text-lg">Intelligent academic scheduling, simplified.</p>
-					</div>
+					<GalleryVerticalEnd class="size-4" />
 				</div>
-			</Card.Content>
-		</Card.Root>
-		<!-- Badge attempts -->
-		<!-- <Badge
-			class="fixed bottfom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
-			variant="outline">Made with SvelteKit and Supabase</Badge
-		> -->
-		<!-- <a
-			href="https://supabase.com"
-			class="ixed bottfom-4 right-4 opacity-80 hover:opacity-100 transition-opacity"
-			target="_blank"
-			rel="noopener noreferrer"
-		>
-			<img
-				width="168"
-				height="30"
-				src="https://supabase.com/badge-made-with-supabase.svg"
-				alt="Made with Supabase"
-			/>
-		</a> -->
+				<div
+					class="flex text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight"
+				>
+					<span class="font-semibold text-primary">smart</span>
+					<span class="font-light">-sched</span>
+				</div>
+			</a>
+		</div>
+		<div class="flex flex-1 items-center justify-center">
+			<div class="w-full max-w-xs">
+				<LoginForm {form} />
+			</div>
+		</div>
 	</div>
-	<h1
-		class="absolute top-0 left-0 m-4 text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight mb-2"
-	>
-		<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span>
-	</h1>
-	<div class="absolute top-0 right-0 m-4">
-		<Button variant="secondary" href="/home"><ChevronLeft />Go back</Button>
+	<div class="bg-primary relative hidden lg:block">
+		<img
+			src={Image1}
+			alt="University campus"
+			class="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+		/>
+		<div class="absolute bottom-10 left-10 text-white z-10">
+			<h2 class="text-4xl font-bold">Intelligent academic scheduling, simplified.</h2>
+			<p class="mt-2 max-w-xs text-lg">
+				Streamline your academic scheduling process with AI-powered automation.
+			</p>
+		</div>
 	</div>
-	<!-- <div class="fixed items-center mt-6 bottom-0">
-		<Separator />
-		<Label class="m-2 text-muted-foreground text-sm"
-			>Copyright <a href="https://github.com/Hollowborn" target="_blank">@Finnex</a> 2025</Label
-		>
-	</div> -->
 </div>
