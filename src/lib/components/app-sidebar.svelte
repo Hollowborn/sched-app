@@ -31,7 +31,7 @@
 			class="flex items-center gap-2.5 transition-transform duration-200 hover:scale-101"
 		>
 			<!-- Custom SVG Icon for smart-sched -->
-			<div
+			<!-- <div
 				class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20"
 			>
 				<svg
@@ -50,11 +50,15 @@
 					<line x1="3" x2="21" y1="10" y2="10" />
 					<path d="m9 16 2 2 4-4" />
 				</svg>
+			</div> -->
+			<div
+				class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md"
+			>
+				<GalleryVerticalEndIcon class="size-4" />
 			</div>
-
 			<!-- Styled App Name -->
 			<h1
-				class="text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight mb-2"
+				class="text-xl font-bold text-foreground/90 transition-opacity duration-200 group-data-[collapsible=icon]:hidden font-['Poppins'] tracking-tight"
 			>
 				<span class="font-semibold text-primary">smart</span><span class="font-light">-sched</span>
 			</h1>
