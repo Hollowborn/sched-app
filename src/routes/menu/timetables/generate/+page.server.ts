@@ -170,10 +170,12 @@ export const actions: Actions = {
 			await Promise.all([
 				locals.supabase
 					.from('classes')
-					.select('*, subjects!inner(*), blocks!inner(*), instructors(id, name)')
+					.select(
+						'*, subjects!inner(*), blocks!inner(*, programs!inner(college_id)), instructors(id, name)'
+					)
 					.eq('academic_year', academic_year)
 					.eq('semester', semester)
-					.in('subjects.college_id', college_ids),
+					.in('blocks.programs.college_id', college_ids),
 				locals.supabase.from('rooms').select('*').in('id', room_ids)
 			]);
 

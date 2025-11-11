@@ -53,8 +53,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
                 block_id,
                 subjects!inner (
                     subject_code,
-                    subject_name,
-                    college_id
+                    subject_name
                 ),
                 instructors (
                     id, 
