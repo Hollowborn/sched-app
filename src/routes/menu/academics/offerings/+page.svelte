@@ -33,15 +33,7 @@
 		subjects: { id: number; subject_code: string; subject_name: string; college_id: number } | null;
 		instructors: { id: number; name: string } | null;
 		blocks: {
-			id: number;
-			block_name: string;
-			program_id: number;
-			year_level: number;
-			programs: {
-				id: number;
-				program_name: string;
-				college_id: number;
-			};
+			programs: { program_name: string; college_id: number };
 		} | null;
 	};
 
@@ -82,91 +74,109 @@
 	);
 
 	// Filter blocks based on selected subject's college
-	let availableBlocks = $derived(() => {
-		const blocks = data.blocks || [];
-		$inspect('Initial blocks:', blocks);
 
-		if (!createSubjectId) return [];
-
-		const selectedSubject = data.subjects?.find((s) => s.id.toString() === createSubjectId);
-		$inspect('Selected subject:', selectedSubject);
-
-		if (!selectedSubject?.college_id) return [];
-
-		$inspect('Looking for programs with college_id:', selectedSubject.college_id);
-		const collegePrograms = (data.programs || []).filter(
-			(p) => p.college_id === selectedSubject.college_id
-		);
-		$inspect('Found college programs:', collegePrograms);
-
-		const programIds = new Set(collegePrograms.map((p) => p.id));
-		console.log('Program IDs to filter by:', Array.from(programIds));
-
-		// Get blocks from all programs in the college
-		const filteredBlocks = blocks.filter((block) => {
-			console.log('Checking block:', block);
-			const isValid = block.programs && programIds.has(block.program_id); // Changed from block.programs.id to block.program_id
-			console.log('Is valid block?', isValid);
-			return isValid;
-		});
-
-		console.log('Filtered blocks:', filteredBlocks);
-
-		return filteredBlocks.sort((a, b) => {
-			if (!a.programs || !b.programs) return 0;
-			// First sort by program name
-			const programCompare = a.programs.program_name.localeCompare(b.programs.program_name);
-			if (programCompare !== 0) return programCompare;
-			// Then by year level
-			return a.year_level - b.year_level;
-		});
-	});
-	$inspect(availableBlocks);
 	// Group or filter subjects based on selected college
 	const availableSubjects = $derived(() => {
 		const subjects = data.subjects || [];
-		console.log('All subjects:', subjects); // Debug log
 
 		// If a college is selected, filter subjects for that college
 		if (colleges) {
 			const filtered = subjects.filter((s) => s.college_id && s.college_id.toString() === colleges);
-			console.log('Filtered subjects:', filtered); // Debug log
 			return filtered;
 		}
 
 		return subjects;
 	});
 
-	const groupedSubjects = $derived(() => {
-		const subjects = availableSubjects;
-		if (!subjects.length) return {};
+	// Filter blocks based on the college of the selected subject
+	let availableBlocks = $state([]);
 
-		// Group subjects by college
-		const grouped = subjects.reduce(
-			(acc, subject) => {
-				const college = data.colleges?.find((c) => c.id === subject.college_id);
-				const collegeName = college?.college_name || 'Uncategorized';
+	$effect(() => {
+		if (!createSubjectId) {
+			availableBlocks = [];
 
-				if (!acc[collegeName]) {
-					acc[collegeName] = [];
-				}
-				acc[collegeName].push(subject);
-				return acc;
-			},
-			{} as Record<string, typeof subjects>
-		);
+			return;
+		}
 
-		// Sort colleges alphabetically
-		return Object.keys(grouped)
-			.sort()
-			.reduce(
-				(acc, key) => {
-					acc[key] = grouped[key];
-					return acc;
-				},
-				{} as Record<string, typeof subjects>
-			);
+		const selectedSubject = data.subjects?.find((s) => s.id.toString() === createSubjectId);
+
+		if (!selectedSubject) {
+			availableBlocks = [];
+
+			return;
+		}
+
+		const collegeId = selectedSubject.college_id;
+
+		const programIdsForCollege =
+			data.programs?.filter((p) => p.college_id === collegeId).map((p) => p.id) || [];
+
+		const filtered =
+			data.blocks?.filter((block) => {
+				const isIncluded = programIdsForCollege.includes(block.program_id);
+
+				return isIncluded;
+			}) || [];
+
+		// Sort the filtered blocks
+
+		const sorted = filtered.sort((a, b) => {
+			const programA = data.programs.find((p) => p.id === a.program_id);
+
+			const programB = data.programs.find((p) => p.id === b.program_id);
+
+			const programNameA = programA?.program_name || '';
+
+			const programNameB = programB?.program_name || '';
+
+			if (programNameA < programNameB) return -1;
+
+			if (programNameA > programNameB) return 1;
+
+			if (a.year_level < b.year_level) return -1;
+
+			if (a.year_level > b.year_level) return 1;
+
+			if (a.block_name < b.block_name) return -1;
+
+			if (a.block_name > b.block_name) return 1;
+
+			return 0;
+		});
+
+		availableBlocks = sorted;
 	});
+
+	// const groupedSubjects = $derived(() => {
+	// 	const subjects = availableSubjects;
+	// 	if (!subjects.length) return {};
+
+	// 	// Group subjects by college
+	// 	const grouped = subjects.reduce(
+	// 		(acc, subject) => {
+	// 			const college = data.colleges?.find((c) => c.id === subject.college_id);
+	// 			const collegeName = college?.college_name || 'Uncategorized';
+
+	// 			if (!acc[collegeName]) {
+	// 				acc[collegeName] = [];
+	// 			}
+	// 			acc[collegeName].push(subject);
+	// 			return acc;
+	// 		},
+	// 		{} as Record<string, typeof subjects>
+	// 	);
+
+	// 	// Sort colleges alphabetically
+	// 	return Object.keys(grouped)
+	// 		.sort()
+	// 		.reduce(
+	// 			(acc, key) => {
+	// 				acc[key] = grouped[key];
+	// 				return acc;
+	// 			},
+	// 			{} as Record<string, typeof subjects>
+	// 		);
+	// });
 
 	const filteredClasses: ClassOffering[] = $derived.by(() => {
 		const classes = data.classes || [];
@@ -234,9 +244,6 @@
 	let isIndeterminate = $derived(
 		selectedRowCount > 0 && selectedRowCount < (filteredClasses?.length || 0)
 	);
-
-	// console log (reactive)
-	$inspect(data.blocks);
 </script>
 
 <svelte:head>
@@ -405,8 +412,8 @@
 							</Table.Cell>
 							<Table.Cell>
 								<Badge variant="secondary">
-									{data.programs?.find((p) => p.id === classItem.subjects?.program_id)
-										?.program_name || 'N/A'}
+									{data.colleges?.find((p) => p.id === classItem.subjects?.college_id)
+										?.college_name || 'N/A'}
 								</Badge>
 							</Table.Cell>
 							<Table.Cell class="text-right">
@@ -479,8 +486,10 @@
 					<Select.Root
 						type="single"
 						name="subject_id"
-						bind:value={createSubjectId}
-						onValueChange={() => {
+						value={createSubjectId}
+						onValueChange={(v) => {
+							console.log('Subject dropdown changed. New value:', v);
+							createSubjectId = v || '';
 							createBlockId = ''; // Reset block selection when subject changes
 						}}
 					>
@@ -518,11 +527,11 @@
 									)}
 									{#if collegeSubjects.length}
 										<Select.Group>
-											<Select.Label class="px-2 py-1.5 text-sm font-semibold bg-muted/50">
+											<Select.Label class="">
 												{college.college_name}
 											</Select.Label>
 											{#each collegeSubjects as subject}
-												<Select.Item class="pl-2" value={subject.id.toString()}>
+												<Select.Item class="" value={subject.id.toString()}>
 													{subject.subject_code} - {subject.subject_name}
 												</Select.Item>
 											{/each}
@@ -535,8 +544,13 @@
 				</div>
 				<div class="space-y-2">
 					<Label>Block Section</Label>
-					<Select.Root type="single" name="block_id" bind:value={createBlockId}>
-						<Select.Trigger>
+					<Select.Root
+						type="single"
+						name="block_id"
+						bind:value={createBlockId}
+						disabled={!createSubjectId}
+					>
+						<Select.Trigger disabled={!createSubjectId}>
 							<span class="placeholder:text-muted-foreground"
 								>{createBlockName || 'Select a block'}</span
 							>
@@ -548,39 +562,23 @@
 								</div>
 							{:else if availableBlocks.length === 0}
 								<div class="p-2 text-sm text-muted-foreground text-center">
-									No blocks available for this program
+									No blocks available for this subject's college
 								</div>
 							{:else}
-								{@const blocksByProgram = availableBlocks.reduce<
-									Record<string, Record<number, typeof availableBlocks>>
-								>((acc, block) => {
-									if (!block.programs) return acc;
-									const programName = block.programs.program_name;
+								{@const groupedBlocks = availableBlocks.reduce((acc, block) => {
+									const program = data.programs.find((p) => p.id === block.program_id);
+									const programName = program?.program_name || 'Uncategorized';
 									if (!acc[programName]) {
-										acc[programName] = {};
+										acc[programName] = [];
 									}
-									const yearLevel = block.year_level;
-									if (!acc[programName][yearLevel]) {
-										acc[programName][yearLevel] = [];
-									}
-									acc[programName][yearLevel].push(block);
+									acc[programName].push(block);
 									return acc;
 								}, {})}
-
-								{#each Object.entries(blocksByProgram) as [programName, yearLevels]}
+								{#each Object.entries(groupedBlocks) as [programName, blocks]}
 									<Select.Group>
-										<Select.Label class="px-2 py-1.5 text-sm font-semibold bg-accent">
-											{programName}
-										</Select.Label>
-										{#each Object.entries(yearLevels).sort(([a], [b]) => Number(a) - Number(b)) as [yearLevel, blocks]}
-											<Select.Label class="pl-4 py-1 text-sm text-muted-foreground">
-												Year {yearLevel}
-											</Select.Label>
-											{#each blocks as block}
-												<Select.Item value={block.id.toString()} class="pl-6">
-													{block.block_name}
-												</Select.Item>
-											{/each}
+										<Select.Label>{programName}</Select.Label>
+										{#each blocks as block}
+											<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
 										{/each}
 									</Select.Group>
 								{/each}

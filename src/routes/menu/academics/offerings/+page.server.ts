@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
 	const college_id = url.searchParams.get('college');
+	const createSubjectId = url.searchParams.get('createSubjectId');
 
 	// Fetch class offerings for the selected term, joining all necessary related data.
 	let query = locals.supabase
@@ -63,12 +64,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					id, 
 					block_name, 
 					program_id, 
-					year_level,
-					programs (
-						id,
-						program_name,
-						college_id
-					)
+					year_level
 					`
 			)
 			.order('block_name'),
@@ -89,7 +85,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		colleges: colleges || [],
 		programs: programs || [],
 		profile: locals.profile,
-		filters: { academic_year, semester, college: college_id }
+		filters: { academic_year, semester, college: college_id, createSubjectId: createSubjectId || null }
 	};
 };
 
