@@ -44,50 +44,52 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(500, 'Failed to load class offerings.');
 	}
 
-	// Fetch all necessary data for the "Create" modal dropdowns.
-	const [
-		{ data: subjects, error: subjectsError },
-		{ data: instructors },
-		{ data: blocks },
-		{ data: colleges },
-		{ data: programs }
-	] = await Promise.all([
-		locals.supabase
-			.from('subjects')
-			.select('id, subject_code, subject_name, college_id')
-			.order('subject_code'),
-		locals.supabase.from('instructors').select('id, name'),
-		locals.supabase
-			.from('blocks')
-			.select(
-				`
-					id, 
-					block_name, 
-					program_id, 
-					year_level
+		// Fetch all necessary data for the "Create" modal dropdowns.
+		const [
+			{ data: subjects, error: subjectsError },
+			{ data: instructors },
+			{ data: blocks },
+			{ data: colleges },
+			{ data: programs },
+			{ data: rooms } // Added rooms
+		] = await Promise.all([
+			locals.supabase
+				.from('subjects')
+				.select('id, subject_code, subject_name, college_id')
+				.order('subject_code'),
+			locals.supabase.from('instructors').select('id, name'),
+			locals.supabase
+				.from('blocks')
+				.select(
 					`
-			)
-			.order('block_name'),
-		locals.supabase.from('colleges').select('id, college_name').order('college_name'),
-		locals.supabase.from('programs').select('id, program_name, college_id').order('program_name')
-	]);
-
-	if (subjectsError) {
-		console.error('Error fetching subjects:', subjectsError);
-		throw error(500, 'Failed to load subjects.');
-	}
-
-	return {
-		classes: classes || [],
-		subjects: subjects || [],
-		instructors: instructors || [],
-		blocks: blocks || [],
-		colleges: colleges || [],
-		programs: programs || [],
-		profile: locals.profile,
-		filters: { academic_year, semester, college: college_id, createSubjectId: createSubjectId || null }
-	};
-};
+						id,
+						block_name,
+						program_id,
+						year_level
+						`
+				)
+				.order('block_name'),
+			locals.supabase.from('colleges').select('id, college_name').order('college_name'),
+			locals.supabase.from('programs').select('id, program_name, college_id').order('program_name'),
+			locals.supabase.from('rooms').select('id, room_name, building').order('room_name') // New query for rooms
+		]);
+	
+		if (subjectsError) {
+			console.error('Error fetching subjects:', subjectsError);
+			throw error(500, 'Failed to load subjects.');
+		}
+	
+		return {
+			classes: classes || [],
+			subjects: subjects || [],
+			instructors: instructors || [],
+			blocks: blocks || [],
+			colleges: colleges || [],
+			programs: programs || [],
+			rooms: rooms || [], // Added rooms to return object
+			profile: locals.profile,
+			filters: { academic_year, semester, college: college_id, createSubjectId: createSubjectId || null }
+		};};
 
 // --- ACTIONS ---
 export const actions: Actions = {
@@ -103,6 +105,9 @@ export const actions: Actions = {
 		const instructor_id_val = formData.get('instructor_id');
 		const instructor_id =
 			instructor_id_val && Number(instructor_id_val) > 0 ? Number(instructor_id_val) : null;
+		const pref_room_id_val = formData.get('pref_room_id'); // New: Get pref_room_id
+		const pref_room_id =
+			pref_room_id_val && Number(pref_room_id_val) > 0 ? Number(pref_room_id_val) : null; // New: Convert to number or null
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
 
@@ -114,6 +119,7 @@ export const actions: Actions = {
 			subject_id,
 			block_id,
 			instructor_id,
+			pref_room_id, // New: Include pref_room_id
 			academic_year,
 			semester
 		});

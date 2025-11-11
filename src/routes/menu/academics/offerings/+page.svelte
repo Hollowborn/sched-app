@@ -35,6 +35,7 @@
 		blocks: {
 			programs: { program_name: string; college_id: number };
 		} | null;
+		pref_room_id: number | null; // New column
 	};
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
@@ -61,6 +62,7 @@
 	let createSubjectId = $state('');
 	let createInstructorId = $state('');
 	let createBlockId = $state('');
+	let createPrefRoomId = $state(''); // New state variable
 
 	// --- Derived State ---
 	const createSubjectName = $derived(
@@ -72,6 +74,9 @@
 	const createBlockName = $derived(
 		data.blocks?.find((b) => b.id.toString() === createBlockId)?.block_name
 	);
+	const createPrefRoomName = $derived(
+		data.rooms?.find((r) => r.id.toString() === createPrefRoomId)?.room_name
+	); // New derived state
 
 	// Filter blocks based on selected subject's college
 
@@ -598,6 +603,24 @@
 							<Select.Item value="0">Unassigned</Select.Item>
 							{#each data.instructors || [] as instructor}
 								<Select.Item value={instructor.id.toString()}>{instructor.name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="space-y-2">
+					<Label>Preferred Room (Optional)</Label>
+					<Select.Root type="single" name="pref_room_id" bind:value={createPrefRoomId}>
+						<Select.Trigger>
+							<span class="placeholder:text-muted-foreground"
+								>{createPrefRoomName || 'Select a preferred room'}</span
+							>
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="0">No Preference</Select.Item>
+							{#each data.rooms || [] as room}
+								<Select.Item value={room.id.toString()}
+									>{room.room_name} ({room.building})</Select.Item
+								>
 							{/each}
 						</Select.Content>
 					</Select.Root>
