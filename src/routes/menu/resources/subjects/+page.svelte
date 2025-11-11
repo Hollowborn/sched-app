@@ -10,28 +10,24 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 
 	// --- Type Definition for Clarity and Type Safety ---
-	// This defines the shape of a single subject object, making the code more robust.
 	type Subject = {
 		id: number;
 		subject_code: string;
 		subject_name: string;
 		lecture_hours: number;
 		lab_hours: number;
-		college_id: number;
-		colleges: { college_name: string } | null;
+		colleges: { id: number; college_name: string }[];
 	};
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
-
-	// checkbox hover class
 
 	// --- Component State ---
 	let createOpen = $state(false);
@@ -43,14 +39,9 @@
 	let selectedCollegeId = $state('all');
 
 	// Multi-select state
-	let selectedRows = $state<number[]>([]); // Changed from Set to array for better reactivity
+	let selectedRows = $state<number[]>([]);
 	let selectedRowCount = $derived(selectedRows.length);
-	let isAllSelected = $derived(
-		filteredSubjects?.length > 0 && selectedRowCount === filteredSubjects?.length
-	);
-	let isIndeterminate = $derived(
-		selectedRowCount > 0 && selectedRowCount < (filteredSubjects?.length || 0)
-	);
+
 	let hasSelection = $derived(selectedRowCount > 0);
 
 	// --- Form State ---
@@ -58,41 +49,27 @@
 	let createName = $state('');
 	let createLecHours = $state(3.0);
 	let createLabHours = $state(0.0);
-	let createCollegeId = $state<string[]>([]);
+	let createCollegeIds = $state<number[]>([]);
 
 	let editCode = $state('');
 	let editName = $state('');
 	let editLecHours = $state(3.0);
 	let editLabHours = $state(0.0);
-	let editCollegeId = $state('');
+	let editCollegeIds = $state<number[]>([]);
 
 	// --- Derived State ---
-	const createCollegeNames = $derived(
-		createCollegeId
-			.map((id) => data.colleges?.find((c) => c.id.toString() === id)?.college_name)
-			.filter(Boolean)
-			.join(', ') || 'Select colleges'
-	);
-	const editCollegeName = $derived(
-		data.colleges?.find((c) => c.id.toString() === editCollegeId)?.college_name
-	);
 	const selectedCollegeName = $derived(
 		data.colleges?.find((c) => c.id.toString() === selectedCollegeId)?.college_name
 	);
 
-	// Using `$derived.by` is a more explicit way to declare a derived value from a function,
-	// which helps the TypeScript compiler correctly infer the type as `Subject[]`.
 	const filteredSubjects: Subject[] = $derived.by(() => {
-		// Start with an empty array if data.subjects is not yet available to prevent errors.
 		const subjects = data.subjects || [];
 
-		// Apply college filter
 		const collegeFiltered =
 			selectedCollegeId === 'all'
 				? subjects
-				: subjects.filter((s) => s.college_id.toString() === selectedCollegeId);
+				: subjects.filter((s) => s.colleges.some((c) => c.id.toString() === selectedCollegeId));
 
-		// Apply search filter
 		if (!searchQuery) {
 			return collegeFiltered;
 		}
@@ -111,7 +88,7 @@
 		editName = subject.subject_name;
 		editLecHours = subject.lecture_hours;
 		editLabHours = subject.lab_hours;
-		editCollegeId = subject.college_id.toString();
+		editCollegeIds = subject.colleges.map((c) => c.id);
 		editOpen = true;
 	}
 
@@ -120,7 +97,6 @@
 		deleteOpen = true;
 	}
 
-	// Multi-select handlers
 	function toggleSelectAll(checked: boolean) {
 		selectedRows = checked ? filteredSubjects.map((s) => s.id) : [];
 	}
@@ -132,6 +108,22 @@
 			selectedRows = selectedRows.filter((rowId) => rowId !== id);
 		}
 	}
+
+	function handleCreateFormReset() {
+		createCode = '';
+		createName = '';
+		createLecHours = 3.0;
+		createLabHours = 0.0;
+		createCollegeIds = [];
+	}
+
+	// Reactive stuff
+	let isAllSelected = $derived(
+		filteredSubjects?.length > 0 && selectedRowCount === filteredSubjects?.length
+	);
+	let isIndeterminate = $derived(
+		selectedRowCount > 0 && selectedRowCount < (filteredSubjects?.length || 0)
+	);
 </script>
 
 <svelte:head>
@@ -158,7 +150,7 @@
 				/>
 			</div>
 			<Select.Root type="single" bind:value={selectedCollegeId}>
-				<Select.Trigger disabled={isSubmitting}>
+				<Select.Trigger disabled={isSubmitting} class="w-[200px]">
 					<span>{selectedCollegeName || 'Filter by College'}</span>
 				</Select.Trigger>
 				<Select.Content>
@@ -178,8 +170,8 @@
 						variant="destructive"
 						disabled={isSubmitting}
 						onclick={() => {
-							selectedSubject = null; // Clear single selection
-							deleteOpen = true; // Open modal for bulk delete
+							selectedSubject = null;
+							deleteOpen = true;
 						}}
 					>
 						<Trash2 class="mr-2 h-4 w-4" />
@@ -191,8 +183,6 @@
 						Delete (0)
 					</Button>
 				{/if}
-			{/if}
-			{#if data.profile?.role === 'Admin'}
 				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Add Subject
@@ -201,9 +191,7 @@
 		</div>
 	</div>
 
-	<!-- <Card.Root> -->
-	<!-- <Card.Content class=""> -->
-	<div class="border rounded-md p-1 overflow-hidden">
+	<div class="border rounded-md">
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
@@ -218,7 +206,7 @@
 					{/if}
 					<Table.Head class="w-[120px]">Code</Table.Head>
 					<Table.Head>Subject Name</Table.Head>
-					<Table.Head>College</Table.Head>
+					<Table.Head>Offered In</Table.Head>
 					<Table.Head class="text-center">Lec Hours</Table.Head>
 					<Table.Head class="text-center">Lab Hours</Table.Head>
 					{#if data.profile?.role === 'Admin'}
@@ -241,9 +229,13 @@
 							<Table.Cell class="font-medium"
 								><Badge variant="outline">{subject.subject_code}</Badge></Table.Cell
 							>
-							<Table.Cell class="font-light">{subject.subject_name}</Table.Cell>
-							<Table.Cell>
-								<Badge variant="secondary">{subject.colleges?.college_name || 'N/A'}</Badge>
+							<Table.Cell>{subject.subject_name}</Table.Cell>
+							<Table.Cell class="max-w-xs">
+								<div class="flex flex-wrap gap-1">
+									{#each subject.colleges as college}
+										<Badge variant="secondary">{college.college_name}</Badge>
+									{/each}
+								</div>
 							</Table.Cell>
 							<Table.Cell class="text-center">{subject.lecture_hours}</Table.Cell>
 							<Table.Cell class="text-center">{subject.lab_hours}</Table.Cell>
@@ -272,7 +264,7 @@
 					{/each}
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={6} class="h-24 text-center">
+						<Table.Cell colspan={7} class="h-24 text-center">
 							{#if searchQuery || selectedCollegeId !== 'all'}
 								No subjects match your current filter.
 							{:else}
@@ -288,15 +280,12 @@
 	<div class="text-sm text-muted-foreground">
 		{selectedRowCount} of {filteredSubjects.length} row{selectedRowCount === 1 ? '' : 's'} selected
 	</div>
-
-	<!-- </Card.Content> -->
-	<!-- </Card.Root> -->
 </div>
 
 <!-- === DIALOGS / MODALS === -->
 
 <!-- Create Subject Dialog -->
-<Dialog.Root bind:open={createOpen}>
+<Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && handleCreateFormReset()}>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Add New Subject</Dialog.Title>
@@ -313,10 +302,8 @@
 					isSubmitting = false;
 					if (result.type === 'success') {
 						toast.success(result.data?.message, { id: toastId });
-						invalidateAll();
-						if (result.data?.action === 'createSubject') {
-							createOpen = false;
-						}
+						await invalidateAll();
+						createOpen = false;
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
 					}
@@ -355,20 +342,31 @@
 						class="col-span-3"
 					/>
 				</div>
-				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="create-college" class="text-right">College</Label>
-					<Select.Root type="multiple" name="college_id" bind:value={createCollegeId}>
-						<Select.Trigger class="col-span-3">
-							<span class="truncate max-w-64">{createCollegeNames || 'Select a college'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#if data.colleges}
-								{#each data.colleges as college}
-									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-								{/each}
-							{/if}
-						</Select.Content>
-					</Select.Root>
+				<div class="grid grid-cols-4 items-start gap-4">
+					<Label class="text-right pt-2">Colleges</Label>
+					<ScrollArea class="col-span-3 h-32 rounded-md border">
+						<div class="p-4 space-y-2">
+							{#each data.colleges || [] as college}
+								<div class="flex items-center gap-2">
+									<Checkbox
+										id="create-col-{college.id}"
+										name="college_ids"
+										value={college.id}
+										onCheckedChange={(checked) => {
+											if (checked) {
+												createCollegeIds = [...createCollegeIds, college.id];
+											} else {
+												createCollegeIds = createCollegeIds.filter((id) => id !== college.id);
+											}
+										}}
+									/>
+									<Label for="create-col-{college.id}" class="font-normal"
+										>{college.college_name}</Label
+									>
+								</div>
+							{/each}
+						</div>
+					</ScrollArea>
 				</div>
 			</div>
 			<Dialog.Footer>
@@ -403,10 +401,8 @@
 					isSubmitting = false;
 					if (result.type === 'success') {
 						toast.success(result.data?.message, { id: toastId });
-						invalidateAll();
-						if (result.data?.action === 'updateSubject') {
-							editOpen = false;
-						}
+						await invalidateAll();
+						editOpen = false;
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
 					}
@@ -446,20 +442,32 @@
 						class="col-span-3"
 					/>
 				</div>
-				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="edit-college" class="text-right">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={editCollegeId}>
-						<Select.Trigger class="col-span-3">
-							<span>{editCollegeName || 'Select a college'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#if data.colleges}
-								{#each data.colleges as college}
-									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-								{/each}
-							{/if}
-						</Select.Content>
-					</Select.Root>
+				<div class="grid grid-cols-4 items-start gap-4">
+					<Label class="text-right pt-2">Colleges</Label>
+					<ScrollArea class="col-span-3 h-32 rounded-md border">
+						<div class="p-4 space-y-2">
+							{#each data.colleges || [] as college}
+								<div class="flex items-center gap-2">
+									<Checkbox
+										id="edit-col-{college.id}"
+										name="college_ids"
+										value={college.id}
+										checked={editCollegeIds.includes(college.id)}
+										onCheckedChange={(checked) => {
+											if (checked) {
+												editCollegeIds = [...editCollegeIds, college.id];
+											} else {
+												editCollegeIds = editCollegeIds.filter((id) => id !== college.id);
+											}
+										}}
+									/>
+									<Label for="edit-col-{college.id}" class="font-normal"
+										>{college.college_name}</Label
+									>
+								</div>
+							{/each}
+						</div>
+					</ScrollArea>
 				</div>
 			</div>
 			<Dialog.Footer>
@@ -502,10 +510,9 @@
 					isSubmitting = false;
 					if (result.type === 'success') {
 						toast.success(result.data?.message, { id: toastId });
-						invalidateAll();
-						if (result.data?.action === 'deleteSubject') {
-							deleteOpen = false;
-						}
+						await invalidateAll();
+						deleteOpen = false;
+						selectedRows = [];
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
 					}
