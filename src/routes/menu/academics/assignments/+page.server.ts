@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
-	const college_id = url.searchParams.get('college');
+	const college_filter_id = url.searchParams.get('college'); // Renamed to avoid conflict
 
 	// --- 1. Fetch Class Offerings for the selected term ---
 	let classQuery = locals.supabase
@@ -22,9 +22,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.select(
 			`
             id,
-            subjects!inner (id, subject_code, subject_name, college_id, colleges(college_name)),
+            subjects!inner (id, subject_code, subject_name),
             instructors (id, name),
-            blocks (id, block_name)
+            blocks!inner (
+                id,
+                block_name,
+                programs!inner (
+                    college_id,
+                    colleges (college_name)
+                )
+            )
         `
 		)
 		.eq('academic_year', academic_year)
@@ -32,11 +39,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Handle college filtering based on role and URL params
 	if (userRole === 'Dean' && locals.profile?.college_id) {
-		// Deans should only see classes relevant to their college
-		classQuery = classQuery.eq('subjects.college_id', locals.profile.college_id);
-	} else if (college_id && userRole === 'Admin') {
-		// Admins can filter by any college
-		classQuery = classQuery.eq('subjects.college_id', college_id);
+		// Deans should only see classes relevant to their college (via the block's program's college)
+		classQuery = classQuery.eq('blocks.programs.college_id', locals.profile.college_id);
+	} else if (college_filter_id && userRole === 'Admin') {
+		// Admins can filter by any college (via the block's program's college)
+		classQuery = classQuery.eq('blocks.programs.college_id', college_filter_id);
 	}
 
 	const { data: classes, error: classesError } = await classQuery;
@@ -94,7 +101,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		instructors: instructorsWithLoad || [],
 		colleges: colleges || [],
 		profile: locals.profile,
-		filters: { academic_year, semester, college: college_id }
+		filters: { academic_year, semester, college: college_filter_id }
 	};
 };
 

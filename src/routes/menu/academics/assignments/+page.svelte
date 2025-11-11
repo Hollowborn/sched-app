@@ -4,7 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { Calendar, BookOpen, Search, Filter, List, UserCheck, UserX } from '@lucide/svelte';
-	import { tick } from 'svelte'; // Import tick from svelte
+	import { tick } from 'svelte';
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
@@ -20,13 +20,19 @@
 	type ClassOffering = {
 		id: number;
 		subjects: {
+			id: number;
 			subject_code: string;
 			subject_name: string;
-			college_id: number; // Added for easier lookup
-			colleges: { college_name: string };
 		} | null;
 		instructors: { id: number; name: string } | null;
-		blocks: { block_name: string } | null;
+		blocks: {
+			id: number;
+			block_name: string;
+			programs: {
+				college_id: number;
+				colleges: { college_name: string };
+			};
+		} | null;
 	};
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
@@ -34,7 +40,7 @@
 	// --- State Management ---
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
-	let colleges = $state(data.filters.college);
+	let collegeFilterId = $state(data.filters.college); // Renamed to avoid conflict
 	let searchQuery = $state('');
 	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
 
@@ -79,8 +85,8 @@
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
-		if (colleges) {
-			params.set('college', colleges);
+		if (collegeFilterId) {
+			params.set('college', collegeFilterId);
 		} else {
 			params.delete('college');
 		}
@@ -97,11 +103,7 @@
 		return years;
 	}
 
-	// --- THE FIX IS HERE ---
-	// Make the function async and add `await tick()`
 	async function handleAssignmentChange(classId: number) {
-		// Wait for Svelte to flush pending state changes to the DOM.
-		// This ensures the hidden input inside the Select component has the new value.
 		await tick();
 
 		const form = document.getElementById(`assign-form-${classId}`) as HTMLFormElement;
@@ -172,15 +174,15 @@
 						<Filter class="h-4 w-4 text-muted-foreground" />
 						<Select.Root
 							type="single"
-							value={colleges}
+							value={collegeFilterId}
 							onValueChange={(v) => {
-								colleges = v;
+								collegeFilterId = v;
 								handleFilterChange();
 							}}
 						>
 							<Select.Trigger class="w-[200px]">
 								<span class="truncate max-w-[200px]">
-									{data.colleges?.find((c) => c.id.toString() === colleges)?.college_name ||
+									{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
 										'All Colleges'}
 								</span>
 							</Select.Trigger>
@@ -245,6 +247,7 @@
 				<Table.Row class="bg-muted/50">
 					<Table.Head>Subject</Table.Head>
 					<Table.Head>Block</Table.Head>
+					<Table.Head>College</Table.Head>
 					<Table.Head class="w-[40%]">Instructor</Table.Head>
 				</Table.Row>
 			</Table.Header>
@@ -259,6 +262,11 @@
 								</div>
 							</Table.Cell>
 							<Table.Cell>{classItem.blocks?.block_name}</Table.Cell>
+							<Table.Cell>
+								<Badge variant="secondary"
+									>{classItem.blocks?.programs?.colleges?.college_name || 'N/A'}</Badge
+								>
+							</Table.Cell>
 							<Table.Cell>
 								<form
 									method="POST"
@@ -317,7 +325,7 @@
 					{/each}
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={3} class="h-24 text-center">
+						<Table.Cell colspan={4} class="h-24 text-center">
 							No class offerings match your current filters.
 						</Table.Cell>
 					</Table.Row>
