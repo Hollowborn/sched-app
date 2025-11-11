@@ -78,33 +78,25 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(500, 'Failed to load schedule data.');
 	}
 
-	// 3. Process the schedule data to get unique lists for the "Prev/Next" buttons
-	const roomMap = new Map();
-	const instructorMap = new Map();
-	const blockMap = new Map();
-
-	(schedules || []).forEach((s) => {
-		if (s.rooms) roomMap.set(s.room_id, s.rooms);
-		if (s.classes.instructors) instructorMap.set(s.classes.instructor_id, s.classes.instructors);
-		if (s.classes.blocks) blockMap.set(s.classes.block_id, s.classes.blocks);
-	});
-
-	// Sort lists alphabetically for a consistent order
-	const uniqueRooms = Array.from(roomMap.values()).sort((a, b) =>
-		a.room_name.localeCompare(b.room_name)
-	);
-	const uniqueInstructors = Array.from(instructorMap.values()).sort((a, b) =>
-		a.name.localeCompare(b.name)
-	);
-	const uniqueBlocks = Array.from(blockMap.values()).sort((a, b) =>
-		a.block_name.localeCompare(b.block_name)
-	);
+	// 3. Fetch unique entities for filtering and navigation
+	const [
+		{ data: uniqueRoomsData },
+		{ data: uniqueInstructorsData },
+		{ data: uniqueBlocksData }
+	] = await Promise.all([
+		locals.supabase.from('rooms').select('id, room_name, building, type').order('room_name'),
+		locals.supabase.from('instructors').select('id, name, max_load, colleges(college_name)').order('name'),
+		locals.supabase
+			.from('blocks')
+			.select('id, block_name, year_level, programs(program_name)')
+			.order('block_name')
+	]);
 
 	return {
 		timetable,
 		schedules: schedules || [],
-		uniqueRooms,
-		uniqueInstructors,
-		uniqueBlocks
+		uniqueRooms: uniqueRoomsData || [],
+		uniqueInstructors: uniqueInstructorsData || [],
+		uniqueBlocks: uniqueBlocksData || []
 	};
 };
