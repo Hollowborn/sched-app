@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS classes (
     block_id INTEGER REFERENCES blocks(id) ON DELETE CASCADE NOT NULL,
     semester course_offering_semester NOT NULL,
     academic_year VARCHAR(10) NOT NULL,
+    pref_room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
     UNIQUE(subject_id, block_id, semester, academic_year)
 );
 
