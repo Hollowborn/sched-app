@@ -10,14 +10,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(403, 'Forbidden: You do not have permission to access this page.');
 	}
 
-	// Get filters from URL, providing sensible defaults for the current academic year.
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
 	const college_id = url.searchParams.get('college');
-	const createSubjectId = url.searchParams.get('createSubjectId');
 
-	// Fetch class offerings for the selected term, joining all necessary related data.
+	// Fetch class offerings, filtering by the college associated with the block/program
 	let query = locals.supabase
 		.from('classes')
 		.select(
@@ -25,16 +23,23 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             id,
             semester,
             academic_year,
-            subjects!inner (id, subject_code, subject_name, college_id),
+            pref_room_id,
+            subjects!inner (id, subject_code, subject_name),
             instructors (id, name),
-            blocks (id, block_name)
+            blocks!inner (
+                id,
+                block_name,
+                programs!inner (
+                    college_id
+                )
+            )
         `
 		)
 		.eq('academic_year', academic_year)
 		.eq('semester', semester);
 
 	if (college_id) {
-		query = query.eq('subjects.college_id', college_id);
+		query = query.eq('blocks.programs.college_id', college_id);
 	}
 
 	const { data: classes, error: classesError } = await query;
@@ -44,52 +49,43 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(500, 'Failed to load class offerings.');
 	}
 
-		// Fetch all necessary data for the "Create" modal dropdowns.
-		const [
-			{ data: subjects, error: subjectsError },
-			{ data: instructors },
-			{ data: blocks },
-			{ data: colleges },
-			{ data: programs },
-			{ data: rooms } // Added rooms
-		] = await Promise.all([
-			locals.supabase
-				.from('subjects')
-				.select('id, subject_code, subject_name, college_id')
-				.order('subject_code'),
-			locals.supabase.from('instructors').select('id, name'),
-			locals.supabase
-				.from('blocks')
-				.select(
-					`
-						id,
-						block_name,
-						program_id,
-						year_level
-						`
-				)
-				.order('block_name'),
-			locals.supabase.from('colleges').select('id, college_name').order('college_name'),
-			locals.supabase.from('programs').select('id, program_name, college_id').order('program_name'),
-			locals.supabase.from('rooms').select('id, room_name, building').order('room_name') // New query for rooms
-		]);
-	
-		if (subjectsError) {
-			console.error('Error fetching subjects:', subjectsError);
-			throw error(500, 'Failed to load subjects.');
-		}
-	
-		return {
-			classes: classes || [],
-			subjects: subjects || [],
-			instructors: instructors || [],
-			blocks: blocks || [],
-			colleges: colleges || [],
-			programs: programs || [],
-			rooms: rooms || [], // Added rooms to return object
-			profile: locals.profile,
-			filters: { academic_year, semester, college: college_id, createSubjectId: createSubjectId || null }
-		};};
+	// Fetch all necessary data for the "Create" modal dropdowns
+	const [
+		{ data: subjects, error: subjectsError },
+		{ data: instructors },
+		{ data: blocks },
+		{ data: colleges },
+		{ data: programs },
+		{ data: rooms }
+	] = await Promise.all([
+		locals.supabase.from('subjects').select('*, colleges(id, college_name)').order('subject_code'),
+		locals.supabase.from('instructors').select('id, name').order('name'),
+		locals.supabase
+			.from('blocks')
+			.select('id, block_name, year_level, programs!inner(college_id)')
+			.order('block_name'),
+		locals.supabase.from('colleges').select('id, college_name').order('college_name'),
+		locals.supabase.from('programs').select('id, program_name, college_id').order('program_name'),
+		locals.supabase.from('rooms').select('id, room_name, building').order('room_name')
+	]);
+
+	if (subjectsError) {
+		console.error('Error fetching subjects:', subjectsError);
+		throw error(500, 'Failed to load subjects.');
+	}
+
+	return {
+		classes: classes || [],
+		subjects: subjects || [],
+		instructors: instructors || [],
+		blocks: blocks || [],
+		colleges: colleges || [],
+		programs: programs || [],
+		rooms: rooms || [],
+		profile: locals.profile,
+		filters: { academic_year, semester, college: college_id }
+	};
+};
 
 // --- ACTIONS ---
 export const actions: Actions = {
@@ -105,9 +101,9 @@ export const actions: Actions = {
 		const instructor_id_val = formData.get('instructor_id');
 		const instructor_id =
 			instructor_id_val && Number(instructor_id_val) > 0 ? Number(instructor_id_val) : null;
-		const pref_room_id_val = formData.get('pref_room_id'); // New: Get pref_room_id
+		const pref_room_id_val = formData.get('pref_room_id');
 		const pref_room_id =
-			pref_room_id_val && Number(pref_room_id_val) > 0 ? Number(pref_room_id_val) : null; // New: Convert to number or null
+			pref_room_id_val && Number(pref_room_id_val) > 0 ? Number(pref_room_id_val) : null;
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
 
@@ -119,14 +115,13 @@ export const actions: Actions = {
 			subject_id,
 			block_id,
 			instructor_id,
-			pref_room_id, // New: Include pref_room_id
+			pref_room_id,
 			academic_year,
 			semester
 		});
 
 		if (insertError) {
 			console.error('Error creating class offering:', insertError);
-			// Check for unique constraint violation
 			if (insertError.code === '23505') {
 				return fail(409, {
 					message: 'This class offering already exists for the selected block and semester.'
@@ -148,7 +143,6 @@ export const actions: Actions = {
 		const idParam = formData.get('id');
 		const idsParam = formData.get('ids');
 
-		// Handle both single and bulk delete
 		const ids = idsParam
 			? idsParam.toString().split(',').map(Number)
 			: idParam

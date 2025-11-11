@@ -25,168 +25,46 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 
-	// --- Type Definition ---
-	type ClassOffering = {
-		id: number;
-		semester: '1st Semester' | '2nd Semester' | 'Summer';
-		academic_year: string;
-		subjects: { id: number; subject_code: string; subject_name: string; college_id: number } | null;
-		instructors: { id: number; name: string } | null;
-		blocks: {
-			programs: { program_name: string; college_id: number };
-		} | null;
-		pref_room_id: number | null; // New column
-	};
+	type Subject = PageData['subjects'][number];
+	type Block = PageData['blocks'][number];
+	type Instructor = PageData['instructors'][number];
+	type Room = PageData['rooms'][number];
+	type ClassOffering = PageData['classes'][number];
 
-	let { data } = $props<{ data: PageData; form: ActionData }>();
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- State Management ---
 	let createOpen = $state(false);
 	let deleteOpen = $state(false);
 	let selectedClass = $state<ClassOffering | null>(null);
 	let isSubmitting = $state(false);
-
-	// Multi-select state
-	let selectedRows = $state<number[]>([]); // Changed from Set to array for better reactivity
-	let selectedRowCount = $derived(selectedRows.length);
-
-	let hasSelection = $derived(selectedRowCount > 0);
+	let selectedRows = $state<number[]>([]);
 
 	// Filters
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
-	let colleges = $state(data.filters.college);
+	let collegeFilterId = $state(data.filters.college);
 	let searchQuery = $state('');
 
-	// Form State
+	// --- Form State ---
 	let createSubjectId = $state('');
-	let createInstructorId = $state('');
 	let createBlockId = $state('');
-	let createPrefRoomId = $state(''); // New state variable
+	let createInstructorId = $state('');
+	let createPrefRoomId = $state('');
+	let createOfferingCollegeId = $state(''); // For subjects in multiple colleges
 
 	// --- Derived State ---
-	const createSubjectName = $derived(
-		data.subjects?.find((s) => s.id.toString() === createSubjectId)?.subject_name
-	);
-	const createInstructorName = $derived(
-		data.instructors?.find((i) => i.id.toString() === createInstructorId)?.name
-	);
+	const selectedRowCount = $derived(selectedRows.length);
+	const hasSelection = $derived(selectedRowCount > 0);
+
+	const createSubject = $derived(data.subjects?.find((s) => s.id.toString() === createSubjectId));
 	const createBlockName = $derived(
 		data.blocks?.find((b) => b.id.toString() === createBlockId)?.block_name
 	);
-	const createPrefRoomName = $derived(
-		data.rooms?.find((r) => r.id.toString() === createPrefRoomId)?.room_name
-	); // New derived state
-
-	// Filter blocks based on selected subject's college
-
-	// Group or filter subjects based on selected college
-	const availableSubjects = $derived(() => {
-		const subjects = data.subjects || [];
-
-		// If a college is selected, filter subjects for that college
-		if (colleges) {
-			const filtered = subjects.filter((s) => s.college_id && s.college_id.toString() === colleges);
-			return filtered;
-		}
-
-		return subjects;
-	});
-
-	// Filter blocks based on the college of the selected subject
-	let availableBlocks = $state([]);
-
-	$effect(() => {
-		if (!createSubjectId) {
-			availableBlocks = [];
-
-			return;
-		}
-
-		const selectedSubject = data.subjects?.find((s) => s.id.toString() === createSubjectId);
-
-		if (!selectedSubject) {
-			availableBlocks = [];
-
-			return;
-		}
-
-		const collegeId = selectedSubject.college_id;
-
-		const programIdsForCollege =
-			data.programs?.filter((p) => p.college_id === collegeId).map((p) => p.id) || [];
-
-		const filtered =
-			data.blocks?.filter((block) => {
-				const isIncluded = programIdsForCollege.includes(block.program_id);
-
-				return isIncluded;
-			}) || [];
-
-		// Sort the filtered blocks
-
-		const sorted = filtered.sort((a, b) => {
-			const programA = data.programs.find((p) => p.id === a.program_id);
-
-			const programB = data.programs.find((p) => p.id === b.program_id);
-
-			const programNameA = programA?.program_name || '';
-
-			const programNameB = programB?.program_name || '';
-
-			if (programNameA < programNameB) return -1;
-
-			if (programNameA > programNameB) return 1;
-
-			if (a.year_level < b.year_level) return -1;
-
-			if (a.year_level > b.year_level) return 1;
-
-			if (a.block_name < b.block_name) return -1;
-
-			if (a.block_name > b.block_name) return 1;
-
-			return 0;
-		});
-
-		availableBlocks = sorted;
-	});
-
-	// const groupedSubjects = $derived(() => {
-	// 	const subjects = availableSubjects;
-	// 	if (!subjects.length) return {};
-
-	// 	// Group subjects by college
-	// 	const grouped = subjects.reduce(
-	// 		(acc, subject) => {
-	// 			const college = data.colleges?.find((c) => c.id === subject.college_id);
-	// 			const collegeName = college?.college_name || 'Uncategorized';
-
-	// 			if (!acc[collegeName]) {
-	// 				acc[collegeName] = [];
-	// 			}
-	// 			acc[collegeName].push(subject);
-	// 			return acc;
-	// 		},
-	// 		{} as Record<string, typeof subjects>
-	// 	);
-
-	// 	// Sort colleges alphabetically
-	// 	return Object.keys(grouped)
-	// 		.sort()
-	// 		.reduce(
-	// 			(acc, key) => {
-	// 				acc[key] = grouped[key];
-	// 				return acc;
-	// 			},
-	// 			{} as Record<string, typeof subjects>
-	// 		);
-	// });
 
 	const filteredClasses: ClassOffering[] = $derived.by(() => {
 		const classes = data.classes || [];
 		if (!searchQuery) return classes;
-
 		const lowerQuery = searchQuery.toLowerCase();
 		return classes.filter((c) => {
 			const subjectCode = c.subjects?.subject_code.toLowerCase() || '';
@@ -202,13 +80,29 @@
 		});
 	});
 
+	// --- Create Modal Derived Logic ---
+	let availableBlocks = $state<Block[]>([]);
+	$effect(() => {
+		const collegeIdToFilter =
+			createSubject?.colleges.length === 1
+				? createSubject.colleges[0].id
+				: Number(createOfferingCollegeId);
+
+		if (!collegeIdToFilter) {
+			availableBlocks = [];
+			return;
+		}
+
+		availableBlocks = data.blocks.filter((b) => b.programs?.college_id === collegeIdToFilter);
+	});
+
 	// --- Event Handlers ---
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
-		if (colleges) {
-			params.set('college', colleges);
+		if (collegeFilterId) {
+			params.set('college', collegeFilterId);
 		} else {
 			params.delete('college');
 		}
@@ -230,7 +124,6 @@
 		deleteOpen = true;
 	}
 
-	// Multi-select handlers
 	function toggleSelectAll(checked: boolean) {
 		selectedRows = checked ? filteredClasses.map((c) => c.id) : [];
 	}
@@ -249,6 +142,23 @@
 	let isIndeterminate = $derived(
 		selectedRowCount > 0 && selectedRowCount < (filteredClasses?.length || 0)
 	);
+
+	function resetCreateForm() {
+		createSubjectId = '';
+		createBlockId = '';
+		createInstructorId = '';
+		createPrefRoomId = '';
+		createOfferingCollegeId = '';
+	}
+
+	$effect(() => {
+		if (createSubject?.colleges.length === 1) {
+			createOfferingCollegeId = createSubject.colleges[0].id.toString();
+		} else {
+			createOfferingCollegeId = '';
+		}
+		createBlockId = '';
+	});
 </script>
 
 <svelte:head>
@@ -264,7 +174,7 @@
 	</header>
 
 	<Card.Root>
-		<Card.Content class="m-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+		<Card.Content class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 			<div class="flex flex-col sm:flex-row flex-wrap flex-1 items-center gap-4 w-full md:w-auto">
 				<div class="flex w-full sm:w-auto items-center gap-2">
 					<Calendar class="h-4 w-4 text-muted-foreground" />
@@ -314,16 +224,15 @@
 					<Filter class="h-4 w-4 text-muted-foreground" />
 					<Select.Root
 						type="single"
-						value={colleges}
+						value={collegeFilterId}
 						onValueChange={(v) => {
-							colleges = v;
-							createSubjectId = ''; // Reset subject selection when changing colleges
+							collegeFilterId = v;
 							handleFilterChange();
 						}}
 					>
 						<Select.Trigger class="w-full sm:w-[200px] shadow-sm">
 							<span class="truncate max-w-[200px]"
-								>{data.colleges?.find((c) => c.id.toString() === colleges)?.college_name ||
+								>{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
 									'All Colleges'}</span
 							>
 						</Select.Trigger>
@@ -352,8 +261,8 @@
 						variant="destructive"
 						disabled={isSubmitting}
 						onclick={() => {
-							selectedClass = null; // Clear single selection
-							deleteOpen = true; // Open modal for bulk delete
+							selectedClass = null;
+							deleteOpen = true;
 						}}
 					>
 						<Trash2 class="mr-2 h-4 w-4" />
@@ -417,7 +326,7 @@
 							</Table.Cell>
 							<Table.Cell>
 								<Badge variant="secondary">
-									{data.colleges?.find((p) => p.id === classItem.subjects?.college_id)
+									{data.colleges?.find((c) => c.id === classItem.blocks?.programs?.college_id)
 										?.college_name || 'N/A'}
 								</Badge>
 							</Table.Cell>
@@ -456,7 +365,7 @@
 </div>
 
 <!-- === MODALS === -->
-<Dialog.Root bind:open={createOpen}>
+<Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && resetCreateForm()}>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Create New Class Offering</Dialog.Title>
@@ -488,104 +397,70 @@
 			<div class="grid gap-4 py-4">
 				<div class="space-y-2">
 					<Label>Subject</Label>
-					<Select.Root
-						type="single"
-						name="subject_id"
-						value={createSubjectId}
-						onValueChange={(v) => {
-							console.log('Subject dropdown changed. New value:', v);
-							createSubjectId = v || '';
-							createBlockId = ''; // Reset block selection when subject changes
-						}}
-					>
+					<Select.Root name="subject_id" type="single" bind:value={createSubjectId}>
 						<Select.Trigger>
 							<span class="placeholder:text-muted-foreground">
-								{createSubjectName || 'Select a subject'}
+								{createSubject?.subject_name || 'Select a subject'}
 							</span>
 						</Select.Trigger>
 						<Select.Content>
-							{#if !data.subjects?.length}
-								<div class="p-2 text-sm text-muted-foreground text-center">
-									No subjects available
-								</div>
-							{:else if colleges && colleges !== ''}
-								<!-- Filtered view for selected college -->
-								{@const collegeSubjects = data.subjects.filter(
-									(s) => s.college_id?.toString() === colleges
-								)}
-								{#if collegeSubjects.length === 0}
-									<div class="p-2 text-sm text-muted-foreground text-center">
-										No subjects available for selected college
-									</div>
-								{:else}
-									{#each collegeSubjects as subject}
-										<Select.Item value={subject.id.toString()}>
-											{subject.subject_code} - {subject.subject_name}
-										</Select.Item>
-									{/each}
-								{/if}
-							{:else}
-								<!-- Grouped view for all colleges -->
-								{#each data.colleges || [] as college}
-									{@const collegeSubjects = data.subjects.filter(
-										(s) => s.college_id === college.id
-									)}
-									{#if collegeSubjects.length}
-										<Select.Group>
-											<Select.Label class="">
-												{college.college_name}
-											</Select.Label>
-											{#each collegeSubjects as subject}
-												<Select.Item class="" value={subject.id.toString()}>
-													{subject.subject_code} - {subject.subject_name}
-												</Select.Item>
-											{/each}
-										</Select.Group>
-									{/if}
-								{/each}
-							{/if}
+							{#each data.subjects as subject}
+								<Select.Item value={subject.id.toString()}>
+									{subject.subject_code} - {subject.subject_name}
+								</Select.Item>
+							{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>
+
+				{#if createSubject && createSubject.colleges.length > 1}
+					<div class="space-y-2">
+						<Label>Offered By College</Label>
+						<Select.Root
+							name="offering_college_id"
+							type="single"
+							bind:value={createOfferingCollegeId}
+						>
+							<Select.Trigger>
+								<span class="placeholder:text-muted-foreground">
+									{data.colleges.find((c) => c.id.toString() === createOfferingCollegeId)
+										?.college_name || 'Select a college'}
+								</span>
+							</Select.Trigger>
+							<Select.Content>
+								{#each createSubject.colleges as college}
+									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				{/if}
+
 				<div class="space-y-2">
 					<Label>Block Section</Label>
 					<Select.Root
-						type="single"
 						name="block_id"
+						type="single"
 						bind:value={createBlockId}
-						disabled={!createSubjectId}
+						disabled={!createOfferingCollegeId}
 					>
-						<Select.Trigger disabled={!createSubjectId}>
+						<Select.Trigger disabled={!createOfferingCollegeId}>
 							<span class="placeholder:text-muted-foreground"
 								>{createBlockName || 'Select a block'}</span
 							>
 						</Select.Trigger>
 						<Select.Content>
-							{#if !createSubjectId}
+							{#if !createOfferingCollegeId}
 								<div class="p-2 text-sm text-muted-foreground text-center">
-									Please select a subject first
+									Select a subject first
 								</div>
 							{:else if availableBlocks.length === 0}
 								<div class="p-2 text-sm text-muted-foreground text-center">
-									No blocks available for this subject's college
+									No blocks for this college
 								</div>
 							{:else}
-								{@const groupedBlocks = availableBlocks.reduce((acc, block) => {
-									const program = data.programs.find((p) => p.id === block.program_id);
-									const programName = program?.program_name || 'Uncategorized';
-									if (!acc[programName]) {
-										acc[programName] = [];
-									}
-									acc[programName].push(block);
-									return acc;
-								}, {})}
-								{#each Object.entries(groupedBlocks) as [programName, blocks]}
-									<Select.Group>
-										<Select.Label>{programName}</Select.Label>
-										{#each blocks as block}
-											<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
-										{/each}
-									</Select.Group>
+								{#each availableBlocks as block}
+									<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
 								{/each}
 							{/if}
 						</Select.Content>
@@ -596,7 +471,8 @@
 					<Select.Root type="single" name="instructor_id" bind:value={createInstructorId}>
 						<Select.Trigger>
 							<span class="placeholder:text-muted-foreground"
-								>{createInstructorName || 'Assign an instructor'}</span
+								>{data.instructors.find((i) => i.id.toString() === createInstructorId)?.name ||
+									'Assign an instructor'}</span
 							>
 						</Select.Trigger>
 						<Select.Content>
@@ -612,7 +488,8 @@
 					<Select.Root type="single" name="pref_room_id" bind:value={createPrefRoomId}>
 						<Select.Trigger>
 							<span class="placeholder:text-muted-foreground"
-								>{createPrefRoomName || 'Select a preferred room'}</span
+								>{data.rooms.find((r) => r.id.toString() === createPrefRoomId)?.room_name ||
+									'Select a preferred room'}</span
 							>
 						</Select.Trigger>
 						<Select.Content>
@@ -682,7 +559,7 @@
 					variant="outline"
 					onclick={() => {
 						deleteOpen = false;
-						if (!selectedClass) selectedRows = []; // Clear multi-selection when canceling
+						if (!selectedClass) selectedRows = [];
 					}}
 					disabled={isSubmitting}>Cancel</Button
 				>
