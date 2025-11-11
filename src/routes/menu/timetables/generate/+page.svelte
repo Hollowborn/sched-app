@@ -63,6 +63,9 @@
 		enforceBlock: true
 	});
 
+	// Time start
+	let startTime = $state('07:30');
+
 	// --- Event Handlers ---
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
@@ -281,6 +284,22 @@
 						</Card.Description>
 					</Card.Header>
 					<Card.Content class="space-y-4">
+						<div class="space-y-2">
+							<Label for="start-time">Schedule Start Time</Label>
+							<Select.Root type="single" name="scheduleStartTime" bind:value={startTime}>
+								<Select.Trigger id="start-time">
+									<span>{startTime}</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="07:00">7:00 AM</Select.Item>
+									<Select.Item value="07:30">7:30 AM</Select.Item>
+									<Select.Item value="08:00">8:00 AM</Select.Item>
+									<Select.Item value="08:30">8:30 AM</Select.Item>
+									<Select.Item value="09:00">9:00 AM</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</div>
+						<Separator />
 						<div class="flex items-center gap-2">
 							<Checkbox id="c-cap" name="enforceCapacity" checked={constraints.enforceCapacity} />
 							<Label for="c-cap" class="font-normal">Enforce Room Capacity</Label>

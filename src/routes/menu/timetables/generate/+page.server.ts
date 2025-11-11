@@ -11,11 +11,11 @@ function formatTime(time: string): string {
 
 // --- Helper to calculate end time string ---
 function calculateEndTime(startTime: string, durationHours: number): string {
-	const [hour] = startTime.split(':').map(Number);
-	const endHour = hour + Math.floor(durationHours);
-	const decimal = durationHours - Math.floor(durationHours);
-	const endMinute = decimal === 0.5 ? '30' : '00';
-	return `${endHour.toString().padStart(2, '0')}:${endMinute}`; // Returns HH:MM
+	const [hour, minute] = startTime.split(':').map(Number);
+	const totalMinutes = hour * 60 + minute + durationHours * 60;
+	const endHour = Math.floor(totalMinutes / 60);
+	const endMinute = totalMinutes % 60;
+	return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`; // Returns HH:MM
 }
 
 // --- LOAD FUNCTION ---
@@ -141,19 +141,18 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 
-		// 1. Get Context
+		// 1. Get Context & Inputs
 		const timetable_id = Number(formData.get('timetable_id'));
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString() as
 			| '1st Semester'
 			| '2nd Semester'
 			| 'Summer';
-
-		// 2. Get Inputs
 		const college_ids = formData.getAll('college_ids').map(Number);
 		const room_ids = formData.getAll('room_ids').map(Number);
+		const scheduleStartTime = formData.get('scheduleStartTime')?.toString() || '07:30';
 
-		// 3. Get Constraints
+		// 2. Get Constraints
 		const constraints = {
 			enforceCapacity: !!formData.get('enforceCapacity'),
 			enforceRoomType: !!formData.get('enforceRoomType'),
@@ -166,7 +165,7 @@ export const actions: Actions = {
 		}
 
 		// --- Start Solver Logic ---
-		// 4. Fetch all data needed for the solver
+		// 3. Fetch all data needed for the solver
 		const [{ data: classesData, error: classesError }, { data: roomsData, error: roomsError }] =
 			await Promise.all([
 				locals.supabase
@@ -180,132 +179,160 @@ export const actions: Actions = {
 
 		if (classesError || roomsError) throw error(500, 'Failed to fetch solver data.');
 
-		// 5. Define Domain (Playable Slots)
+		// 4. Define Domain (Playable Slots)
 		const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-		// 1.5-hour blocks from 7:30 to 17:00 (5:00 PM)
-		const TIMESLOTS = ['07:30', '09:00', '10:30', '12:00', '13:30', '15:00', '16:30'];
+		const SLOT_DURATION_MINUTES = 90; // 1.5 hours
 
-		// 6. Create the "Job List" (splitting Lec/Lab)
+		function generateTimeslots(start: string, end: string, duration: number) {
+			const slots = [];
+			let currentTime = new Date(`1970-01-01T${start}:00`);
+			const endTime = new Date(`1970-01-01T${end}:00`);
+
+			while (currentTime < endTime) {
+				slots.push(currentTime.toTimeString().substring(0, 5));
+				currentTime.setMinutes(currentTime.getMinutes() + duration);
+			}
+			return slots;
+		}
+		const TIMESLOTS = generateTimeslots(scheduleStartTime, '17:00', SLOT_DURATION_MINUTES);
+
+		// 5. Create the "Job List" (splitting Lec/Lab and calculating slots needed)
 		const tasksToSchedule: any[] = [];
 		(classesData || []).forEach((cls) => {
 			if (cls.subjects.lecture_hours > 0) {
 				tasksToSchedule.push({
 					class: cls,
 					type: 'Lecture',
-					hours: Number(cls.subjects.lecture_hours)
+					hours: Number(cls.subjects.lecture_hours),
+					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / 1.5)
 				});
 			}
 			if (cls.subjects.lab_hours > 0) {
-				tasksToSchedule.push({ class: cls, type: 'Lab', hours: Number(cls.subjects.lab_hours) });
+				tasksToSchedule.push({
+					class: cls,
+					type: 'Lab',
+					hours: Number(cls.subjects.lab_hours),
+					slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / 1.5)
+				});
 			}
 		});
 
-		// 7. Initialize Solver State
+		// Sort tasks to schedule multi-slot (harder) ones first
+		tasksToSchedule.sort((a, b) => b.slotsNeeded - a.slotsNeeded);
+
+		// 6. Initialize Solver State
 		let scheduledEntries: any[] = [];
 		let failedClasses: any[] = [];
 
-		// 8. Run the Solver (Greedy Backtracking Algorithm)
+		// 7. Run the Solver
 		for (const task of tasksToSchedule) {
 			let slotFound = false;
-			const taskDuration = task.hours; // We'll assume this fits in one timeslot for simplicity
-			const requiredRoomType = task.type === 'Lab' ? 'Lab' : 'Lecture';
 
-			for (const day of DAYS) {
-				if (slotFound) break;
-				for (const time of TIMESLOTS) {
+			const attemptSchedulingInRooms = (roomsToTry: any[]) => {
+				if (slotFound || !roomsToTry) return;
+
+				const preferredRoom = task.class.pref_room_id
+					? roomsToTry.find((r) => r.id === task.class.pref_room_id)
+					: null;
+				const otherRooms = roomsToTry.filter((r) => r.id !== task.class.pref_room_id);
+				const orderedRoomsToTry = preferredRoom ? [preferredRoom, ...otherRooms] : otherRooms;
+
+				for (const room of orderedRoomsToTry) {
 					if (slotFound) break;
+					if (
+						constraints.enforceCapacity &&
+						room.capacity < task.class.blocks.estimated_students
+					) {
+						continue;
+					}
 
-					// Find a suitable room
-					for (const room of roomsData || []) {
-						// --- CONSTRAINT CHECKS ---
-						// 1. Capacity
-						if (
-							constraints.enforceCapacity &&
-							room.capacity < task.class.blocks.estimated_students
-						) {
-							continue; // Room too small
+					for (const day of DAYS) {
+						if (slotFound) break;
+						for (let i = 0; i <= TIMESLOTS.length - task.slotsNeeded; i++) {
+							if (slotFound) break;
+
+							let isRangeFree = true;
+							for (let j = 0; j < task.slotsNeeded; j++) {
+								const time = TIMESLOTS[i + j];
+								if (
+									scheduledEntries.some(
+										(e) =>
+											e.room_id === room.id &&
+											e.day_of_week === day &&
+											e.start_time.startsWith(time)
+									) ||
+									(constraints.enforceInstructor &&
+										task.class.instructor_id &&
+										scheduledEntries.some(
+											(e) =>
+												e.class.instructor_id === task.class.instructor_id &&
+												e.day_of_week === day &&
+												e.start_time.startsWith(time)
+										)) ||
+									(constraints.enforceBlock &&
+										scheduledEntries.some(
+											(e) =>
+												e.class.block_id === task.class.block_id &&
+												e.day_of_week === day &&
+												e.start_time.startsWith(time)
+										))
+								) {
+									isRangeFree = false;
+									break;
+								}
+							}
+
+							if (isRangeFree) {
+								for (let j = 0; j < task.slotsNeeded; j++) {
+									const time = TIMESLOTS[i + j];
+									const endTime = calculateEndTime(time, 1.5);
+									scheduledEntries.push({
+										timetable_id,
+										class_id: task.class.id,
+										room_id: room.id,
+										day_of_week: day,
+										start_time: formatTime(time),
+										end_time: formatTime(endTime),
+										course_type: task.type,
+										class: task.class
+									});
+								}
+								slotFound = true;
+							}
 						}
-
-						// 2. Room Type
-						if (constraints.enforceRoomType && room.type !== requiredRoomType) {
-							continue; // Wrong room type
-						}
-
-						// 3. Room Availability (check our *local* list of successful slots)
-						if (
-							constraints.enforceBlock &&
-							scheduledEntries.some(
-								(e) =>
-									e.room_id === room.id && e.day_of_week === day && e.start_time.startsWith(time)
-							)
-						) {
-							continue; // Room already booked in this slot
-						}
-
-						// 4. Instructor Availability
-						if (
-							constraints.enforceInstructor &&
-							task.class.instructor_id &&
-							scheduledEntries.some(
-								(e) =>
-									e.class.instructor_id === task.class.instructor_id &&
-									e.day_of_week === day &&
-									e.start_time.startsWith(time)
-							)
-						) {
-							continue; // Instructor already busy
-						}
-
-						// 5. Block Availability
-						if (
-							constraints.enforceBlock &&
-							scheduledEntries.some(
-								(e) =>
-									e.class.block_id === task.class.block_id &&
-									e.day_of_week === day &&
-									e.start_time.startsWith(time)
-							)
-						) {
-							continue; // Block already has a class
-						}
-
-						// --- SLOT FOUND! ---
-						const endTime = calculateEndTime(time, taskDuration); // e.g., "09:00"
-
-						scheduledEntries.push({
-							timetable_id,
-							class_id: task.class.id,
-							room_id: room.id,
-							day_of_week: day,
-							start_time: formatTime(time), // "07:30:00"
-							end_time: formatTime(endTime), // "09:00:00"
-							course_type: task.type,
-							// status: 'draft',
-							// Add these for local checks
-							class: task.class
-						});
-
-						slotFound = true;
-						break; // Found a room, stop checking rooms
 					}
 				}
+			};
+
+			const allLectureRooms = roomsData?.filter((r) => r.type === 'Lecture') || [];
+			const allLabRooms = roomsData?.filter((r) => r.type === 'Lab') || [];
+
+			if (task.type === 'Lecture') {
+				// Stage 1: Try to place Lecture in Lecture rooms
+				attemptSchedulingInRooms(allLectureRooms);
+				// Stage 2: If not found and constraint is on, try Lab rooms as fallback
+				if (!slotFound && !constraints.enforceRoomType) {
+					attemptSchedulingInRooms(allLabRooms);
+				}
+			} else if (task.type === 'Lab') {
+				// For Labs, only ever try Lab rooms
+				attemptSchedulingInRooms(allLabRooms);
 			}
+
 			if (!slotFound) {
 				failedClasses.push({
 					class: `${task.class.subjects.subject_code} (${task.type})`,
-					reason: 'No available time/room slot found that meets all constraints.'
+					reason: 'No available slot found that meets all constraints.'
 				});
 			}
 		}
 
-		// 9. Insert successful entries into the database
+		// 8. Insert successful entries into the database
 		if (scheduledEntries.length > 0) {
-			// Remove the local 'class' object before inserting
 			const entriesToInsert = scheduledEntries.map((e) => {
 				const { class: _, ...dbEntry } = e;
 				return dbEntry;
 			});
-
 			const { error: insertError } = await locals.supabase
 				.from('schedules')
 				.insert(entriesToInsert);
@@ -317,10 +344,10 @@ export const actions: Actions = {
 			}
 		}
 
-		// 10. Return summary
+		// 9. Return summary
 		return {
 			success: true,
-			message: `Generation complete. Successfully scheduled ${scheduledEntries.length} out of ${tasksToSchedule.length} classes.`,
+			message: `Generation complete. Successfully created ${scheduledEntries.length} schedule entries.`,
 			failedClasses,
 			generatedTimetableId: timetable_id
 		};
