@@ -70,7 +70,7 @@ export const actions: Actions = {
 
 		const { error: updateError } = await locals.supabase
 			.from('timetables')
-			.update({ status: 'Archived' })
+			.update({ status: 'archived' })
 			.eq('id', timetableId);
 
 		if (updateError) {
