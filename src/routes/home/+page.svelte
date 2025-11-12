@@ -8,6 +8,7 @@
 	import { onMount } from 'svelte';
 	import beforeSC from '$lib/assets/img2.png';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import { animateInView } from '$lib/actions/animate-in-view';
 
 	// Add typing effect with cursor
 	let text = '';
@@ -122,15 +123,18 @@
 	<main class="flex-1">
 		<section
 			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden px-4 py-16 md:py-24"
+			use:animateInView
 		>
 			<!-- Grid background with radial gradient -->
 			<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-background"></div>
 
 			<!-- Content -->
 			<div class="relative z-10 text-center max-w-4xl space-y-8 md:space-y-10">
-				<Badge variant="outline" class="text-primary/80 text-sm md:text-base">Hello, World</Badge>
+				<Badge variant="outline" class="text-primary/80 text-sm md:text-base" data-animate
+					>Hello, World</Badge
+				>
 
-				<div class="space-y-4">
+				<div class="space-y-4" data-animate>
 					<h1
 						class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground drop-shadow-lg"
 					>
@@ -143,10 +147,13 @@
 						timetables.
 					</div>
 				</div>
-				<p class="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+				<p
+					class="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4"
+					data-animate
+				>
 					Making timetable schedules easier to create and manage.
 				</p>
-				<div class="pt-4">
+				<div class="pt-4" data-animate>
 					<a href="/login">
 						<Button
 							size="lg"
@@ -165,21 +172,26 @@
 		</section>
 
 		<!-- Problem & Solution Section -->
-		<section class="py-16 md:py-24 bg-background" id="problem-solution">
+		<section class="py-16 md:py-24 bg-background" id="problem-solution" use:animateInView>
 			<div class="container mx-auto px-4 max-w-6xl">
 				<div class="grid md:grid-cols-2 gap-12 items-center">
 					<div class="space-y-6">
-						<Badge variant="outline" class="text-primary border-primary">The Challenge</Badge>
-						<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+						<Badge variant="outline" class="text-primary border-primary" data-animate
+							>The Challenge</Badge
+						>
+						<h2
+							class="text-3xl md:text-4xl font-bold tracking-tight text-foreground"
+							data-animate
+						>
 							Tired of Manual Scheduling Headaches?
 						</h2>
-						<p class="text-lg text-muted-foreground">
+						<p class="text-lg text-muted-foreground" data-animate>
 							Creating academic timetables by hand is a complex, error-prone, and time-consuming
 							process. Double-bookings, instructor overload, and inefficient room utilization are
 							common frustrations. It drains valuable administrative resources and impacts student
 							and faculty experience.
 						</p>
-						<ul class="space-y-3 text-muted-foreground">
+						<ul class="space-y-3 text-muted-foreground" data-animate>
 							<li class="flex items-center gap-2">
 								<Lightbulb class="h-5 w-5 text-destructive" /> Constant conflicts & errors
 							</li>
@@ -191,7 +203,7 @@
 							</li>
 						</ul>
 					</div>
-					<div class="relative">
+					<div class="relative" data-animate>
 						<img
 							src={beforeSC}
 							alt="Manual scheduling chaos vs. organized digital schedule"
@@ -208,15 +220,23 @@
 		</section>
 
 		<!-- Key Features Section -->
-		<section class="py-16 md:py-24 bg-muted/40" id="features">
+		<section class="py-16 md:py-24 bg-muted/40" id="features" use:animateInView>
 			<div class="container mx-auto px-4 max-w-6xl text-center">
-				<Badge variant="outline" class="text-primary border-primary mb-3">Core Capabilities</Badge>
-				<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12">
+				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
+					>Core Capabilities</Badge
+				>
+				<h2
+					class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12"
+					data-animate
+				>
 					Intelligent Features for Seamless Scheduling
 				</h2>
 
 				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-					<Card.Root class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<ShieldCheck class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Role-Based Access</h3>
@@ -229,7 +249,10 @@
 						<!-- <img src={featuresImage1} alt="Role-based access" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<Database class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Centralized Resources</h3>
@@ -242,7 +265,10 @@
 						<!-- <img src={featuresImage2} alt="Resource management" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<Workflow class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Academic Planning</h3>
@@ -255,7 +281,10 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<Laptop class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Intuitive Scheduler</h3>
@@ -268,7 +297,10 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<Users class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">User Management</h3>
@@ -280,7 +312,10 @@
 						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
 					>
 
-					<Card.Root class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300">
+					<Card.Root
+						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
+						data-animate
+					>
 						<div class="flex items-center gap-3">
 							<CheckCircle2 class="h-8 w-8 text-primary" />
 							<h3 class="text-xl font-semibold text-foreground">Conflict-Free Output</h3>
@@ -296,14 +331,19 @@
 		</section>
 
 		<!-- How It Works Section -->
-		<section class="py-16 md:py-24 bg-background" id="how-it-works">
+		<section class="py-16 md:py-24 bg-background" id="how-it-works" use:animateInView>
 			<div class="container mx-auto px-4 max-w-6xl text-center">
-				<Badge variant="outline" class="text-primary border-primary mb-3">Our Process</Badge>
-				<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12">
+				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
+					>Our Process</Badge
+				>
+				<h2
+					class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12"
+					data-animate
+				>
 					Simple Steps to a Smarter Timetable
 				</h2>
 				<div class="flex-col gap-8 items-start">
-					<div class="space-y-4 text-center">
+					<div class="space-y-4 text-center" data-animate>
 						<div
 							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
 						>
@@ -318,7 +358,7 @@
 					<div class="flex justify-center items-center my-4 md:my-0">
 						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-0" /> -->
 					</div>
-					<div class="space-y-4 text-center">
+					<div class="space-y-4 text-center" data-animate>
 						<div
 							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
 						>
@@ -333,7 +373,7 @@
 					<div class="flex justify-center items-center my-4 md:my-0 md:col-span-1 md:col-start-2">
 						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-180" /> -->
 					</div>
-					<div class="space-y-4 text-center md:col-start-3">
+					<div class="space-y-4 text-center md:col-start-3" data-animate>
 						<div
 							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
 						>
@@ -355,16 +395,19 @@
 		</section>
 
 		<!-- Final Call to Action -->
-		<section class="bg-primary py-16 md:py-20 text-center text-primary-foreground">
+		<section
+			class="bg-primary py-16 md:py-20 text-center text-primary-foreground"
+			use:animateInView
+		>
 			<div class="container mx-auto px-4 max-w-4xl space-y-6">
-				<h2 class="text-3xl md:text-4xl font-bold tracking-tight">
+				<h2 class="text-3xl md:text-4xl font-bold tracking-tight" data-animate>
 					Ready to Modernize Your Scheduling?
 				</h2>
-				<p class="text-lg md:text-xl opacity-90">
+				<p class="text-lg md:text-xl opacity-90" data-animate>
 					Join your university in embracing a smarter, more efficient way to manage academic
 					timetables.
 				</p>
-				<div>
+				<div data-animate>
 					<Button class="bg-white/45">Explore Options</Button>
 					<Button
 						size="lg"
