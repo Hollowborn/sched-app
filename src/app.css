@@ -182,3 +182,19 @@ body {
 		@apply font-mono leading-7;
 	} */
 }
+
+/* Animation styles for elements that appear on scroll */
+[data-animate] {
+	opacity: 0;
+	transform: translateY(15px);
+	transition:
+		opacity 0.4s ease-out,
+		transform 0.4s ease-out;
+	transition-delay: var(--stagger-delay, 0ms);
+}
+
+[data-animate].is-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
