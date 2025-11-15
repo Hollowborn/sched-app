@@ -16,7 +16,8 @@
 		Trash2,
 		Pencil,
 		ToggleLeft,
-		ToggleRight
+		ToggleRight,
+		Dot
 	} from '@lucide/svelte';
 
 	// Shadcn Components
@@ -202,9 +203,11 @@
 									<Table.Cell>{user.colleges?.college_name || 'N/A'}</Table.Cell>
 									<Table.Cell>{timeAgo(user.last_sign_in_at)}</Table.Cell>
 									<Table.Cell>
-										<Badge variant={user.status === 'active' ? 'default' : 'destructive'}
-											>{user.status}</Badge
-										>
+										{#if user.status === 'active'}
+											<Badge variant="outline"><Dot class="text-green-400 h-4 w-4" />active</Badge>
+										{:else}
+											<Badge variant="outline">{user.status}</Badge>
+										{/if}
 									</Table.Cell>
 									<Table.Cell class="text-right">
 										<DropdownMenu.Root>
@@ -256,7 +259,7 @@
 												</DropdownMenu.Item>
 
 												<DropdownMenu.Item
-													on:select={(e: CustomEvent) => e.preventDefault()}
+													onselect={(e: CustomEvent) => e.preventDefault()}
 													class="p-0 focus:bg-transparent focus:text-inherit"
 												>
 													<form
