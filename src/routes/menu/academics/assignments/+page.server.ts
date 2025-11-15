@@ -6,15 +6,15 @@ const ALLOWED_ROLES = ['Admin', 'Dean'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const userRole = locals.profile?.role;
-	if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+	const profile = locals.profile;
+	if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
 		throw error(403, 'Forbidden: You do not have permission to assign instructors.');
 	}
 
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
-	const college_filter_id = url.searchParams.get('college'); // Renamed to avoid conflict
+	const college_filter_id = url.searchParams.get('college');
 
 	// --- 1. Fetch Class Offerings for the selected term ---
 	let classQuery = locals.supabase
@@ -38,10 +38,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.eq('semester', semester);
 
 	// Handle college filtering based on role and URL params
-	if (userRole === 'Dean' && locals.profile?.college_id) {
+	if (profile.role === 'Dean' && profile.college_id) {
 		// Deans should only see classes relevant to their college (via the block's program's college)
-		classQuery = classQuery.eq('blocks.programs.college_id', locals.profile.college_id);
-	} else if (college_filter_id && userRole === 'Admin') {
+		classQuery = classQuery.eq('blocks.programs.college_id', profile.college_id);
+	} else if (college_filter_id && profile.role === 'Admin') {
 		// Admins can filter by any college (via the block's program's college)
 		classQuery = classQuery.eq('blocks.programs.college_id', college_filter_id);
 	}
@@ -56,16 +56,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// --- 2. Fetch Instructors and Calculate Their Current Workload ---
 	let instructorQuery = locals.supabase
 		.from('instructors')
-		.select('id, name, max_load, college_id');
+		.select('id, name, max_load, instructor_colleges!inner(college_id), instructor_subjects(subject_id)');
 
 	// Deans should only be able to assign instructors from their own college
-	if (userRole === 'Dean' && locals.profile?.college_id) {
-		instructorQuery = instructorQuery.eq('college_id', locals.profile.college_id);
+	if (profile.role === 'Dean' && profile.college_id) {
+		instructorQuery = instructorQuery.eq('instructor_colleges.college_id', profile.college_id);
 	}
 
 	const { data: instructors, error: instructorsError } = await instructorQuery;
 
 	if (instructorsError) {
+		console.error('Error fetching instructors:', instructorsError);
 		throw error(500, 'Could not fetch instructors.');
 	}
 
@@ -92,7 +93,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Fetch colleges for the filter dropdown (only for Admin role)
 	const { data: colleges } =
-		userRole === 'Admin'
+		profile.role === 'Admin'
 			? await locals.supabase.from('colleges').select('id, college_name')
 			: { data: [] };
 

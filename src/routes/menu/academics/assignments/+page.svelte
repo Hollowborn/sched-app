@@ -17,6 +17,8 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
+	type Instructor = PageData['instructors'][number];
+
 	type ClassOffering = {
 		id: number;
 		subjects: {
@@ -81,6 +83,32 @@
 	});
 
 	// --- Event Handlers ---
+	function getQualifiedInstructors(
+		subjectId: number | null,
+		currentInstructorId: number | null
+	): (Instructor & { isQualified: boolean })[] {
+		if (!subjectId) return [];
+
+		const qualified =
+			data.instructors?.filter((i) =>
+				i.instructor_subjects.some((is) => is.subject_id === subjectId)
+			) || [];
+
+		const qualifiedIds = new Set(qualified.map((i) => i.id));
+		const results = qualified.map((i) => ({ ...i, isQualified: true }));
+
+		// If there's a currently assigned instructor who is NOT qualified,
+		// add them to the list so they are still visible in the dropdown.
+		if (currentInstructorId && !qualifiedIds.has(currentInstructorId)) {
+			const currentInstructor = data.instructors.find((i) => i.id === currentInstructorId);
+			if (currentInstructor) {
+				results.unshift({ ...currentInstructor, isQualified: false });
+			}
+		}
+
+		return results;
+	}
+
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
@@ -254,6 +282,10 @@
 			<Table.Body>
 				{#if filteredClasses.length > 0}
 					{#each filteredClasses as classItem (classItem.id)}
+						{@const qualifiedInstructors = getQualifiedInstructors(
+							classItem.subjects?.id ?? null,
+							classItem.instructors?.id ?? null
+						)}
 						<Table.Row class="hover:bg-muted/50">
 							<Table.Cell>
 								<div class="font-medium">{classItem.subjects?.subject_code}</div>
@@ -277,11 +309,13 @@
 										return async ({ update, result }) => {
 											if (result.type === 'success') {
 												toast.success(result.data?.message, { id: toastId });
-												await invalidateAll();
+												// No full invalidateAll() needed, just update the data
+												await update({ reset: false });
 											} else if (result.type === 'failure') {
 												toast.error(result.data?.message, { id: toastId });
+												// On failure, reset the select to its original value
+												await invalidateAll();
 											}
-											await update({ reset: false });
 										};
 									}}
 								>
@@ -289,8 +323,9 @@
 									<Select.Root
 										type="single"
 										name="instructorId"
-										bind:value={selectedInstructorIds[classItem.id]}
-										onValueChange={() => {
+										value={selectedInstructorIds[classItem.id]}
+										onValueChange={(v) => {
+											selectedInstructorIds[classItem.id] = v;
 											handleAssignmentChange(classItem.id);
 										}}
 									>
@@ -301,6 +336,9 @@
 												)}
 												{#if instructor}
 													<span
+														class:text-destructive={!qualifiedInstructors.find(
+															(qi) => qi.id === instructor.id
+														)?.isQualified}
 														>{instructor.name} ({instructor.current_load} / {instructor.max_load})</span
 													>
 												{:else}
@@ -312,11 +350,20 @@
 										</Select.Trigger>
 										<Select.Content>
 											<Select.Item value="0">Unassigned</Select.Item>
-											{#each data.instructors as instructor}
-												<Select.Item value={instructor.id.toString()}>
-													{instructor.name} ({instructor.current_load} / {instructor.max_load})
-												</Select.Item>
-											{/each}
+											{#if qualifiedInstructors.length > 0}
+												{#each qualifiedInstructors as instructor}
+													<Select.Item value={instructor.id.toString()}>
+														{instructor.name} ({instructor.current_load} / {instructor.max_load})
+														{#if !instructor.isQualified}
+															<span class="text-destructive ml-2">(Unqualified)</span>
+														{/if}
+													</Select.Item>
+												{/each}
+											{:else}
+												<div class="p-2 text-sm text-muted-foreground text-center">
+													No qualified instructors found.
+												</div>
+											{/if}
 										</Select.Content>
 									</Select.Root>
 								</form>
