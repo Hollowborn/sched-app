@@ -434,7 +434,7 @@
 			>
 				<p>
 					&copy; {new Date().getFullYear()}<span class="font-semibold text-primary">
-						&nbsp smart</span
+						&nbsp; smart</span
 					><span class="font-light">-sched</span>. All rights reserved.
 				</p>
 				<div class="mt-4 md:mt-0 space-x-4">
