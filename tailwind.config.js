@@ -17,7 +17,7 @@ export default {
 	content: {
 		'./src/**/*.{html,svelte}',
 		'./node_modules/layerchart/**/*.{svelte,js}' // <--- Add this
-	}
+	},
 	// ... other config
 };
 
