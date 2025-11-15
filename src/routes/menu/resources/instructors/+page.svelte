@@ -13,8 +13,11 @@
 		Pencil,
 		Eye,
 		Trash2,
-		LoaderCircle
+		LoaderCircle,
+		BookMarked
 	} from '@lucide/svelte';
+
+	// shadcn-svelte components
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
@@ -24,16 +27,18 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
+	import ScrollArea from '$lib/components/ui/scroll-area/scroll-area.svelte';
+	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 
 	type Instructor = {
 		id: number;
 		name: string;
-		email: string;
-		college_id: number;
+		email: string | null;
 		max_load: number;
 		min_load: number;
 		current_load: number;
-		colleges: { college_name: string } | null;
+		colleges: { id: number; college_name: string }[];
+		instructor_subjects: { subject_id: number }[];
 	};
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
@@ -48,15 +53,16 @@
 	let createOpen = $state(false);
 	let editOpen = $state(false);
 	let deleteOpen = $state(false);
+	let qualificationsOpen = $state(false);
 	let selectedInstructor = $state<Instructor | null>(null);
 
 	// Form State
 	let formName = $state('');
 	let formEmail = $state('');
-	let formCollegeCreateId = $state('');
-	let formCollegeId = $state('');
+	let formCollegeIds = $state<number[]>([]);
 	let formMaxLoad = $state(18);
 	let formMinLoad = $state(12);
+	let formQualificationIds = $state<number[]>([]);
 
 	const filteredInstructors: Instructor[] = $derived.by(() => {
 		const instructors = data.instructors || [];
@@ -65,7 +71,18 @@
 		return instructors.filter(
 			(i) =>
 				i.name.toLowerCase().includes(lowerQuery) ||
-				i.colleges?.college_name.toLowerCase().includes(lowerQuery)
+				i.colleges?.some((c) => c.college_name.toLowerCase().includes(lowerQuery))
+		);
+	});
+
+	// Filter subjects in the qualifications modal based on the selected instructor's colleges
+	const availableSubjects = $derived.by(() => {
+		if (!selectedInstructor) return [];
+		const instructorCollegeIds = new Set(selectedInstructor.colleges.map((c) => c.id));
+		return (
+			data.subjects?.filter((subject) =>
+				subject.colleges.some((college) => instructorCollegeIds.has(college.id))
+			) || []
 		);
 	});
 
@@ -97,8 +114,8 @@
 	function openEditModal(instructor: Instructor) {
 		selectedInstructor = instructor;
 		formName = instructor.name;
-		formEmail = instructor.email;
-		formCollegeId = instructor.college_id.toString();
+		formEmail = instructor.email || '';
+		formCollegeIds = instructor.colleges.map((c) => c.id);
 		formMaxLoad = instructor.max_load;
 		formMinLoad = instructor.min_load;
 		editOpen = true;
@@ -109,16 +126,27 @@
 		deleteOpen = true;
 	}
 
-	const formCollegeName = $derived(
-		data.colleges?.find((c) => c.id.toString() === formCollegeId)?.college_name
-	);
-	const formCollegeCreateName = $derived(
-		data.colleges?.find((c) => c.id.toString() === formCollegeCreateId)?.college_name
-	);
+	function openQualificationsModal(instructor: Instructor) {
+		selectedInstructor = instructor;
+		formQualificationIds = instructor.instructor_subjects.map((s) => s.subject_id);
+		qualificationsOpen = true;
+	}
+
+	function handleCreateFormReset() {
+		formName = '';
+		formEmail = '';
+		formMaxLoad = 18;
+		// If Dean, pre-select their college
+		if (data.profile?.role === 'Dean' && data.profile.college_id) {
+			formCollegeIds = [data.profile.college_id];
+		} else {
+			formCollegeIds = [];
+		}
+	}
 </script>
 
 <svelte:head>
-	<title>Block Management | smart-sched</title>
+	<title>Instructor Management | smart-sched</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -192,7 +220,7 @@
 					size="icon"
 					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
 				>
-				{#if data.profile?.role === 'Admin'}
+				{#if data.profile?.role === 'Admin' || data.profile?.role === 'Dean'}
 					<Button onclick={() => (createOpen = true)}
 						><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
 					>
@@ -209,7 +237,11 @@
 						<Card.Root class="flex flex-col ">
 							<Card.Header>
 								<Card.Title>{instructor.name}</Card.Title>
-								<Card.Description>{instructor.colleges?.college_name || 'N/A'}</Card.Description>
+								<Card.Description class="flex flex-wrap gap-1 pt-1">
+									{#each instructor.colleges as college}
+										<Badge variant="secondary">{college.college_name}</Badge>
+									{/each}
+								</Card.Description>
 							</Card.Header>
 							<Card.Content class="flex-grow">
 								<div class="space-y-2">
@@ -226,7 +258,11 @@
 								</div>
 							</Card.Content>
 							<Card.Footer class="flex justify-end gap-2">
-								<Button variant="outline" size="sm">View Schedule</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => openQualificationsModal(instructor)}>Qualifications</Button
+								>
 								<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
 									>Edit</Button
 								>
@@ -256,10 +292,13 @@
 						{#each filteredInstructors as instructor (instructor.id)}
 							<Table.Row>
 								<Table.Cell class="font-medium">{instructor.name}</Table.Cell>
-								<Table.Cell
-									><Badge variant="secondary">{instructor.colleges?.college_name || 'N/A'}</Badge
-									></Table.Cell
-								>
+								<Table.Cell>
+									<div class="flex flex-wrap gap-1">
+										{#each instructor.colleges as college}
+											<Badge variant="secondary">{college.college_name}</Badge>
+										{/each}
+									</div>
+								</Table.Cell>
 								<Table.Cell>
 									<div class="flex items-center gap-2">
 										<Progress
@@ -275,17 +314,24 @@
 										>
 									</div>
 								</Table.Cell>
-								<Table.Cell class="text-right">
-									<Button variant="ghost" size="sm"><Eye /></Button>
-									<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}
-										><Pencil /></Button
-									>
+								<Table.Cell class="text-right space-x-1">
 									<Button
 										variant="ghost"
-										size="icon"
-										class="text-destructive hover:text-destructive"
-										onclick={() => openDeleteModal(instructor)}><Trash2 class="h-4 w-4" /></Button
+										size="sm"
+										onclick={() => openQualificationsModal(instructor)}
+										><BookMarked class="h-4 w-4" /></Button
 									>
+									<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}
+										><Pencil class="h-4 w-4" /></Button
+									>
+									{#if data.profile?.role === 'Admin'}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="text-destructive hover:text-destructive"
+											onclick={() => openDeleteModal(instructor)}><Trash2 class="h-4 w-4" /></Button
+										>
+									{/if}
 								</Table.Cell>
 							</Table.Row>
 						{/each}
@@ -302,8 +348,10 @@
 	{/if}
 </div>
 
-<!-- Add/Edit/Delete Modals -->
-<Dialog.Root bind:open={createOpen}>
+<!-- === MODALS === -->
+
+<!-- Create Instructor Modal -->
+<Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && handleCreateFormReset()}>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Add New Instructor</Dialog.Title>
@@ -328,7 +376,6 @@
 			}}
 		>
 			<div class="grid gap-4 py-4">
-				<!-- Form fields -->
 				<div class="space-y-2">
 					<Label for="create-name">Full Name</Label>
 					<Input id="create-name" name="name" required />
@@ -338,21 +385,54 @@
 					<Input id="create-email" name="email" type="email" placeholder="Optional" />
 				</div>
 				<div class="space-y-2">
-					<Label for="create-college">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={formCollegeCreateId}>
-						<Select.Trigger
-							><span class="">{formCollegeCreateName || 'Select a college'}</span></Select.Trigger
-						>
-						<Select.Content>
-							{#each data.colleges as college}
-								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
 					<Label for="create-max-load">Max Load (Units)</Label>
 					<Input id="create-max-load" name="max_load" type="number" step="0.5" value={18} />
+				</div>
+				<div class="space-y-2">
+					<Label>Colleges</Label>
+					<ScrollArea class="h-32 rounded-md border">
+						<div class="p-4 space-y-2">
+							{#if data.profile?.role === 'Dean'}
+								{@const deanCollege = data.colleges.find((c) => c.id === data.profile?.college_id)}
+								{#if deanCollege}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="create-col-{deanCollege.id}"
+											name="college_ids"
+											value={deanCollege.id}
+											checked={true}
+											disabled={true}
+										/>
+										<Label for="create-col-{deanCollege.id}" class="font-normal"
+											>{deanCollege.college_name}</Label
+										>
+									</div>
+									<!-- Hidden input to ensure the value is submitted even when checkbox is disabled -->
+									<input type="hidden" name="college_ids" value={deanCollege.id} />
+								{/if}
+							{:else}
+								{#each data.colleges as college}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="create-col-{college.id}"
+											name="college_ids"
+											value={college.id}
+											onCheckedChange={(checked) => {
+												if (checked) {
+													formCollegeIds = [...formCollegeIds, college.id];
+												} else {
+													formCollegeIds = formCollegeIds.filter((id) => id !== college.id);
+												}
+											}}
+										/>
+										<Label for="create-col-{college.id}" class="font-normal"
+											>{college.college_name}</Label
+										>
+									</div>
+								{/each}
+							{/if}
+						</div>
+					</ScrollArea>
 				</div>
 			</div>
 			<Dialog.Footer>
@@ -365,6 +445,7 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<!-- Edit Instructor Modal -->
 <Dialog.Root bind:open={editOpen}>
 	<Dialog.Content>
 		<Dialog.Header>
@@ -397,20 +478,7 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="edit-email">Email Address</Label>
-					<Input id="edit-email" name="email" type="email" bind:value={formEmail} required />
-				</div>
-				<div class="space-y-2">
-					<Label for="edit-college">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
-						<Select.Trigger>
-							<span>{formCollegeName || 'Select a college'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.colleges as college}
-								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
+					<Input id="edit-email" name="email" type="email" bind:value={formEmail} />
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
@@ -434,6 +502,39 @@
 						/>
 					</div>
 				</div>
+				<div class="space-y-2">
+					<Label>Colleges</Label>
+					<ScrollArea class="h-32 rounded-md border">
+						<div class="p-4 space-y-2">
+							{#each data.colleges as college}
+								<div class="flex items-center gap-2">
+									<Checkbox
+										id="edit-col-{college.id}"
+										name="college_ids"
+										value={college.id}
+										checked={formCollegeIds.includes(college.id)}
+										disabled={data.profile?.role === 'Dean'}
+										onCheckedChange={(checked) => {
+											if (checked) {
+												formCollegeIds = [...formCollegeIds, college.id];
+											} else {
+												formCollegeIds = formCollegeIds.filter((id) => id !== college.id);
+											}
+										}}
+									/>
+									<Label for="edit-col-{college.id}" class="font-normal"
+										>{college.college_name}</Label
+									>
+								</div>
+							{/each}
+						</div>
+					</ScrollArea>
+					{#if data.profile?.role === 'Dean'}
+						<p class="text-xs text-muted-foreground">
+							College affiliations can only be changed by an Administrator.
+						</p>
+					{/if}
+				</div>
 			</div>
 			<Dialog.Footer>
 				<Button type="submit" disabled={isSubmitting}>
@@ -445,6 +546,82 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<!-- Manage Qualifications Modal -->
+{#if selectedInstructor}
+	<Dialog.Root bind:open={qualificationsOpen}>
+		<Dialog.Content class="max-w-lg">
+			<Dialog.Header>
+				<Dialog.Title>Manage Qualifications for {selectedInstructor.name}</Dialog.Title>
+				<Dialog.Description>
+					Select the subjects this instructor is qualified to teach from their assigned colleges.
+				</Dialog.Description>
+			</Dialog.Header>
+			<form
+				method="POST"
+				action="?/updateQualifications"
+				use:enhance={() => {
+					isSubmitting = true;
+					const toastId = toast.loading('Updating qualifications...');
+					return async ({ update, result }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							toast.success(result.data?.message, { id: toastId });
+							invalidateAll();
+							qualificationsOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error(result.data?.message, { id: toastId });
+						}
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="instructor_id" value={selectedInstructor.id} />
+				<div class="py-4">
+					<ScrollArea class="h-64 rounded-md border">
+						<div class="p-4 space-y-2">
+							{#if availableSubjects.length > 0}
+								{#each availableSubjects as subject (subject.id)}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="qual-subj-{subject.id}"
+											name="subject_ids"
+											value={subject.id}
+											checked={formQualificationIds.includes(subject.id)}
+											onCheckedChange={(checked) => {
+												if (checked) {
+													formQualificationIds = [...formQualificationIds, subject.id];
+												} else {
+													formQualificationIds = formQualificationIds.filter(
+														(id) => id !== subject.id
+													);
+												}
+											}}
+										/>
+										<Label for="qual-subj-{subject.id}" class="font-normal"
+											>{subject.subject_code} - {subject.subject_name}</Label
+										>
+									</div>
+								{/each}
+							{:else}
+								<p class="text-sm text-muted-foreground text-center p-4">
+									No subjects found for the instructor's assigned college(s).
+								</p>
+							{/if}
+						</div>
+					</ScrollArea>
+				</div>
+				<Dialog.Footer>
+					<Button type="submit" disabled={isSubmitting}>
+						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+						Save Qualifications
+					</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
+
+<!-- Delete Instructor Modal -->
 {#if selectedInstructor}
 	<Dialog.Root bind:open={deleteOpen}>
 		<Dialog.Content>
