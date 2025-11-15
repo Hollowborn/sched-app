@@ -96,6 +96,26 @@
 		availableBlocks = data.blocks.filter((b) => b.programs?.college_id === collegeIdToFilter);
 	});
 
+	const qualifiedInstructors = $derived.by(() => {
+		if (!createSubjectId) return [];
+		const subjectId = Number(createSubjectId);
+		return (
+			data.instructors?.filter((i) =>
+				i.instructor_subjects.some((is) => is.subject_id === subjectId)
+			) || []
+		);
+	});
+
+	$effect(() => {
+		// If the selected instructor is not in the new list of qualified instructors, reset the selection.
+		if (
+			createInstructorId &&
+			!qualifiedInstructors.find((i) => i.id.toString() === createInstructorId)
+		) {
+			createInstructorId = '';
+		}
+	});
+
 	// --- Event Handlers ---
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
@@ -468,18 +488,29 @@
 				</div>
 				<div class="space-y-2">
 					<Label>Instructor (Optional)</Label>
-					<Select.Root type="single" name="instructor_id" bind:value={createInstructorId}>
-						<Select.Trigger>
-							<span class="placeholder:text-muted-foreground"
-								>{data.instructors.find((i) => i.id.toString() === createInstructorId)?.name ||
-									'Assign an instructor'}</span
-							>
+					<Select.Root
+						type="single"
+						name="instructor_id"
+						bind:value={createInstructorId}
+						disabled={!createSubjectId}
+					>
+						<Select.Trigger disabled={!createSubjectId}>
+							<span class="placeholder:text-muted-foreground">
+								{qualifiedInstructors.find((i) => i.id.toString() === createInstructorId)?.name ||
+									'Assign an instructor'}
+							</span>
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="0">Unassigned</Select.Item>
-							{#each data.instructors || [] as instructor}
-								<Select.Item value={instructor.id.toString()}>{instructor.name}</Select.Item>
-							{/each}
+							{#if qualifiedInstructors.length > 0}
+								{#each qualifiedInstructors as instructor}
+									<Select.Item value={instructor.id.toString()}>{instructor.name}</Select.Item>
+								{/each}
+							{:else if createSubjectId}
+								<div class="p-2 text-sm text-muted-foreground text-center">
+									No qualified instructors for this subject.
+								</div>
+							{/if}
 						</Select.Content>
 					</Select.Root>
 				</div>
