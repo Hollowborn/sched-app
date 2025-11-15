@@ -6,9 +6,11 @@
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import { shimmer } from '$lib/actions/shimmer';
 	import { onMount } from 'svelte';
+	// import beforeSC_webp from '$lib/assets/img2.png?w=800&format=webp';
 	import beforeSC from '$lib/assets/img2.png';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { animateInView } from '$lib/actions/animate-in-view';
+	import { viewport } from '$lib/actions/viewport';
 
 	// Add typing effect with cursor
 	let text = '';
@@ -55,14 +57,8 @@
 	$effect(() => {
 		scrolled = y > 50; // Adjust 50px threshold as needed
 	});
-	// Placeholder images
-	// You would replace these with actual assets.
-	const heroImage = 'https://picsum.photos/seed/schedule_hero/1600/900';
-	const problemSolutionImage = 'https://picsum.photos/seed/schedule_problem/800/600';
-	const featuresImage1 = 'https://picsum.photos/seed/schedule_feature1/400/300';
-	const featuresImage2 = 'https://picsum.photos/seed/schedule_feature2/400/300';
-	const featuresImage3 = 'https://picsum.photos/seed/schedule_feature3/400/300';
-	const processImage = 'https://picsum.photos/seed/schedule_process/800/600';
+
+	let activeSectionId = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -104,13 +100,17 @@
 			<div class="flex items-center space-x-6">
 				<a
 					href="#features"
-					class="hidden md:flex text-sm font-medium hover:text-primary transition-colors"
-					>Features</a
+					class="hidden md:flex text-sm font-medium transition-colors hover:text-primary {activeSectionId ===
+					'features'
+						? 'text-primary'
+						: 'text-muted-foreground'}">Features</a
 				>
 				<a
 					href="#how-it-works"
-					class="hidden md:flex text-sm font-medium hover:text-primary transition-colors"
-					>How it Works</a
+					class="hidden md:flex text-sm font-medium transition-colors hover:text-primary {activeSectionId ===
+					'how-it-works'
+						? 'text-primary'
+						: 'text-muted-foreground'}">How it Works</a
 				>
 				<a href="/login" class="text-sm font-medium">
 					<Button size="sm">Login</Button>
@@ -124,6 +124,8 @@
 		<section
 			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden px-4 py-16 md:py-24"
 			use:animateInView
+			use:viewport={{ threshold: 0.4 }}
+			on:enterViewport={() => (activeSectionId = null)}
 		>
 			<!-- Grid background with radial gradient -->
 			<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-background"></div>
@@ -179,10 +181,7 @@
 						<Badge variant="outline" class="text-primary border-primary" data-animate
 							>The Challenge</Badge
 						>
-						<h2
-							class="text-3xl md:text-4xl font-bold tracking-tight text-foreground"
-							data-animate
-						>
+						<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground" data-animate>
 							Tired of Manual Scheduling Headaches?
 						</h2>
 						<p class="text-lg text-muted-foreground" data-animate>
@@ -209,6 +208,7 @@
 							alt="Manual scheduling chaos vs. organized digital schedule"
 							class="rounded-lg shadow-xl"
 						/>
+
 						<div
 							class="absolute -bottom-4 -left-4 bg-primary/20 p-4 rounded-lg backdrop-blur-sm text-foreground text-sm font-semibold italic"
 						>
@@ -220,7 +220,13 @@
 		</section>
 
 		<!-- Key Features Section -->
-		<section class="py-16 md:py-24 bg-muted/40" id="features" use:animateInView>
+		<section
+			class="py-16 md:py-24 bg-muted/40"
+			id="features"
+			use:animateInView
+			use:viewport={{ threshold: 0.4 }}
+			on:enterViewport={() => (activeSectionId = 'features')}
+		>
 			<div class="container mx-auto px-4 max-w-6xl text-center">
 				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
 					>Core Capabilities</Badge
@@ -331,21 +337,31 @@
 		</section>
 
 		<!-- How It Works Section -->
-		<section class="py-16 md:py-24 bg-background" id="how-it-works" use:animateInView>
+		<section
+			class="py-16 md:py-24 bg-background"
+			id="how-it-works"
+			use:animateInView
+			use:viewport={{ threshold: 0.4 }}
+			on:enterViewport={() => (activeSectionId = 'how-it-works')}
+		>
 			<div class="container mx-auto px-4 max-w-6xl text-center">
 				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
 					>Our Process</Badge
 				>
 				<h2
-					class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12"
+					class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-16"
 					data-animate
 				>
 					Simple Steps to a Smarter Timetable
 				</h2>
-				<div class="flex-col gap-8 items-start">
-					<div class="space-y-4 text-center" data-animate>
+				<div class="relative grid md:grid-cols-3 gap-12 items-start">
+					<div
+						class="hidden md:block absolute top-8 left-0 mt-px w-full border-t-2 border-dashed border-border"
+					></div>
+
+					<div class="relative space-y-4 text-center" data-animate>
 						<div
-							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
+							class="w-16 h-16 bg-background border-2 border-dashed rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold relative z-10"
 						>
 							1
 						</div>
@@ -355,12 +371,10 @@
 							rooms, programs, and blocks.
 						</p>
 					</div>
-					<div class="flex justify-center items-center my-4 md:my-0">
-						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-0" /> -->
-					</div>
-					<div class="space-y-4 text-center" data-animate>
+
+					<div class="relative space-y-4 text-center" data-animate>
 						<div
-							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
+							class="w-16 h-16 bg-background border-2 border-dashed rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold relative z-10"
 						>
 							2
 						</div>
@@ -370,12 +384,10 @@
 							instructors.
 						</p>
 					</div>
-					<div class="flex justify-center items-center my-4 md:my-0 md:col-span-1 md:col-start-2">
-						<!-- <Waypoints class="h-10 w-10 text-muted-foreground rotate-90 md:rotate-180" /> -->
-					</div>
-					<div class="space-y-4 text-center md:col-start-3" data-animate>
+
+					<div class="relative space-y-4 text-center" data-animate>
 						<div
-							class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold"
+							class="w-16 h-16 bg-background border-2 border-dashed rounded-full flex items-center justify-center mx-auto text-primary text-2xl font-bold relative z-10"
 						>
 							3
 						</div>
@@ -386,11 +398,6 @@
 						</p>
 					</div>
 				</div>
-				<!-- <img
-					src={processImage}
-					alt="Scheduling process flow"
-					class="mt-12 rounded-lg shadow-xl hidden md:block"
-				/> -->
 			</div>
 		</section>
 
@@ -408,7 +415,7 @@
 					timetables.
 				</p>
 				<div data-animate>
-					<Button class="bg-white/45">Explore Options</Button>
+					<Button href="#features" class="bg-white/45">Explore Options</Button>
 					<Button
 						size="lg"
 						variant="secondary"
