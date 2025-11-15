@@ -7,7 +7,9 @@
 	import { Input } from '$lib/components/ui/input'; // Import Input component
 	import { Search } from '@lucide/svelte'; // Import Search icon
 	import { goto } from '$app/navigation'; // Import goto for navigation
-
+	import * as Kbd from '$lib/components/ui/kbd/index.js';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
+	import SearchIcon from '@lucide/svelte/icons/search';
 	// Reactive variable for the current path
 	let headerTitle = $derived(getPageTitle($page.url.pathname));
 
@@ -65,21 +67,17 @@
 		<Separator orientation="vertical" class="mx-2 data-[orientation=vertical]:h-4" />
 
 		<h1 class="font-bold">{headerTitle}</h1>
-		<div class="ml-auto flex items-center gap-2">
-			<!-- Global Search Input -->
-			<!-- <div class="relative w-full max-w-sm">
-                <Input
-                    type="search"
-                    placeholder="Search all data..."
-                    class="pl-8"
-                    bind:value={globalSearchQuery}
-                    on:keydown={(e) => e.key === 'Enter' && handleGlobalSearch()}
-                />
-                <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
-            <Button on:click={handleGlobalSearch} size="sm" variant="secondary">
-                Search
-            </Button> -->
+		<div class="ml-auto w-100 max-w-sm lg:max-w-md md:mr-100">
+			<!-- <InputGroup.Root>
+				<InputGroup.Input placeholder="Search..." />
+				<InputGroup.Addon>
+					<SearchIcon />
+				</InputGroup.Addon>
+				<InputGroup.Addon align="inline-end">
+					<Kbd.Root>⌘</Kbd.Root>
+					<Kbd.Root>K</Kbd.Root>
+				</InputGroup.Addon>
+			</InputGroup.Root> -->
 		</div>
 	</div>
 </header>

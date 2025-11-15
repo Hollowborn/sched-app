@@ -33,7 +33,7 @@
 		<!-- Suggestion: Add a static Dashboard link -->
 		<Sidebar.MenuItem>
 			<Sidebar.MenuButton
-				href="/menu"
+				href="/menu/dashboard"
 				isActive={currentPath === '/menu'}
 				tooltipContent="Dashboard"
 			>
