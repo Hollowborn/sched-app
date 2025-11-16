@@ -57,7 +57,7 @@ const auth: Handle = async ({ event, resolve }) => {
 	if (user) {
 		const { data: profile } = await event.locals.supabase
 			.from('users')
-			.select('username, role, college_id')
+			.select('username, role, college_id, email')
 			.eq('id', user.id)
 			.single();
 
