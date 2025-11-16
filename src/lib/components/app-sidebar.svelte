@@ -27,7 +27,7 @@
 	<Sidebar.Header class="">
 		<div class="mt-2"></div>
 		<a
-			href="/menu"
+			href="/menu/dashboard"
 			class="flex items-center gap-2.5 transition-transform duration-200 hover:scale-101"
 		>
 			<!-- Custom SVG Icon for smart-sched -->

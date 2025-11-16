@@ -34,7 +34,7 @@
 		<Sidebar.MenuItem>
 			<Sidebar.MenuButton
 				href="/menu/dashboard"
-				isActive={currentPath === '/menu'}
+				isActive={currentPath === '/menu/dashboard'}
 				tooltipContent="Dashboard"
 			>
 				<svelte:component this={icons['LayoutDashboard']} />
