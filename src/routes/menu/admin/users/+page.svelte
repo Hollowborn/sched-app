@@ -162,155 +162,147 @@
 	</div> -->
 
 	<!-- Controls and Table -->
-	<Card.Root>
-		<Card.Header>
-			<div class="flex items-center justify-between">
-				<div class="relative w-full max-w-sm">
-					<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<Input
-						placeholder="Search by username or email..."
-						class="pl-10"
-						bind:value={searchQuery}
-					/>
-				</div>
-				<Button onclick={() => (createOpen = true)}>
-					<PlusCircle class="mr-2 h-4 w-4" /> Add User
-				</Button>
-			</div>
-		</Card.Header>
-		<Card.Content>
-			<div class="border rounded-md">
-				<Table.Root>
-					<Table.Header class="bg-muted/50">
+
+	<div class="flex items-center justify-between">
+		<div class="relative w-full max-w-sm">
+			<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+			<Input placeholder="Search by username or email..." class="pl-10" bind:value={searchQuery} />
+		</div>
+		<Button onclick={() => (createOpen = true)}>
+			<PlusCircle class="mr-2 h-4 w-4" /> Add User
+		</Button>
+	</div>
+
+	<div class="border rounded-md">
+		<Table.Root>
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head>User</Table.Head>
+					<Table.Head>Role</Table.Head>
+					<Table.Head>College</Table.Head>
+					<Table.Head>Last Sign-in</Table.Head>
+					<Table.Head>Status</Table.Head>
+					<Table.Head class="text-right pr-4">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#if filteredUsers.length > 0}
+					{#each filteredUsers as user (user.id)}
 						<Table.Row>
-							<Table.Head>User</Table.Head>
-							<Table.Head>Role</Table.Head>
-							<Table.Head>College</Table.Head>
-							<Table.Head>Last Sign-in</Table.Head>
-							<Table.Head>Status</Table.Head>
-							<Table.Head class="text-right pr-4">Actions</Table.Head>
+							<Table.Cell>
+								<div class="font-medium">{user.username}</div>
+								<div class="text-sm text-muted-foreground">{user.email}</div>
+							</Table.Cell>
+							<Table.Cell><Badge variant="outline">{user.role}</Badge></Table.Cell>
+							<Table.Cell>{user.colleges?.college_name || 'N/A'}</Table.Cell>
+							<Table.Cell>{timeAgo(user.last_sign_in_at)}</Table.Cell>
+							<Table.Cell>
+								{#if user.status === 'active'}
+									<Badge variant="outline"><Dot class="text-green-400 h-4 w-4" />active</Badge>
+								{:else}
+									<Badge variant="outline">{user.status}</Badge>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										<Button variant="ghost" size="icon">
+											<MoreHorizontal class="h-4 w-4" />
+										</Button>
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content>
+										<DropdownMenu.Item onclick={() => openEditModal(user)}>
+											<Pencil class="mr-2 h-4 w-4" /> Edit
+										</DropdownMenu.Item>
+
+										<DropdownMenu.Item
+											on:select={(e: CustomEvent) => e.preventDefault()}
+											class="p-0 focus:bg-transparent focus:text-inherit"
+										>
+											<form
+												method="POST"
+												action="?/updateUserStatus"
+												use:enhance={() => {
+													const toastId = toast.loading('Updating status...');
+													return async ({ update, result }) => {
+														if (result.type === 'success') {
+															toast.success(result.data?.message, { id: toastId });
+															invalidateAll();
+														} else if (result.type === 'failure') {
+															toast.error(result.data?.message, { id: toastId });
+														}
+														console.log('UID: ' + user.id);
+														await update({ reset: false });
+													};
+												}}
+												class="w-full"
+											>
+												<input type="hidden" name="id" value={user.id} />
+												<input type="hidden" name="status" value={user.status} />
+												<button
+													type="submit"
+													class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
+												>
+													{#if user.status === 'active'}
+														<ToggleLeft class="mr-4 h-4 w-4" /> Disable
+													{:else}
+														<ToggleRight class="mr-4 h-4 w-4" /> Enable
+													{/if}
+												</button>
+											</form>
+										</DropdownMenu.Item>
+
+										<DropdownMenu.Item
+											onselect={(e: CustomEvent) => e.preventDefault()}
+											class="p-0 focus:bg-transparent focus:text-inherit"
+										>
+											<form
+												method="POST"
+												action="?/sendPasswordReset"
+												use:enhance={() => {
+													const toastId = toast.loading('Sending reset link...');
+													return async ({ update, result }) => {
+														if (result.type === 'success') {
+															toast.success(result.data?.message, { id: toastId });
+														} else if (result.type === 'failure') {
+															toast.error(result.data?.message, { id: toastId });
+														}
+														console.log('result: ' + result);
+														await update({ reset: false });
+													};
+												}}
+												class="w-full"
+											>
+												<input type="hidden" name="email" value={user.email} />
+												<button
+													type="submit"
+													class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
+												>
+													<KeyRound class="mr-4 h-4 w-4" /> Send Reset
+												</button>
+											</form>
+										</DropdownMenu.Item>
+
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item
+											class="text-destructive focus:text-destructive"
+											onclick={() => openDeleteModal(user)}
+										>
+											<Trash2 class="mr-2 h-4 w-4" /> Delete
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</Table.Cell>
 						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#if filteredUsers.length > 0}
-							{#each filteredUsers as user (user.id)}
-								<Table.Row>
-									<Table.Cell>
-										<div class="font-medium">{user.username}</div>
-										<div class="text-sm text-muted-foreground">{user.email}</div>
-									</Table.Cell>
-									<Table.Cell><Badge variant="outline">{user.role}</Badge></Table.Cell>
-									<Table.Cell>{user.colleges?.college_name || 'N/A'}</Table.Cell>
-									<Table.Cell>{timeAgo(user.last_sign_in_at)}</Table.Cell>
-									<Table.Cell>
-										{#if user.status === 'active'}
-											<Badge variant="outline"><Dot class="text-green-400 h-4 w-4" />active</Badge>
-										{:else}
-											<Badge variant="outline">{user.status}</Badge>
-										{/if}
-									</Table.Cell>
-									<Table.Cell class="text-right">
-										<DropdownMenu.Root>
-											<DropdownMenu.Trigger>
-												<Button variant="ghost" size="icon">
-													<MoreHorizontal class="h-4 w-4" />
-												</Button>
-											</DropdownMenu.Trigger>
-											<DropdownMenu.Content>
-												<DropdownMenu.Item onclick={() => openEditModal(user)}>
-													<Pencil class="mr-2 h-4 w-4" /> Edit
-												</DropdownMenu.Item>
-
-												<DropdownMenu.Item
-													on:select={(e: CustomEvent) => e.preventDefault()}
-													class="p-0 focus:bg-transparent focus:text-inherit"
-												>
-													<form
-														method="POST"
-														action="?/updateUserStatus"
-														use:enhance={() => {
-															const toastId = toast.loading('Updating status...');
-															return async ({ update, result }) => {
-																if (result.type === 'success') {
-																	toast.success(result.data?.message, { id: toastId });
-																	invalidateAll();
-																} else if (result.type === 'failure') {
-																	toast.error(result.data?.message, { id: toastId });
-																}
-																console.log('UID: ' + user.id);
-																await update({ reset: false });
-															};
-														}}
-														class="w-full"
-													>
-														<input type="hidden" name="id" value={user.id} />
-														<input type="hidden" name="status" value={user.status} />
-														<button
-															type="submit"
-															class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
-														>
-															{#if user.status === 'active'}
-																<ToggleLeft class="mr-4 h-4 w-4" /> Disable
-															{:else}
-																<ToggleRight class="mr-4 h-4 w-4" /> Enable
-															{/if}
-														</button>
-													</form>
-												</DropdownMenu.Item>
-
-												<DropdownMenu.Item
-													onselect={(e: CustomEvent) => e.preventDefault()}
-													class="p-0 focus:bg-transparent focus:text-inherit"
-												>
-													<form
-														method="POST"
-														action="?/sendPasswordReset"
-														use:enhance={() => {
-															const toastId = toast.loading('Sending reset link...');
-															return async ({ update, result }) => {
-																if (result.type === 'success') {
-																	toast.success(result.data?.message, { id: toastId });
-																} else if (result.type === 'failure') {
-																	toast.error(result.data?.message, { id: toastId });
-																}
-																console.log('result: ' + result);
-																await update({ reset: false });
-															};
-														}}
-														class="w-full"
-													>
-														<input type="hidden" name="email" value={user.email} />
-														<button
-															type="submit"
-															class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full"
-														>
-															<KeyRound class="mr-4 h-4 w-4" /> Send Reset
-														</button>
-													</form>
-												</DropdownMenu.Item>
-
-												<DropdownMenu.Separator />
-												<DropdownMenu.Item
-													class="text-destructive focus:text-destructive"
-													onclick={() => openDeleteModal(user)}
-												>
-													<Trash2 class="mr-2 h-4 w-4" /> Delete
-												</DropdownMenu.Item>
-											</DropdownMenu.Content>
-										</DropdownMenu.Root>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						{:else}
-							<Table.Row>
-								<Table.Cell colspan={6} class="h-24 text-center">No users found.</Table.Cell>
-							</Table.Row>
-						{/if}
-					</Table.Body>
-				</Table.Root>
-			</div>
-		</Card.Content>
-	</Card.Root>
+					{/each}
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={6} class="h-24 text-center">No users found.</Table.Cell>
+					</Table.Row>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
 </div>
 
 <!-- Modals -->
