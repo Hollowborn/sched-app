@@ -38,7 +38,7 @@ export const actions: Actions = {
 		}
 
 		// If there's no error, SvelteKit will handle this redirect correctly.
-		throw redirect(303, '/menu');
+		throw redirect(303, '/menu/dashboard');
 	}
 };
 
@@ -48,7 +48,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	} = await locals.supabase.auth.getSession();
 
 	if (session) {
-		throw redirect(303, '/menu');
+		throw redirect(303, '/menu/dashboard');
 	}
 
 	return {};
