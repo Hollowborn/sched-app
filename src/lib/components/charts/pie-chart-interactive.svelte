@@ -1,61 +1,76 @@
 <script lang="ts">
 	import { Arc, PieChart, Text } from 'layerchart';
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ChartStyle from '../ui/chart/chart-style.svelte';
 
-	const desktopData = [
-		{ month: 'january', desktop: 186, color: 'var(--color-january)' },
-		{ month: 'february', desktop: 305, color: 'var(--color-february)' },
-		{ month: 'march', desktop: 237, color: 'var(--color-march)' },
-		{ month: 'april', desktop: 173, color: 'var(--color-april)' },
-		{ month: 'may', desktop: 209, color: 'var(--color-may)' }
-	];
+	type ScheduleStatusData = {
+		name: string;
+		value: number;
+	};
 
-	const chartConfig = {
-		desktop: { label: 'Desktop' },
-		january: { label: 'January', color: 'var(--chart-1)' },
-		february: { label: 'February', color: 'var(--chart-2)' },
-		march: { label: 'March', color: 'var(--chart-3)' },
-		april: { label: 'April', color: 'var(--chart-4)' },
-		may: { label: 'May', color: 'var(--chart-5)' }
-	} satisfies Chart.ChartConfig;
+	let { data } = $props<{ data: ScheduleStatusData[] }>();
 
-	let activeMonth = $state(desktopData[0].month);
+	const chartConfig = $derived(
+		data.reduce(
+			(acc, item, index) => {
+				acc[item.name] = {
+					label: item.name,
+					color: `var(--chart-${index + 1})`
+				};
+				return acc;
+			},
+			{} as Chart.ChartConfig
+		)
+	);
 
-	const id = 'pie-interactive';
+	const chartData = $derived(
+		data.map((item) => ({
+			...item,
+			color: chartConfig[item.name].color
+		}))
+	);
 
-	const activeIndex = $derived(desktopData.findIndex((item) => item.month === activeMonth));
+	let activeStatus = $state(data[0]?.name ?? '');
 
-	const months = $derived(desktopData.map((item) => item.month));
+	const id = 'pie-interactive-status';
+
+	const activeIndex = $derived(chartData.findIndex((item) => item.name === activeStatus));
+	const activeValue = $derived(chartData.find((item) => item.name === activeStatus)?.value ?? 0);
+
+	const statuses = $derived(chartData.map((item) => item.name));
 </script>
 
 <Card.Root data-chart={id} class="flex flex-col">
 	<ChartStyle {id} config={chartConfig} />
 	<Card.Header class="flex flex-row items-start space-y-0 pb-0">
 		<div class="grid gap-1">
-			<Card.Title>Pie Chart - Interactive</Card.Title>
-			<Card.Description>January - June 2024</Card.Description>
+			<Card.Title>Schedule Status</Card.Title>
+			<Card.Description>Assignment status for the current term.</Card.Description>
 		</div>
-		<Select.Root type="single" bind:value={activeMonth}>
+		<Select.Root
+			type="single"
+			value={activeStatus}
+			onValueChange={(v) => {
+				if (v) activeStatus = v;
+			}}
+		>
 			<Select.Trigger
 				class="ml-auto h-7 w-[130px] rounded-lg pl-2.5 text-sm"
 				aria-label="Select a value"
 			>
 				<span
 					class="flex h-3 w-3 shrink-0 rounded-sm"
-					style:background-color={`var(--color-${activeMonth})`}
+					style:background-color={`var(--color-${activeStatus})`}
 				></span>
-				{activeMonth ? chartConfig[activeMonth as keyof typeof chartConfig].label : 'Select month'}
+				{activeStatus ? chartConfig[activeStatus as keyof typeof chartConfig].label : 'Select status'}
 			</Select.Trigger>
 			<Select.Content align="end" class="rounded-xl">
-				{#each months as month (month)}
-					{@const config = chartConfig[month as keyof typeof chartConfig]}
-
+				{#each statuses as status (status)}
+					{@const config = chartConfig[status as keyof typeof chartConfig]}
 					{#if config}
-						<Select.Item value={month} label={config.label} class="rounded-lg [&_span]:flex">
+						<Select.Item value={status} label={config.label} class="rounded-lg [&_span]:flex">
 							<div class="flex items-center gap-2 text-xs">
 								{config?.label}
 							</div>
@@ -68,17 +83,14 @@
 	<Card.Content class="flex-1">
 		<Chart.Container {id} config={chartConfig} class="mx-auto aspect-square max-h-[250px]">
 			<PieChart
-				data={desktopData}
-				label="month"
-				key="month"
-				value="desktop"
+				data={chartData}
+				label="name"
+				key="name"
+				value="value"
 				c="color"
 				props={{
 					pie: {
-						sort: (a, b) => {
-							const monthOrder = ['january', 'february', 'march', 'april', 'may'];
-							return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-						},
+						sort: null,
 						motion: 'tween'
 					}
 				}}
@@ -87,14 +99,14 @@
 			>
 				{#snippet aboveMarks()}
 					<Text
-						value={desktopData[activeIndex].desktop.toLocaleString()}
+						value={activeValue.toLocaleString()}
 						textAnchor="middle"
 						verticalAnchor="middle"
 						class="fill-foreground !text-3xl font-bold"
 						dy={3}
 					/>
 					<Text
-						value="Visitors"
+						value={activeStatus}
 						textAnchor="middle"
 						verticalAnchor="middle"
 						class="!fill-muted-foreground text-muted-foreground"
@@ -116,8 +128,8 @@
 				{/snippet}
 				{#snippet tooltip()}
 					<Chart.Tooltip
-						labelKey="visitors"
-						nameKey="month"
+						labelKey="value"
+						nameKey="name"
 						indicator="line"
 						labelFormatter={(_, payload) => {
 							return chartConfig[payload?.[0].key as keyof typeof chartConfig].label;
@@ -127,12 +139,4 @@
 			</PieChart>
 		</Chart.Container>
 	</Card.Content>
-	<Card.Footer class="flex-col gap-2 text-sm">
-		<div class="flex items-center gap-2 font-medium leading-none">
-			Trending up by 5.2% this month <TrendingUpIcon class="size-4" />
-		</div>
-		<div class="text-muted-foreground leading-none">
-			Showing total visitors for the last 6 months
-		</div>
-	</Card.Footer>
 </Card.Root>
