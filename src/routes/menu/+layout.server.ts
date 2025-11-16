@@ -20,6 +20,11 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				title: 'Instructor Assignments',
 				url: '/menu/academics/assignments',
 				roles: ['Admin', 'Dean']
+			},
+			{
+				title: 'Dash-bro?',
+				url: '/menu/dashboard',
+				roles: ['Admin', 'Dean', 'Registrar']
 			}
 		]
 	},
