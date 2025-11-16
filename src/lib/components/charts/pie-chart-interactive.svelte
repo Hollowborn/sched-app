@@ -13,16 +13,13 @@
 	let { data } = $props<{ data: ScheduleStatusData[] }>();
 
 	const chartConfig = $derived(
-		data.reduce(
-			(acc, item, index) => {
-				acc[item.name] = {
-					label: item.name,
-					color: `var(--chart-${index + 1})`
-				};
-				return acc;
-			},
-			{} as Chart.ChartConfig
-		)
+		data.reduce((acc, item, index) => {
+			acc[item.name] = {
+				label: item.name,
+				color: `var(--chart-${index + 1})`
+			};
+			return acc;
+		}, {} as Chart.ChartConfig)
 	);
 
 	const chartData = $derived(
@@ -64,7 +61,9 @@
 					class="flex h-3 w-3 shrink-0 rounded-sm"
 					style:background-color={`var(--color-${activeStatus})`}
 				></span>
-				{activeStatus ? chartConfig[activeStatus as keyof typeof chartConfig].label : 'Select status'}
+				{activeStatus
+					? chartConfig[activeStatus as keyof typeof chartConfig].label
+					: 'Select status'}
 			</Select.Trigger>
 			<Select.Content align="end" class="rounded-xl">
 				{#each statuses as status (status)}
