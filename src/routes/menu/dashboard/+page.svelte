@@ -102,50 +102,50 @@
 	<!-- Main content grid -->
 	<div class="grid grid-cols-12 gap-6">
 		<!-- Stat Cards -->
-		<Card.Root class="col-span-12">
+		<Card.Root class="col-span-12 ">
 			<Card.Header>
 				<Card.Title>At a Glance</Card.Title>
 				<Card.Description>Your key resource metrics for the selected term.</Card.Description>
+
+				<Card.Action>
+					<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
+				</Card.Action>
 			</Card.Header>
 			<Card.Content class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-				<Card.Root>
+				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium">Total Instructors</Card.Title>
 						<Users class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.instructorCount}</div>
-						<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
 					</Card.Content>
 				</Card.Root>
-				<Card.Root>
+				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium">Total Rooms</Card.Title>
 						<Building class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.roomCount}</div>
-						<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
 					</Card.Content>
 				</Card.Root>
-				<Card.Root>
+				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium">Total Subjects</Card.Title>
 						<BookCopy class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.subjectCount}</div>
-						<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
 					</Card.Content>
 				</Card.Root>
-				<Card.Root>
+				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium">Total Programs</Card.Title>
 						<GraduationCap class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.programCount}</div>
-						<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
 					</Card.Content>
 				</Card.Root>
 			</Card.Content>
