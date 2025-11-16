@@ -164,9 +164,11 @@
 								}}
 							>
 								<input type="hidden" name="timetableId" value={tt.id} />
-								<Button type="submit" variant="ghost" size="sm" disabled={isSubmitting}>
-									<Archive class="mr-2 h-4 w-4" />Archive
-								</Button>
+								<div class="hidden sm:block">
+									<Button type="submit" variant="ghost" size="sm" disabled={isSubmitting}>
+										<Archive class="mr-2 h-4 w-4" />Archive
+									</Button>
+								</div>
 							</form>
 						{/if}
 						<div class="ml-auto flex gap-2">
