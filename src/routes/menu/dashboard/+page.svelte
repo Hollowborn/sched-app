@@ -15,6 +15,32 @@
 		profile?.role === 'Admin' || profile?.role === 'Registrar'
 			? 'University-wide'
 			: 'In your college';
+
+	// --- State ---
+	let selectedAcademicYear = $state(academic_year);
+	let selectedSemester = $state(semester);
+
+	// --- Helpers ---
+	function generateAcademicYears() {
+		const currentYear = new Date().getFullYear();
+		const years = [];
+		for (let i = -2; i <= 2; i++) {
+			const startYear = currentYear + i;
+			years.push(`${startYear}-${startYear + 1}`);
+		}
+		return years;
+	}
+
+	const academicYears = generateAcademicYears();
+	const semesters = ['1st Semester', '2nd Semester', 'Summer'];
+
+	// --- Event Handlers ---
+	function handleFilterChange() {
+		const params = new URLSearchParams(window.location.search);
+		params.set('academic_year', selectedAcademicYear);
+		params.set('semester', selectedSemester);
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
+	}
 </script>
 
 <svelte:head>
