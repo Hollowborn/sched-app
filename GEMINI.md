@@ -89,6 +89,10 @@ The following pages and features are considered complete and functional:
 - **Auto-Scheduler (`/menu/timetables/generate`):** A page to automatically generate a schedule based on constraints.
 - **Timetable Viewer (`/menu/timetables/view`):** A read-only, filterable view of published timetables.
 - **Data Analysis:** A plan is drafted (see `data_analysis_worksheet.md`) to analyze the generated data to evaluate the thesis.
+- **Implement `Chairperson` Role:** Add a new 'Chairperson' user role to allow for more granular control over class offerings. This will involve:
+    - Updating the `users` table schema to include the 'Chairperson' role and a link to their program.
+    - Modifying backend RBAC to restrict Chairpersons to their own program's data.
+    - Adjusting the UI to accommodate the new role's workflow.
 
 ## 9. Full Database Schema
 
@@ -144,10 +148,12 @@ CREATE TABLE IF NOT EXISTS colleges (
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username VARCHAR(255) NOT NULL UNIQUE,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Dean', 'Registrar')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Dean', 'Registrar', 'Chairperson')), -- Added Chairperson
     college_id INTEGER REFERENCES colleges(id),
+    program_id INTEGER REFERENCES programs(id), -- For Chairperson role
     status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
-    CONSTRAINT dean_requires_college CHECK (role <> 'Dean' OR college_id IS NOT NULL)
+    CONSTRAINT dean_requires_college CHECK (role <> 'Dean' OR college_id IS NOT NULL),
+    CONSTRAINT chairperson_requires_program CHECK (role <> 'Chairperson' OR program_id IS NOT NULL)
 );
 
 -- 3. PROGRAMS TABLE
