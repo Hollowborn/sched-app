@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { GalleryVerticalEnd } from '@lucide/svelte';
 	import LoginForm from '$lib/components/login-form.svelte';
-	import Image1 from '$lib/assets/img1.png';
+	import AppPreviewCard from '$lib/components/app-preview-card.svelte';
 	import type { ActionData } from './$types';
+	import Badge from '$lib/components/ui/badge/badge.svelte';
 
 	let { form } = $props<{ form?: ActionData }>();
 </script>
@@ -34,17 +35,30 @@
 			</div>
 		</div>
 	</div>
-	<div class="bg-primary relative hidden lg:block">
-		<img
-			src={Image1}
-			alt="University campus"
-			class="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-		/>
-		<div class="absolute bottom-10 left-10 text-white z-10">
-			<h2 class="text-4xl font-bold">Intelligent academic scheduling, simplified.</h2>
-			<p class="mt-2 max-w-xs text-lg">
-				Streamline your academic scheduling process with AI-powered automation.
-			</p>
+	<div
+		class="bg-primary/10 dark:bg-primary/5 relative hidden items-center justify-center p-10 lg:flex"
+	>
+		<div class="w-full max-w-3xl text-center">
+			<div class="mb-6 text-center">
+				<h2 class="text-4xl font-bold tracking-tight">
+					Intelligent academic scheduling, simplified.
+				</h2>
+				<p class="mt-2 text-lg text-muted-foreground">
+					Here's a glimpse of what our powerful dashboard looks like.
+				</p>
+			</div>
+			<div
+				class="hover-lift rounded-xl bg-background/50 shadow-2xl shadow-black/20 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-black/30 aspect-video"
+			>
+				<!-- 
+					POINTER: The `aspect-video` class sets a 16:9 aspect ratio. 
+					You can change this to `aspect-square`, `aspect-[4/3]`, or remove it for a dynamic height.
+				-->
+				<AppPreviewCard />
+			</div>
+			<Badge variant="outline" class="mt-4 text-xs text-muted-foreground"
+				>Alpha version available!</Badge
+			>
 		</div>
 	</div>
 </div>
