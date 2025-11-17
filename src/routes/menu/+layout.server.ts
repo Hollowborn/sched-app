@@ -6,55 +6,9 @@ import { fail, redirect } from '@sveltejs/kit';
 // --- Navigation Data: Central source of truth for menu items ---
 const ALL_NAV_ITEMS_DATA: NavItem[] = [
 	{
-		title: 'Academics',
-		url: '/menu/academics',
-		icon: 'BookOpen',
-		roles: ['Admin', 'Dean', 'Registrar'],
-		items: [
-			{
-				title: 'Class Offerings',
-				url: '/menu/academics/offerings',
-				roles: ['Admin', 'Dean', 'Registrar']
-			},
-			{
-				title: 'Instructor Assignments',
-				url: '/menu/academics/assignments',
-				roles: ['Admin', 'Dean']
-			},
-			{
-				title: 'Dash-bro?',
-				url: '/menu/dashboard',
-				roles: ['Admin', 'Dean', 'Registrar']
-			}
-		]
-	},
-	{
-		title: 'Scheduling',
-		url: '/menu/timetables',
-		icon: 'CalendarClock',
-		roles: ['Admin', 'Dean', 'Registrar'],
-		items: [
-			{
-				title: 'Master Scheduler',
-				url: '/menu/timetables/scheduler',
-				roles: ['Admin', 'Dean', 'Registrar']
-			},
-			{
-				title: 'Generate Schedules',
-				url: '/menu/timetables/generate',
-				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
-			},
-			{
-				title: 'View Schedules',
-				url: '/menu/timetables/view',
-				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
-			}
-		]
-	},
-	{
 		title: 'Resources',
 		url: '/menu/resources',
-		icon: 'LayoutGrid',
+		icon: 'Library',
 		roles: ['Admin', 'Dean', 'Registrar'],
 		items: [
 			{
@@ -76,6 +30,53 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				title: 'Programs & Blocks',
 				url: '/menu/resources/blocks',
 				roles: ['Admin', 'Registrar']
+			}
+		]
+	},
+	{
+		title: 'Academics',
+		url: '/menu/academics',
+		icon: 'School',
+		roles: ['Admin', 'Dean', 'Registrar'],
+		items: [
+			{
+				title: 'Class Offerings',
+				url: '/menu/academics/offerings',
+				roles: ['Admin', 'Dean', 'Registrar']
+			},
+			{
+				title: 'Instructor Assignments',
+				url: '/menu/academics/assignments',
+				roles: ['Admin', 'Dean']
+			},
+			{
+				title: 'Dash-bro?',
+				url: '/menu/dashboard',
+				roles: ['Admin', 'Dean', 'Registrar']
+			}
+		]
+	},
+
+	{
+		title: 'Timetables',
+		url: '/menu/timetables',
+		icon: 'CalendarDays',
+		roles: ['Admin', 'Dean', 'Registrar'],
+		items: [
+			{
+				title: 'Master Scheduler',
+				url: '/menu/timetables/scheduler',
+				roles: ['Admin', 'Dean', 'Registrar']
+			},
+			{
+				title: 'Generate Schedules',
+				url: '/menu/timetables/generate',
+				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
+			},
+			{
+				title: 'View Schedules',
+				url: '/menu/timetables/view',
+				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
 			}
 		]
 	},
