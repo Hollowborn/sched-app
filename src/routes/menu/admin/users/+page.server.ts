@@ -17,17 +17,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const [
 		{ data: authUsersData, error: authUsersError },
 		{ data: userProfiles, error: userProfilesError },
-		{ data: colleges, error: collegesError }
+		{ data: colleges, error: collegesError },
+		{ data: programs, error: programsError }
 	] = await Promise.all([
 		supabaseAdmin.auth.admin.listUsers(),
-		locals.supabase.from('users').select('*, colleges(college_name)'),
-		locals.supabase.from('colleges').select('*')
+		locals.supabase.from('users').select('*, colleges(college_name), programs(program_name)'),
+		locals.supabase.from('colleges').select('*'),
+		locals.supabase.from('programs').select('*')
 	]);
 
-	if (authUsersError || userProfilesError || collegesError) {
+	if (authUsersError || userProfilesError || collegesError || programsError) {
 		console.error(
 			'Error fetching user data:',
-			authUsersError || userProfilesError || collegesError
+			authUsersError || userProfilesError || collegesError || programsError
 		);
 		throw error(500, 'Failed to load user management data.');
 	}
@@ -40,29 +42,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 			username: profile?.username || 'N/A',
 			role: profile?.role || 'Unknown',
 			college_id: profile?.college_id,
+			program_id: profile?.program_id,
 			colleges: profile?.colleges,
+			programs: profile?.programs,
 			status: authUser.banned_until ? 'disabled' : 'active'
 		};
 	});
 
 	// Calculate stats for the dashboard cards
-	const totalUsers = combinedUsers.length;
 	const roleCounts = combinedUsers.reduce(
 		(acc, user) => {
 			if (user.role === 'Admin') acc.admins++;
 			else if (user.role === 'Dean') acc.deans++;
 			else if (user.role === 'Registrar') acc.registrars++;
+			else if (user.role === 'Chairperson') acc.chairpersons++;
 			return acc;
 		},
-		{ admins: 0, deans: 0, registrars: 0 }
+		{ admins: 0, deans: 0, registrars: 0, chairpersons: 0 }
 	);
 
 	return {
 		users: combinedUsers,
 		colleges: colleges || [],
-		stats: { total: totalUsers, ...roleCounts },
+		programs: programs || [],
+		stats: { ...roleCounts },
 		profile: locals.profile,
-		validRoles: ['Admin', 'Dean', 'Registrar']
+		validRoles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 	};
 };
 
@@ -78,6 +83,8 @@ export const actions: Actions = {
 		const role = formData.get('role')?.toString();
 		const college_id_str = formData.get('college_id')?.toString();
 		const college_id = college_id_str ? Number(college_id_str) : null;
+		const program_id_str = formData.get('program_id')?.toString();
+		const program_id = program_id_str ? Number(program_id_str) : null;
 
 		if (!email || !password || !username || !role) {
 			return fail(400, { message: 'Email, password, username, and role are required.' });
@@ -104,6 +111,7 @@ export const actions: Actions = {
 				username,
 				role,
 				college_id,
+				program_id,
 				email
 			});
 
@@ -129,6 +137,8 @@ export const actions: Actions = {
 		const role = formData.get('role')?.toString();
 		const college_id_str = formData.get('college_id')?.toString();
 		const college_id = college_id_str ? Number(college_id_str) : null;
+		const program_id_str = formData.get('program_id')?.toString();
+		const program_id = program_id_str ? Number(program_id_str) : null;
 
 		if (!id || !username || !role) {
 			return fail(400, { message: 'User ID, username, and role are required.' });
@@ -137,7 +147,7 @@ export const actions: Actions = {
 		// Update public.users profile
 		const { error: profileError } = await supabaseAdmin
 			.from('users')
-			.update({ username, role, college_id })
+			.update({ username, role, college_id, program_id })
 			.eq('id', id);
 
 		if (profileError) {

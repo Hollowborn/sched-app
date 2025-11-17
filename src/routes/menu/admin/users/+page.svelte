@@ -17,20 +17,21 @@
 		Pencil,
 		ToggleLeft,
 		ToggleRight,
-		Dot
+		Circle,
+		CircleCheck,
+		CircleX
 	} from '@lucide/svelte';
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { error } from '@sveltejs/kit';
+	import * as Field from '$lib/components/ui/field';
 
 	type User = {
 		id: string;
@@ -38,9 +39,11 @@
 		username: string;
 		role: string;
 		college_id: number | null;
+		program_id: number | null;
 		last_sign_in_at: string;
 		status: 'active' | 'disabled';
 		colleges: { college_name: string } | null;
+		programs: { program_name: string } | null;
 	};
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
@@ -56,12 +59,12 @@
 	let deleteOpen = $state(false);
 
 	// Form State
-	let formCollegeCreateId = $state<string | undefined>('');
 	let formUsername = $state('');
 	let formEmail = $state('');
 	let formPassword = $state('');
 	let formRole = $state('');
 	let formCollegeId = $state<string | undefined>('');
+	let formProgramId = $state<string | undefined>('');
 
 	const filteredUsers: User[] = $derived.by(() => {
 		const users = data.users || [];
@@ -79,6 +82,7 @@
 		formEmail = user.email;
 		formRole = user.role;
 		formCollegeId = user.college_id?.toString();
+		formProgramId = user.program_id?.toString();
 		editOpen = true;
 	}
 
@@ -103,10 +107,6 @@
 		if (interval > 1) return Math.floor(interval) + ' minutes ago';
 		return 'Just now';
 	}
-
-	const formCollegeName = $derived(
-		data.colleges?.find((c) => c.id.toString() === formCollegeCreateId)?.college_name
-	);
 </script>
 
 <svelte:head>
@@ -120,48 +120,6 @@
 			Create, manage, and secure user accounts and their roles.
 		</p>
 	</header>
-
-	<!-- Stat Cards -->
-	<!-- <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Users</Card.Title>
-				<Users class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.total}</div>
-			</Card.Content>
-		</Card.Root>
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Administrators</Card.Title>
-				<ShieldCheck class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.admins}</div>
-			</Card.Content>
-		</Card.Root>
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Deans</Card.Title>
-				<UserCheck class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.deans}</div>
-			</Card.Content>
-		</Card.Root>
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Registrars</Card.Title>
-				<UserCog class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.registrars}</div>
-			</Card.Content>
-		</Card.Root>
-	</div> -->
-
-	<!-- Controls and Table -->
 
 	<div class="flex items-center justify-between">
 		<div class="relative w-full max-w-sm">
@@ -179,7 +137,7 @@
 				<Table.Row>
 					<Table.Head>User</Table.Head>
 					<Table.Head>Role</Table.Head>
-					<Table.Head>College</Table.Head>
+					<Table.Head>Assignment</Table.Head>
 					<Table.Head>Last Sign-in</Table.Head>
 					<Table.Head>Status</Table.Head>
 					<Table.Head class="text-right pr-4">Actions</Table.Head>
@@ -194,13 +152,21 @@
 								<div class="text-sm text-muted-foreground">{user.email}</div>
 							</Table.Cell>
 							<Table.Cell><Badge variant="outline">{user.role}</Badge></Table.Cell>
-							<Table.Cell>{user.colleges?.college_name || 'N/A'}</Table.Cell>
+							<Table.Cell>
+								{user.colleges?.college_name || user.programs?.program_name || 'N/A'}
+							</Table.Cell>
 							<Table.Cell>{timeAgo(user.last_sign_in_at)}</Table.Cell>
 							<Table.Cell>
 								{#if user.status === 'active'}
-									<Badge variant="outline"><Dot class="text-green-400 h-4 w-4" />active</Badge>
+									<Badge variant="outline" class="text-green-500 border-green-500/50">
+										<CircleCheck class="mr-1 h-3 w-3" />
+										Active
+									</Badge>
 								{:else}
-									<Badge variant="outline">{user.status}</Badge>
+									<Badge variant="destructive" class="text-red-500 border-red-500/50 bg-red-500/10">
+										<CircleX class="mr-1 h-3 w-3" />
+										Disabled
+									</Badge>
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="text-right">
@@ -231,7 +197,6 @@
 														} else if (result.type === 'failure') {
 															toast.error(result.data?.message, { id: toastId });
 														}
-														console.log('UID: ' + user.id);
 														await update({ reset: false });
 													};
 												}}
@@ -267,7 +232,6 @@
 														} else if (result.type === 'failure') {
 															toast.error(result.data?.message, { id: toastId });
 														}
-														console.log('result: ' + result);
 														await update({ reset: false });
 													};
 												}}
@@ -333,48 +297,76 @@
 				};
 			}}
 		>
-			<div class="grid gap-4 py-4">
-				<div class="space-y-2">
-					<Label for="create-username">Username</Label>
-					<Input id="create-username" name="username" required />
-				</div>
-				<div class="space-y-2">
-					<Label for="create-email">Email</Label>
-					<Input id="create-email" name="email" type="email" required />
-				</div>
-				<div class="space-y-2">
-					<Label for="create-password">Temporary Password</Label>
-					<Input id="create-password" name="password" type="password" required />
-				</div>
-				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label>Role</Label>
-						<Select.Root type="single" name="role" bind:value={formRole}>
-							<Select.Trigger><span class="">{formRole || 'Select a role'}</span></Select.Trigger>
-							<Select.Content>
-								{#each data.validRoles as role}
-									<Select.Item value={role}>{role}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+			<Field.Set class="py-4">
+				<Field.Legend class="sr-only">Create User Form</Field.Legend>
+				<Field.Group>
+					<Field.Set>
+						<Field.Label for="create-username">Username</Field.Label>
+						<Input id="create-username" name="username" required />
+					</Field.Set>
+					<Field.Set>
+						<Field.Label for="create-email">Email</Field.Label>
+						<Input id="create-email" name="email" type="email" required />
+					</Field.Set>
+					<Field.Set>
+						<Field.Label for="create-password">Temporary Password</Field.Label>
+						<Input id="create-password" name="password" type="password" required />
+					</Field.Set>
+					<div class="grid grid-cols-2 gap-4">
+						<Field.Set>
+							<Field.Label>Role</Field.Label>
+							<Select.Root type="single" name="role" bind:value={formRole}>
+								<Select.Trigger><span class="">{formRole || 'Select a role'}</span></Select.Trigger>
+								<Select.Content>
+									{#each data.validRoles as role}
+										<Select.Item value={role}>{role}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</Field.Set>
+						{#if formRole === 'Dean'}
+							<Field.Set>
+								<Field.Label>College</Field.Label>
+								<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
+									<Select.Trigger>
+										<span class="truncate max-w-32">
+											{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
+												'Select College'}
+										</span>
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="">N/A</Select.Item>
+										{#each data.colleges as college}
+											<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item
+											>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</Field.Set>
+						{/if}
+						{#if formRole === 'Chairperson'}
+							<Field.Set>
+								<Field.Label>Program</Field.Label>
+								<Select.Root type="single" name="program_id" bind:value={formProgramId}>
+									<Select.Trigger>
+										<span class="truncate max-w-32">
+											{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
+												'Select Program'}
+										</span>
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="">N/A</Select.Item>
+										{#each data.programs as program}
+											<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
+											>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</Field.Set>
+						{/if}
 					</div>
-					<div class="space-y-2">
-						<Label>College (for Deans)</Label>
-						<Select.Root type="single" name="college_id" bind:value={formCollegeCreateId}>
-							<Select.Trigger
-								><span class="truncate max-w-32">{formCollegeName || 'Optional'}</span
-								></Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="">N/A</Select.Item>
-								{#each data.colleges as college}
-									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-			</div>
+				</Field.Group>
+			</Field.Set>
 			<Dialog.Footer>
 				<Button type="submit" disabled={isSubmitting}>
 					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
@@ -410,42 +402,68 @@
 			}}
 		>
 			<input type="hidden" name="id" value={selectedUser?.id} />
-			<div class="grid gap-4 py-4">
-				<div class="space-y-2">
-					<Label>Username</Label>
-					<Input name="username" bind:value={formUsername} required />
-				</div>
-				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label>Role</Label>
-						<Select.Root type="single" name="role" bind:value={formRole}>
-							<Select.Trigger><span>{formRole || 'Select a role'}</span></Select.Trigger>
-							<Select.Content>
-								{#each data.validRoles as role}
-									<Select.Item value={role}>{role}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+			<Field.Set class="py-4">
+				<Field.Legend class="sr-only">Edit User Form</Field.Legend>
+				<Field.Group>
+					<Field.Set>
+						<Field.Label for="edit-username">Username</Field.Label>
+						<Input id="edit-username" name="username" bind:value={formUsername} required />
+					</Field.Set>
+					<div class="grid grid-cols-2 gap-4">
+						<Field.Set>
+							<Field.Label>Role</Field.Label>
+							<Select.Root type="single" name="role" bind:value={formRole}>
+								<Select.Trigger><span>{formRole || 'Select a role'}</span></Select.Trigger>
+								<Select.Content>
+									{#each data.validRoles as role}
+										<Select.Item value={role}>{role}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</Field.Set>
+						{#if formRole === 'Dean'}
+							<Field.Set>
+								<Field.Label>College</Field.Label>
+								<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
+									<Select.Trigger>
+										<span class="truncate max-w-32">
+											{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
+												'N/A'}
+										</span>
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="">N/A</Select.Item>
+										{#each data.colleges as college}
+											<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item
+											>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</Field.Set>
+						{/if}
+						{#if formRole === 'Chairperson'}
+							<Field.Set>
+								<Field.Label>Program</Field.Label>
+								<Select.Root type="single" name="program_id" bind:value={formProgramId}>
+									<Select.Trigger>
+										<span class="truncate max-w-32">
+											{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
+												'N/A'}
+										</span>
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="">N/A</Select.Item>
+										{#each data.programs as program}
+											<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
+											>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</Field.Set>
+						{/if}
 					</div>
-					<div class="space-y-2">
-						<Label>College (for Deans)</Label>
-						<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
-							<Select.Trigger>
-								<span class="truncate max-w-32">
-									{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
-										'N/A'}
-								</span>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="">N/A</Select.Item>
-								{#each data.colleges as college}
-									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-			</div>
+				</Field.Group>
+			</Field.Set>
 			<Dialog.Footer>
 				<Button type="submit" disabled={isSubmitting}>
 					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
