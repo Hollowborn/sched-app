@@ -44,7 +44,7 @@
 	let { data } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- State Management ---
-	let viewMode: 'table' | 'grid' = $state('table');
+	let viewMode: 'table' | 'grid' = $state('grid');
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
 	let isSubmitting = $state(false);
@@ -81,7 +81,7 @@
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
-		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true, keepData: true });
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
 	}
 
 	function generateAcademicYears() {
@@ -182,22 +182,24 @@
 {/snippet}
 
 {#snippet actionsCell({ instructor }: { instructor: Instructor })}
-	<Button variant="ghost" size="sm" onclick={() => openQualificationsModal(instructor)}>
-		<BookMarked class="h-4 w-4" />
-	</Button>
-	<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}>
-		<Pencil class="h-4 w-4" />
-	</Button>
-	{#if data.profile?.role === 'Admin'}
-		<Button
-			variant="ghost"
-			size="icon"
-			class="text-destructive hover:text-destructive"
-			onclick={() => openDeleteModal(instructor)}
-		>
-			<Trash2 class="h-4 w-4" />
+	<div class="flex justify-end">
+		<Button variant="ghost" size="sm" onclick={() => openQualificationsModal(instructor)}>
+			<BookMarked class="h-4 w-4" />
 		</Button>
-	{/if}
+		<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}>
+			<Pencil class="h-4 w-4" />
+		</Button>
+		{#if data.profile?.role === 'Admin'}
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-destructive hover:text-destructive"
+				onclick={() => openDeleteModal(instructor)}
+			>
+				<Trash2 class="h-4 w-4" />
+			</Button>
+		{/if}
+	</div>
 {/snippet}
 
 <svelte:head>
@@ -211,6 +213,75 @@
 			Manage faculty, their teaching loads, and subject qualifications.
 		</p>
 	</header>
+
+	<div class="flex items-center justify-between gap-4">
+		<!-- FILTERS -->
+		<div class="flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				<Calendar class="h-4 w-4 text-muted-foreground" />
+				<Select.Root
+					type="single"
+					value={academicYear}
+					onValueChange={(v) => {
+						if (v) {
+							academicYear = v;
+							handleFilterChange();
+						}
+					}}
+				>
+					<Select.Trigger class="w-[150px]">
+						<span>{academicYear || 'Academic Year'}</span>
+					</Select.Trigger>
+					<Select.Content>
+						{#each generateAcademicYears() as year}
+							<Select.Item value={year}>{year}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="flex items-center gap-2">
+				<BookOpen class="h-4 w-4 text-muted-foreground" />
+				<Select.Root
+					type="single"
+					value={semester}
+					onValueChange={(v) => {
+						if (v) {
+							semester = v;
+							handleFilterChange();
+						}
+					}}
+				>
+					<Select.Trigger class="w-[150px]">
+						<span>{semester || 'Semester'}</span>
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="1st Semester">1st Semester</Select.Item>
+						<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+						<Select.Item value="Summer">Summer</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</div>
+		</div>
+
+		<!-- TOOLBAR -->
+		<div class="flex items-center gap-2">
+			<Button
+				variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+				size="icon"
+				onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
+			>
+			<Button
+				variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+				size="icon"
+				onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
+			>
+			{#if data.profile?.role !== 'Registrar'}
+				<Button onclick={() => (createOpen = true)}
+					><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
+				>
+			{/if}
+		</div>
+	</div>
 
 	{#if viewMode === 'grid'}
 		<!-- The existing Grid view remains unchanged -->
@@ -267,71 +338,7 @@
 			showCheckbox={data.profile?.role === 'Admin'}
 			bind:rowSelection
 			bind:selectedRowsData={selectedInstructors}
-		>
-			<div slot="filters" class="flex items-center gap-4">
-				<div class="flex items-center gap-2">
-					<Calendar class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={academicYear}
-						onValueChange={(v) => {
-							if (v) {
-								academicYear = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]">
-							<span>{academicYear || 'Academic Year'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each generateAcademicYears() as year}
-								<Select.Item value={year}>{year}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="flex items-center gap-2">
-					<BookOpen class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={semester}
-						onValueChange={(v) => {
-							if (v) {
-								semester = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]">
-							<span>{semester || 'Semester'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="1st Semester">1st Semester</Select.Item>
-							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-							<Select.Item value="Summer">Summer</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-			<div slot="toolbar" class="flex items-center gap-2">
-				<Button
-					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
-				>
-				<Button
-					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
-				>
-				{#if data.profile?.role === 'Admin' || data.profile?.role === 'Dean'}
-					<Button onclick={() => (createOpen = true)}
-						><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
-					>
-				{/if}
-			</div>
-		</DataTable>
+		/>
 	{/if}
 </div>
 

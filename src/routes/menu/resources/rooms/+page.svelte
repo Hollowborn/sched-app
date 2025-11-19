@@ -19,13 +19,17 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Switch } from '$lib/components/ui/switch';
 
+    import DataTable from '$lib/components/data-table/data-table.svelte'; // Added
+    import type { ColumnDef } from '@tanstack/table-core'; // Added
+    import { renderSnippet } from '$lib/components/ui/data-table'; // Added
+
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
+	// Removed: import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 
@@ -53,6 +57,10 @@
 	let createOpen = $state(false);
 	let editOpen = $state(false);
 	let deleteOpen = $state(false);
+
+    // Data Table State (Added)
+	let rowSelection = $state<import('@tanstack/table-core').RowSelectionState>({});
+	let selectedRowsData = $state<Room[]>([]);
 
 	// Form State
 	let formName = $state('');
@@ -105,7 +113,62 @@
 	const formCollegeName = $derived(
 		data.colleges?.find((c) => c.id.toString() === formCollegeId)?.college_name
 	);
+
+    // --- DataTable Columns --- (Added)
+    const columns: ColumnDef<Room>[] = [
+		{
+			accessorKey: 'room_name',
+			header: 'Room Name',
+		},
+		{
+			accessorKey: 'building',
+			header: 'Building'
+		},
+		{
+			accessorKey: 'type',
+			header: 'Type',
+            cell: ({ row }) => renderSnippet(typeCell, { room: row.original })
+		},
+		{
+			accessorKey: 'capacity',
+			header: 'Capacity'
+		},
+		{
+			accessorKey: 'owner_college_id', // Accessor for ID, but cell renders name
+			header: 'Owner',
+            cell: ({ row }) => renderSnippet(ownerCell, { room: row.original })
+		},
+		{
+			id: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => renderSnippet(actionsCell, { room: row.original }),
+			meta: {
+				class: 'text-right'
+			}
+		}
+	];
 </script>
+
+{#snippet typeCell({ room }: { room: Room })}
+	<Badge variant="outline">{room.type}</Badge>
+{/snippet}
+
+{#snippet ownerCell({ room }: { room: Room })}
+	{room.colleges?.college_name || 'General Use'}
+{/snippet}
+
+{#snippet actionsCell({ room }: { room: Room })}
+	<div class="flex justify-end">
+		<Button variant="ghost" size="sm"><Eye /></Button> <!-- View Schedule -->
+		<Button variant="ghost" size="sm" onclick={() => openEditModal(room)}><Pencil /></Button>
+		<Button
+			variant="ghost"
+			size="icon"
+			class="text-destructive hover:text-destructive"
+			onclick={() => openDeleteModal(room)}><Trash2 class="h-4 w-4" /></Button
+		>
+	</div>
+{/snippet}
 
 <svelte:head>
 	<title>Room and Venues Management | smart-sched</title>
@@ -119,38 +182,39 @@
 		</p>
 	</header>
 
-	<Card.Root>
-		<Card.Content class="m-2 flex items-center justify-between gap-4">
-			<div class="flex flex-1 items-center gap-4">
-				<div class="relative w-full max-w-sm">
-					<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<Input
-						placeholder="Search by name, building, or type..."
-						class="pl-10 shadow"
-						bind:value={searchQuery}
-					/>
-				</div>
-				<!-- Future filter controls can go here -->
+	<div class="flex items-center justify-between gap-4">
+		<!-- FILTERS / SEARCH -->
+		<div class="flex flex-1 items-center gap-4">
+			<div class="relative w-full max-w-sm">
+				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input
+					placeholder="Search by name, building, or type..."
+					class="pl-10 shadow"
+					bind:value={searchQuery}
+				/>
 			</div>
-			<div class="flex items-center gap-2">
-				<Button
-					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'table')}><List class="h-4 w-4" /></Button
-				>
-				<Button
-					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
-				>
-				{#if data.profile?.role === 'Admin'}
-					<Button onclick={() => (createOpen = true)}>
-						<PlusCircle class="mr-2 h-4 w-4" /> Add Room
-					</Button>
-				{/if}
-			</div>
-		</Card.Content>
-	</Card.Root>
+			<!-- Future filter controls can go here -->
+		</div>
+
+		<!-- TOOLBAR -->
+		<div class="flex items-center gap-2">
+			<Button
+				variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+				size="icon"
+				onclick={() => (viewMode = 'table')}><List class="h-4 w-4" /></Button
+			>
+			<Button
+				variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+				size="icon"
+				onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
+			>
+			{#if data.profile?.role === 'Admin'}
+				<Button onclick={() => (createOpen = true)}>
+					<PlusCircle class="mr-2 h-4 w-4" /> Add Room
+				</Button>
+			{/if}
+		</div>
+	</div>
 
 	{#if viewMode === 'grid'}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -186,43 +250,13 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="border rounded-md">
-			<Table.Root>
-				<Table.Header class="bg-muted/50">
-					<Table.Row>
-						<Table.Head>Room Name</Table.Head>
-						<Table.Head>Building</Table.Head>
-						<Table.Head>Type</Table.Head>
-						<Table.Head>Capacity</Table.Head>
-						<Table.Head>Owner</Table.Head>
-						<Table.Head class="text-right pr-6">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each filteredRooms as room (room.id)}
-						<Table.Row>
-							<Table.Cell class="font-medium">{room.room_name}</Table.Cell>
-							<Table.Cell>{room.building || 'N/A'}</Table.Cell>
-							<Table.Cell><Badge variant="outline">{room.type}</Badge></Table.Cell>
-							<Table.Cell>{room.capacity}</Table.Cell>
-							<Table.Cell>{room.colleges?.college_name || 'General Use'}</Table.Cell>
-							<Table.Cell class="text-right">
-								<Button variant="ghost" size="sm"><Eye /></Button>
-								<Button variant="ghost" size="sm" onclick={() => openEditModal(room)}
-									><Pencil /></Button
-								>
-								<Button
-									variant="ghost"
-									size="icon"
-									class="text-destructive hover:text-destructive"
-									onclick={() => openDeleteModal(room)}><Trash2 class="h-4 w-4" /></Button
-								>
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</div>
+		<DataTable
+			data={filteredRooms}
+			{columns}
+			showCheckbox={false}
+			bind:rowSelection
+			bind:selectedRowsData
+		/>
 	{/if}
 </div>
 
