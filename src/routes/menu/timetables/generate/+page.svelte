@@ -72,7 +72,7 @@
 		params.set('year', academicYear);
 		params.set('semester', semester);
 		// Don't auto-select timetable, let user choose
-		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true, keepData: true });
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
 	}
 
 	function generateAcademicYears() {
