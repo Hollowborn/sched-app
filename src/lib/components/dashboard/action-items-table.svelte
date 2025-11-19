@@ -52,8 +52,10 @@
 		{
 			id: 'actions',
 			header: 'Action',
-			cell: () => {
-				return new RenderComponentConfig(ActionCell);
+			cell: ({ row }) => {
+				return new RenderComponentConfig(ActionCell, {
+					subjectCode: row.original.subjects?.subject_code
+				});
 			}
 		}
 	];
@@ -133,7 +135,7 @@
 		<Button
 			variant="outline"
 			size="sm"
-			on:click={() => table.setPageIndex(0)}
+			onclick={() => table.setPageIndex(0)}
 			disabled={!table.getCanPreviousPage()}
 		>
 			<ChevronsLeft class="h-4 w-4" />
@@ -141,7 +143,7 @@
 		<Button
 			variant="outline"
 			size="sm"
-			on:click={() => table.previousPage()}
+			onclick={() => table.previousPage()}
 			disabled={!table.getCanPreviousPage()}
 		>
 			<ChevronLeft class="h-4 w-4" />
@@ -149,7 +151,7 @@
 		<Button
 			variant="outline"
 			size="sm"
-			on:click={() => table.nextPage()}
+			onclick={() => table.nextPage()}
 			disabled={!table.getCanNextPage()}
 		>
 			<ChevronRight class="h-4 w-4" />
@@ -157,7 +159,7 @@
 		<Button
 			variant="outline"
 			size="sm"
-			on:click={() => table.setPageIndex(table.getPageCount() - 1)}
+			onclick={() => table.setPageIndex(table.getPageCount() - 1)}
 			disabled={!table.getCanNextPage()}
 		>
 			<ChevronsRight class="h-4 w-4" />
