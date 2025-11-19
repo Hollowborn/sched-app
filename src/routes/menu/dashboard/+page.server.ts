@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// console.time('dashboard-load');
