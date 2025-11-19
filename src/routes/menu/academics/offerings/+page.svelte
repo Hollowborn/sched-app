@@ -23,6 +23,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import { Badge } from '$lib/components/ui/badge';
 
 	type Subject = PageData['subjects'][number];
@@ -275,30 +276,32 @@
 			</div>
 
 			<div class="flex flex-col md:flex-row gap-2">
-				{#if hasSelection}
-					<Button
-						class="w-full md:w-auto"
-						variant="destructive"
-						disabled={isSubmitting}
-						onclick={() => {
-							selectedClass = null;
-							deleteOpen = true;
-						}}
-					>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete ({selectedRowCount})
-					</Button>
-				{:else}
-					<Button variant="outline" disabled={true} class="w-full md:w-auto">
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete (0)
-					</Button>
-				{/if}
+				<ButtonGroup.Root>
+					{#if hasSelection}
+						<Button
+							class="w-full md:w-auto"
+							variant="destructive"
+							disabled={isSubmitting}
+							onclick={() => {
+								selectedClass = null;
+								deleteOpen = true;
+							}}
+						>
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete ({selectedRowCount})
+						</Button>
+					{:else}
+						<Button variant="outline" disabled={true} class="w-full md:w-auto">
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete (0)
+						</Button>
+					{/if}
 
-				<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
-					<PlusCircle class="mr-2 h-4 w-4" />
-					Create Offering
-				</Button>
+					<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
+						<PlusCircle class="mr-2 h-4 w-4" />
+						Create Offering
+					</Button>
+				</ButtonGroup.Root>
 			</div>
 		</Card.Content>
 	</Card.Root>
