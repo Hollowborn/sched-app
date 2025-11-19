@@ -3,36 +3,17 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import {
-		PlusCircle,
-		Trash2,
-		Pencil,
-		LoaderCircle,
-		Search,
-		Wand2,
-		ChevronRight
-	} from '@lucide/svelte';
+	import { Trash2, LoaderCircle, Wand2 } from '@lucide/svelte';
+	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import type { ColumnDef } from '@tanstack/table-core';
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte'; // <-- 1. IMPORT CHECKBOX
-
-	// --- Type Definitions ---
-	type Program = {
-		id: number;
-		program_name: string;
-		college_id: number;
-		colleges: { college_name: string } | null;
-	};
+	import * as Popover from '$lib/components/ui/popover';
 
 	type Block = {
 		id: number;
@@ -42,662 +23,293 @@
 		programs: { program_name: string } | null;
 	};
 
-	let { data } = $props<{ data: PageData; form: ActionData }>();
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- Component State ---
-	let isSubmitting = $state(false);
-	let searchQuery = $state('');
 
-	// Program State
-	let programCreateOpen = $state(false);
-	let programEditOpen = $state(false);
-	let programDeleteOpen = $state(false);
-	let selectedProgram = $state<Program | null>(null);
-	let programFormName = $state('');
-	let programFormCollegeId = $state('');
-	let programCreateId = $state('');
+	let isSubmitting = $state(false);
 
 	// Block State
-	let bulkGenerateOpen = $state(true);
+
 	let blockDeleteOpen = $state(false);
-	let selectedBlock = $state<Block | null>(null);
-	let selectedBlocks = $state<number[]>([]); // Changed from Set to array for better reactivity
-	let selectedBlockCount = $derived(selectedBlocks.length);
+
+	let rowSelection = $state<import('@tanstack/table-core').RowSelectionState>({});
+
+	let selectedBlocks = $state<Block[]>([]);
 
 	// Block Form State
+
 	let genProgramId = $state('');
+
 	let genYearLevel = $state<string[]>([]);
+
 	let genCount = $state(2);
+
 	let genPrefix = $state('');
 
 	// --- Derived State ---
-	const programFormCollegeName = $derived(
-		data.colleges?.find((c) => c.id.toString() === programFormCollegeId)?.college_name
-	);
 
 	const genProgramPrefix = $derived(
 		data.programs
+
 			?.find((p) => p.id.toString() === genProgramId)
+
 			?.program_name.slice(0, 4)
+
 			.toUpperCase()
 	);
+
 	$effect(() => {
 		if (genProgramPrefix) {
 			genPrefix = genProgramPrefix;
 		}
 	});
 
-	const filteredBlocks: Block[] = $derived.by(() => {
-		const blocks = data.blocks || [];
-		if (!searchQuery) return blocks;
-		const lowerQuery = searchQuery.toLowerCase();
-		return blocks.filter(
-			(b) =>
-				b.block_name.toLowerCase().includes(lowerQuery) ||
-				b.programs?.program_name.toLowerCase().includes(lowerQuery)
-		);
-	});
+	const columns: ColumnDef<Block>[] = [
+		{
+			accessorKey: 'block_name',
 
-	const filteredPrograms: Program[] = $derived.by(() => {
-		const programs = data.programs || [];
-		if (!searchQuery) return programs;
-		const lowerQuery = searchQuery.toLowerCase();
-		return programs.filter((p) => p.program_name.toLowerCase().includes(lowerQuery));
-	});
+			header: 'Block Name'
+		},
 
-	// --- 3. DERIVED STATE FOR SELECTION ---
-	// Number of selected blocks (derived from the array length)
-	// `selectedBlockCount` was defined above; keep a consistent name here.
-	// `selectedBlocks` is an array of IDs (number[])
-	const allFilteredBlocksSelected = $derived(
-		filteredBlocks.length > 0 && filteredBlocks.every((b) => selectedBlocks.includes(b.id))
-	);
+		{
+			accessorKey: 'programs',
 
-	const someFilteredBlocksSelected = $derived(selectedBlockCount > 0 && !allFilteredBlocksSelected);
+			header: 'Program',
 
-	// Header checkbox: show checked when all are selected, indeterminate when some selected
-	const headerCheckboxState = $derived(
-		allFilteredBlocksSelected ? true : someFilteredBlocksSelected ? 'indeterminate' : false
-	);
+			cell: ({ row }) => row.original.programs?.program_name || 'N/A'
+		},
 
-	// This determines the delete button variant
-	const deleteButtonVariant = $derived(selectedBlockCount > 0 ? 'destructive' : 'outline');
+		{
+			accessorKey: 'year_level',
 
-	// --- 4. EVENT HANDLERS ---
-
-	// UPDATED: This function now accepts the `checked` argument from the event
-	function handleHeaderCheckboxChange(checked: boolean | 'indeterminate') {
-		// If header checkbox becomes `true`, select all currently filtered blocks.
-		// If it becomes `false`, clear the selection (consistent with subjects page behavior).
-		const shouldSelectAll = checked === true;
-
-		if (shouldSelectAll) {
-			selectedBlocks = filteredBlocks.map((b) => b.id);
-		} else {
-			selectedBlocks = [];
+			header: 'Year Level'
 		}
-	}
+	];
 
-	// Toggle a single row's selection using array operations
-	function handleRowCheckboxChange(blockId: number, checked: boolean | 'indeterminate') {
-		if (checked === true) {
-			if (!selectedBlocks.includes(blockId)) selectedBlocks = [...selectedBlocks, blockId];
-		} else {
-			selectedBlocks = selectedBlocks.filter((id) => id !== blockId);
-		}
-	}
-
-	function handleDeleteSelected() {
-		// Fallback/info-only handler: the actual bulk delete UI uses a form with `use:enhance`.
-		if (selectedBlockCount === 0) return;
-		toast.info(`Delete button clicked for ${selectedBlockCount} item(s).`, {
-			description: 'IDs: ' + selectedBlocks.join(', ')
-		});
-	}
-
-	// --- Event Handlers (Original) ---
-	function openProgramEditModal(program: Program) {
-		selectedProgram = program;
-		programFormName = program.program_name;
-		programFormCollegeId = program.college_id.toString();
-		programEditOpen = true;
-	}
-
-	function openProgramDeleteModal(program: Program) {
-		selectedProgram = program;
-		programDeleteOpen = true;
-	}
-
-	function openBlockDeleteModal(block: Block) {
-		selectedBlock = block;
-		blockDeleteOpen = true;
-	}
-	$inspect(selectedBlockCount, selectedBlocks);
+	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 </script>
 
 <svelte:head>
-	<title>Program & Block Management | smart-sched</title>
+	<title>Block Management | smart-sched</title>
 </svelte:head>
 
 <div class="space-y-8">
 	<header>
-		<h1 class="text-3xl font-bold tracking-tight">Programs & Blocks</h1>
-		<p class="text-muted-foreground mt-1">
-			Manage academic programs and their corresponding student block sections.
-		</p>
+		<h1 class="text-3xl font-bold tracking-tight">Blocks</h1>
+
+		<p class="text-muted-foreground mt-1">Manage student block sections.</p>
 	</header>
 
-	<Tabs.Root value="programs" class="w-full">
-		<Tabs.List>
-			<Tabs.Trigger value="programs">Programs</Tabs.Trigger>
-			<Tabs.Trigger value="blocks">Blocks</Tabs.Trigger>
-		</Tabs.List>
-
-		<!-- PROGRAMS TAB -->
-		<Tabs.Content value="programs" class="mt-6">
-			<Card.Root>
-				<Card.Header>
-					<div class="flex items-center justify-between">
-						<div>
-							<Card.Title>Academic Programs</Card.Title>
-							<Card.Description>List of all degree programs offered.</Card.Description>
-						</div>
-						<Button onclick={() => (programCreateOpen = true)} disabled={isSubmitting}>
-							<PlusCircle class="mr-2 h-4 w-4" /> Add Program
+	<DataTable
+		data={data.blocks}
+		{columns}
+		showCheckbox={true}
+		bind:rowSelection
+		bind:selectedRowsData={selectedBlocks}
+	>
+		<div slot="toolbar">
+						<Button
+							variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+							class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+							disabled={isSubmitting || selectedRowsCount === 0}
+							onclick={() => {
+								blockDeleteOpen = true;
+							}}
+						>
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete ({selectedRowsCount})
 						</Button>
-					</div>
-				</Card.Header>
-				<Card.Content>
-					<div class="border rounded-md">
-						<Table.Root>
-							<Table.Header class="bg-muted/50">
-								<Table.Row>
-									<Table.Head>Program Name</Table.Head>
-									<Table.Head>College</Table.Head>
-									<Table.Head class="text-right pr-6">Actions</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#if filteredPrograms.length > 0}
-									{#each filteredPrograms as program (program.id)}
-										<Table.Row class="hover:bg-muted/50">
-											<Table.Cell class="font-medium">{program.program_name}</Table.Cell>
-											<Table.Cell>
-												<Badge variant="secondary">{program.colleges?.college_name || 'N/A'}</Badge>
-											</Table.Cell>
-											<Table.Cell class="text-right">
-												<Button
-													onclick={() => openProgramEditModal(program)}
-													variant="ghost"
-													size="icon"
-													disabled={isSubmitting}
-												>
-													<Pencil class="h-4 w-4" />
-												</Button>
-												<Button
-													onclick={() => openProgramDeleteModal(program)}
-													variant="ghost"
-													size="icon"
-													class="text-destructive hover:text-destructive"
-													disabled={isSubmitting}
-												>
-													<Trash2 class="h-4 w-4" />
-												</Button>
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								{:else}
-									<Table.Row>
-										<Table.Cell colspan={3} class="h-24 text-center">No programs found.</Table.Cell>
-									</Table.Row>
-								{/if}
-							</Table.Body>
-						</Table.Root>
-					</div>
-				</Card.Content>
-			</Card.Root>
-		</Tabs.Content>
 
-		<!-- BLOCKS TAB -->
-		<Tabs.Content value="blocks" class="mt-6 space-y-6">
-			<Collapsible.Root class="w-full" bind:open={bulkGenerateOpen}>
-				<Card.Root>
-					<div class="flex items-center justify-between pr-4 rounded-t-lg cursor-pointer">
-						<Card.Header class="flex-1">
-							<div class="flex items-center gap-3">
-								<Wand2 class="h-6 w-6 text-primary" />
-								<div>
-									<Card.Title>Bulk Generate Blocks</Card.Title>
-									<Card.Description>
-										Quickly create multiple blocks for a program with a consistent naming scheme.
-									</Card.Description>
-								</div>
-							</div>
-						</Card.Header>
-						<Collapsible.Trigger>
-							<Button variant="ghost" size="icon">
-								<ChevronRight
-									class="h-4 w-4 transition-transform {bulkGenerateOpen ? 'rotate-90' : ''}"
-								/>
-							</Button>
-						</Collapsible.Trigger>
-					</div>
-					<Collapsible.Content>
-						<Card.Content class="pt-2">
-							<form
-								method="POST"
-								action="?/generateBlocks"
-								class="grid sm:grid-cols-2 md:grid-cols-5 gap-4 items-end p-4 border-t"
-								use:enhance={() => {
-									isSubmitting = true;
-									const toastId = toast.loading('Generating blocks...');
-									return async ({ update, result }) => {
-										isSubmitting = false;
-										if (result.type === 'success') {
-											toast.success(result.data?.message, { id: toastId });
-											invalidateAll();
-										} else if (result.type === 'failure') {
-											toast.error(result.data?.message, { id: toastId });
-										}
-										await update();
-									};
-								}}
-							>
-								<div class="space-y-2">
-									<Label>Program</Label>
-									<Select.Root type="single" name="program_id" bind:value={genProgramId}>
-										<Select.Trigger>
-											<span class="truncate max-w-48"
-												>{data.programs.find((p) => p.id.toString() === genProgramId)
-													?.program_name || 'Select Program'}</span
-											>
-										</Select.Trigger>
-										<Select.Content>
-											{#each data.programs as program}
-												<Select.Item value={program.id.toString()}
-													>{program.program_name}</Select.Item
-												>
-											{/each}
-										</Select.Content>
-									</Select.Root>
-								</div>
-								<div class="space-y-2">
-									<Label>Year Level</Label>
-									<Select.Root type="multiple" name="year_level" bind:value={genYearLevel}>
-										<Select.Trigger>
-											<span
-												>{genYearLevel
-													? `${genYearLevel}${
-															['st', 'nd', 'rd', 'th'][
-																((((Number(genYearLevel) + 90) % 100) - 10) % 10) - 1
-															] || 'th'
-														} Year`
-													: 'Select Year'}</span
-											>
-										</Select.Trigger>
-										<Select.Content>
-											<Select.Item value="1">1st Year</Select.Item>
-											<Select.Item value="2">2nd Year</Select.Item>
-											<Select.Item value="3">3rd Year</Select.Item>
-											<Select.Item value="4">4th Year</Select.Item>
-										</Select.Content>
-									</Select.Root>
-								</div>
-								<div class="space-y-2">
-									<Label for="prefix">Prefix</Label>
-									<Input
-										id="prefix"
-										name="prefix"
-										placeholder="e.g. BSCS-"
-										bind:value={genPrefix}
-									/>
-								</div>
-								<div class="space-y-2">
-									<Label for="count"># of Blocks</Label>
-									<Input
-										id="count"
-										name="count"
-										type="number"
-										min="1"
-										max="10"
-										bind:value={genCount}
-									/>
-								</div>
-								<Button type="submit" class="w-full" disabled={isSubmitting}>
-									{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Generate
-								</Button>
-							</form>
-						</Card.Content>
-					</Collapsible.Content>
-				</Card.Root>
-			</Collapsible.Root>
+			<Popover.Root>
+				<Popover.Trigger>
+					<Button variant="outline">
+						<Wand2 class="mr-2 h-4 w-4" />
 
-			<!-- 5. UPDATED BLOCKS CARD -->
-			<Card.Root>
-				<Card.Header>
-					<div class="flex items-center justify-between gap-4">
-						<div>
-							<Card.Title>Manage Block Sections</Card.Title>
-							<Card.Description>View and manage individual student blocks.</Card.Description>
+						Bulk Generate
+					</Button>
+				</Popover.Trigger>
+
+				<Popover.Content class="w-96">
+					<form
+						method="POST"
+						action="?/generateBlocks"
+						class="grid gap-4"
+						use:enhance={() => {
+							isSubmitting = true;
+
+							const toastId = toast.loading('Generating blocks...');
+
+							return async ({ update, result }) => {
+								isSubmitting = false;
+
+								if (result.type === 'success') {
+									toast.success(result.data?.message, { id: toastId });
+
+									invalidateAll();
+								} else if (result.type === 'failure') {
+									toast.error(result.data?.message, { id: toastId });
+								}
+
+								await update();
+							};
+						}}
+					>
+						<div class="space-y-2">
+							<h4 class="font-medium leading-none">Bulk Generate Blocks</h4>
+
+							<p class="text-sm text-muted-foreground">
+								Quickly create multiple blocks for a program.
+							</p>
 						</div>
-						<div class="flex items-center gap-2">
-							{#if selectedBlockCount > 0}
-								<Button
-									variant="destructive"
-									disabled={isSubmitting}
-									onclick={() => {
-										selectedBlock = null; // Clear single selection
-										blockDeleteOpen = true; // Open modal for bulk delete
-									}}
-								>
-									<Trash2 class="mr-2 h-4 w-4" />
-									Delete ({selectedBlockCount})
-								</Button>
-							{:else}
-								<Button variant="outline" disabled={true}>
-									<Trash2 class="mr-2 h-4 w-4" />
-									Delete (0)
-								</Button>
-							{/if}
 
-							<!-- SEARCH INPUT -->
-							<div class="relative w-full max-w-sm">
-								<Search
-									class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-								/>
+						<div class="grid gap-2">
+							<div class="grid grid-cols-3 items-center gap-4">
+								<Label for="program">Program</Label>
+
+								<Select.Root type="single" name="program_id" bind:value={genProgramId}>
+									<Select.Trigger class="col-span-2 h-8">
+										<span class="truncate max-w-48"
+											>{data.programs.find((p) => p.id.toString() === genProgramId)?.program_name ||
+												'Select Program'}</span
+										>
+									</Select.Trigger>
+
+									<Select.Content>
+										{#each data.programs as program}
+											<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
+											>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</div>
+
+							<div class="grid grid-cols-3 items-center gap-4">
+								<Label for="year-level">Year Level</Label>
+
+								<Select.Root type="multiple" name="year_level" bind:value={genYearLevel}>
+									<Select.Trigger class="col-span-2 h-8">
+										<span
+											>{genYearLevel
+												? `${genYearLevel}${
+														['st', 'nd', 'rd', 'th'][
+															((((Number(genYearLevel) + 90) % 100) - 10) % 10) - 1
+														] || 'th'
+													} Year`
+												: 'Select Year'}</span
+										>
+									</Select.Trigger>
+
+									<Select.Content>
+										<Select.Item value="1">1st Year</Select.Item>
+
+										<Select.Item value="2">2nd Year</Select.Item>
+
+										<Select.Item value="3">3rd Year</Select.Item>
+
+										<Select.Item value="4">4th Year</Select.Item>
+									</Select.Content>
+								</Select.Root>
+							</div>
+
+							<div class="grid grid-cols-3 items-center gap-4">
+								<Label for="prefix">Prefix</Label>
+
 								<Input
-									placeholder="Search by block or program..."
-									class="pl-10"
-									bind:value={searchQuery}
+									id="prefix"
+									name="prefix"
+									class="col-span-2 h-8"
+									placeholder="e.g. BSCS-"
+									bind:value={genPrefix}
+								/>
+							</div>
+
+							<div class="grid grid-cols-3 items-center gap-4">
+								<Label for="count"># of Blocks</Label>
+
+								<Input
+									id="count"
+									name="count"
+									type="number"
+									min="1"
+									max="10"
+									class="col-span-2 h-8"
+									bind:value={genCount}
 								/>
 							</div>
 						</div>
-					</div>
-				</Card.Header>
-				<Card.Content>
-					<div class="border rounded-md">
-						<Table.Root>
-							<Table.Header class="bg-muted/50">
-								<Table.Row>
-									<!-- NEW HEADER CHECKBOX -->
-									<Table.Head class="w-12">
-										<Checkbox
-											checked={allFilteredBlocksSelected}
-											indeterminate={someFilteredBlocksSelected}
-											onCheckedChange={(checked) => handleHeaderCheckboxChange(!!checked)}
-										/>
-									</Table.Head>
-									<Table.Head>Block Name</Table.Head>
-									<Table.Head>Program</Table.Head>
-									<Table.Head>Year</Table.Head>
-									<Table.Head class="text-right pr-6">Actions</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#if filteredBlocks.length > 0}
-									{#each filteredBlocks as block (block.id)}
-										<Table.Row selected={selectedBlocks.includes(block.id)}>
-											<!-- NEW ROW CHECKBOX -->
-											<Table.Cell>
-												<Checkbox
-													checked={selectedBlocks.includes(block.id)}
-													onCheckedChange={(checked) =>
-														handleRowCheckboxChange(block.id, !!checked)}
-												/>
-											</Table.Cell>
-											<Table.Cell class="font-medium">{block.block_name}</Table.Cell>
-											<Table.Cell>{block.programs?.program_name || 'N/A'}</Table.Cell>
-											<Table.Cell>{block.year_level}</Table.Cell>
-											<Table.Cell class="text-right">
-												<Button
-													onclick={() => openBlockDeleteModal(block)}
-													variant="ghost"
-													size="icon"
-													class="text-destructive hover:text-destructive"
-													disabled={isSubmitting}
-												>
-													<Trash2 class="h-4 w-4" />
-												</Button>
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								{:else}
-									<Table.Row>
-										<!-- UPDATED COLSPAN -->
-										<Table.Cell colspan={5} class="h-24 text-center">No blocks found.</Table.Cell>
-									</Table.Row>
-								{/if}
-							</Table.Body>
-						</Table.Root>
-					</div>
-				</Card.Content>
-			</Card.Root>
-		</Tabs.Content>
-	</Tabs.Root>
+
+						<Button type="submit" class="w-full" disabled={isSubmitting}>
+							{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Generate
+						</Button>
+					</form>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+	</DataTable>
 </div>
 
 <!-- === MODALS === -->
 
-<!-- Program Create Modal -->
-<Dialog.Root bind:open={programCreateOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Create New Program</Dialog.Title>
-			<Dialog.Description>Add a new degree program to the system.</Dialog.Description>
-		</Dialog.Header>
-		<form
-			method="POST"
-			action="?/createProgram"
-			use:enhance={() => {
-				isSubmitting = true;
-				const toastId = toast.loading('Creating program...');
-				return async ({ update, result }) => {
-					isSubmitting = false;
-					if (result.type === 'success') {
-						toast.success(result.data?.message, { id: toastId });
-						invalidateAll();
-						programCreateOpen = false;
-					} else if (result.type === 'failure') {
-						toast.error(result.data?.message, { id: toastId });
-					}
-					await update();
-				};
-			}}
-		>
-			<div class="grid gap-4 py-4">
-				<div class="space-y-2">
-					<Label for="program-name">Program Name</Label>
-					<Input
-						id="program-name"
-						name="program_name"
-						placeholder="e.g. Bachelor of Science in Computer Science"
-					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="program-college">College</Label>
-					<Select.Root type="single" name="college_id" bind:value={programCreateId}>
-						<Select.Trigger>
-							<span
-								>{data.colleges?.find((c) => c.id.toString() === programCreateId)?.college_name ||
-									'Select a college'}</span
-							>
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.colleges as college}
-								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button type="submit" disabled={isSubmitting}>
-					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Create Program
-				</Button>
-			</Dialog.Footer>
-		</form>
-	</Dialog.Content>
-</Dialog.Root>
-
-<!-- Program Edit Modal -->
-<Dialog.Root bind:open={programEditOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Edit Program</Dialog.Title>
-			<Dialog.Description>Update the details for this program.</Dialog.Description>
-		</Dialog.Header>
-		<form
-			method="POST"
-			action="?/updateProgram"
-			use:enhance={() => {
-				isSubmitting = true;
-				const toastId = toast.loading('Saving changes...');
-				return async ({ update, result }) => {
-					isSubmitting = false;
-					if (result.type === 'success') {
-						toast.success(result.data?.message, { id: toastId });
-						invalidateAll();
-						programEditOpen = false;
-					} else if (result.type === 'failure') {
-						toast.error(result.data?.message, { id: toastId });
-					}
-					await update();
-				};
-			}}
-		>
-			<input type="hidden" name="id" value={selectedProgram?.id} />
-			<div class="grid gap-4 py-4">
-				<div class="space-y-2">
-					<Label for="edit-program-name">Program Name</Label>
-					<Input id="edit-program-name" name="program_name" bind:value={programFormName} />
-				</div>
-				<div class="space-y-2">
-					<Label for="edit-program-college">College</Label>
-					<Select.Root name="college_id" type="single" bind:value={programFormCollegeId}>
-						<Select.Trigger>
-							<span>{programFormCollegeName || 'Select a college'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.colleges as college}
-								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-			<Dialog.Footer>
-				<Button type="submit" disabled={isSubmitting}>
-					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Save Changes
-				</Button>
-			</Dialog.Footer>
-		</form>
-	</Dialog.Content>
-</Dialog.Root>
-
-<!-- Program Delete Modal -->
-{#if selectedProgram}
-	<Dialog.Root bind:open={programDeleteOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Are you sure?</Dialog.Title>
-				<Dialog.Description>
-					This will permanently delete the program <strong>{selectedProgram.program_name}</strong>.
-					This action cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
-			<form
-				method="POST"
-				action="?/deleteProgram"
-				use:enhance={() => {
-					isSubmitting = true;
-					const toastId = toast.loading('Deleting program...');
-					return async ({ update, result }) => {
-						isSubmitting = false;
-						if (result.type === 'success') {
-							toast.success(result.data?.message, { id: toastId });
-							invalidateAll();
-							programDeleteOpen = false;
-						} else if (result.type === 'failure') {
-							toast.error(result.data?.message, { id: toastId });
-						}
-						await update();
-					};
-				}}
-			>
-				<input type="hidden" name="id" value={selectedProgram.id} />
-				<Dialog.Footer>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => (programDeleteOpen = false)}
-						disabled={isSubmitting}>Cancel</Button
-					>
-					<Button type="submit" variant="destructive" disabled={isSubmitting}>
-						{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if} Yes, Delete
-					</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
-
 <!-- Block Delete Modal -->
+
 <Dialog.Root bind:open={blockDeleteOpen}>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Are you sure?</Dialog.Title>
+
 			<Dialog.Description>
-				{#if selectedBlock}
-					This will permanently delete the block <strong>{selectedBlock.block_name}</strong>.
-				{:else if selectedBlocks.length > 0}
-					This will permanently delete <strong>{selectedBlocks.length}</strong> selected blocks.
-				{/if}
-				This action cannot be undone.
+				This will permanently delete <strong>{selectedRowsCount}</strong> selected blocks. This action
+				cannot be undone.
 			</Dialog.Description>
 		</Dialog.Header>
+
 		<form
 			method="POST"
 			action="?/deleteBlock"
 			use:enhance={() => {
 				isSubmitting = true;
-				const toastId = toast.loading(
-					selectedBlock ? 'Deleting block...' : `Deleting ${selectedBlocks.length} blocks...`
-				);
+
+				const toastId = toast.loading(`Deleting ${selectedRowsCount} blocks...`);
+
 				return async ({ update, result }) => {
 					isSubmitting = false;
+
 					if (result.type === 'success') {
 						toast.success(result.data?.message, { id: toastId });
-						if (!selectedBlock) selectedBlocks = []; // Clear multi-selection after bulk delete
+
+						rowSelection = {};
+
 						invalidateAll();
+
 						blockDeleteOpen = false;
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
 					}
+
 					await update();
 				};
 			}}
 		>
-			{#if selectedBlock}
-				<input type="hidden" name="id" value={selectedBlock.id} />
-			{:else}
-				<input type="hidden" name="ids" value={selectedBlocks.join(',')} />
-			{/if}
+			<input type="hidden" name="ids" value={selectedBlocks.map((b) => b.id).join(',')} />
+
 			<Dialog.Footer>
 				<Button
 					type="button"
 					variant="outline"
 					onclick={() => {
 						blockDeleteOpen = false;
-						if (!selectedBlock) selectedBlocks = []; // Clear multi-selection when canceling
 					}}
 					disabled={isSubmitting}>Cancel</Button
 				>
+
 				<Button type="submit" variant="destructive" disabled={isSubmitting}>
 					{#if isSubmitting}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+
 						Deleting...
 					{:else}
-						Yes, Delete {selectedBlock ? 'Block' : `${selectedBlocks.length} Blocks`}
+						Yes, Delete {selectedRowsCount} Blocks
 					{/if}
 				</Button>
 			</Dialog.Footer>
