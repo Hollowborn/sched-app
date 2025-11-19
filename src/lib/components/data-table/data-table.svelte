@@ -23,13 +23,11 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import {
-		FlexRender
-	} from '$lib/components/ui/data-table/index.js';
+	import { FlexRender, renderComponent } from '$lib/components/ui/data-table/index.js';
+	import DataTableCheckbox from './data-table-checkbox.svelte';
 
 	import {
 		Columns,
-		ChevronDown,
 		Plus,
 		ChevronsLeft,
 		ChevronLeft,
@@ -37,22 +35,77 @@
 		ChevronsRight,
 		CheckCircle2,
 		Loader,
-		MoreVertical
+		MoreVertical,
+		Search,
+		ChevronUp,
+		ChevronDown,
+		ChevronsUpDown
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
-	let { data, columns }: { data: TData[], columns: ColumnDef<TData>[] } = $props();
+	let {
+		data,
+		columns,
+		showCheckbox = false,
+		rowSelection = $bindable(),
+		selectedRowsData = $bindable(),
+		class: className = ''
+	}: {
+		data: TData[];
+		columns: ColumnDef<TData>[];
+		showCheckbox?: boolean;
+		rowSelection?: RowSelectionState;
+		selectedRowsData?: TData[];
+		class?: string;
+	} = $props();
+
+	$effect(() => {
+		if (selectedRowsData) {
+			const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
+			if (JSON.stringify(selectedRows) !== JSON.stringify(selectedRowsData)) {
+				selectedRowsData = selectedRows;
+			}
+		}
+	});
+
 	let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 10 });
 	let sorting = $state<SortingState>([]);
 	let columnFilters = $state<ColumnFiltersState>([]);
-	let rowSelection = $state<RowSelectionState>({});
 	let columnVisibility = $state<VisibilityState>({});
+	let globalFilter = $state('');
+
+	const finalColumns = $derived.by(() => {
+		if (!showCheckbox) return columns;
+
+		const selectColumn: ColumnDef<TData> = {
+			id: 'select',
+			header: ({ table }) =>
+				renderComponent(DataTableCheckbox, {
+					checked: table.getIsAllPageRowsSelected() || undefined,
+					indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+					onCheckedChange: (value) => table.toggleAllPageRowsSelected(!!value)
+				}),
+			cell: ({ row }) =>
+				renderComponent(DataTableCheckbox, {
+					checked: row.getIsSelected(),
+					onCheckedChange: (value) => row.toggleSelected(!!value),
+					'aria-label': 'Select row'
+				}),
+			enableSorting: false,
+			enableHiding: false,
+			meta: {
+				class: 'w-[50px] text-center'
+			}
+		};
+		return [selectColumn, ...columns];
+	});
+
 	const table = createSvelteTable({
 		get data() {
 			return data;
 		},
 		get columns() {
-			return columns;
+			return finalColumns;
 		},
 		state: {
 			get pagination() {
@@ -69,6 +122,9 @@
 			},
 			get columnFilters() {
 				return columnFilters;
+			},
+			get globalFilter() {
+				return globalFilter;
 			}
 		},
 		enableRowSelection: true,
@@ -112,6 +168,13 @@
 			} else {
 				rowSelection = updater;
 			}
+		},
+		onGlobalFilterChange: (updater) => {
+			if (typeof updater === 'function') {
+				globalFilter = updater(globalFilter);
+			} else {
+				globalFilter = updater;
+			}
 		}
 	});
 	let views = [
@@ -139,8 +202,16 @@
 	let view = $state('outline');
 	let viewLabel = $derived(views.find((v) => view === v.id)?.label ?? 'Select a view');
 </script>
-<div class="w-full flex-col justify-start gap-6">
-	<div class="flex items-center justify-between px-4 lg:px-6">
+
+<div class={`space-y-4 ${className}`}>
+	<div class="flex items-center justify-between">
+		<div class="flex flex-1 items-center gap-4">
+			<div class="relative w-full max-w-sm">
+				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input placeholder="Search..." class="pl-10" bind:value={globalFilter} />
+			</div>
+			<slot name="filters" />
+		</div>
 		<div class="flex items-center gap-2">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
@@ -170,122 +241,122 @@
 			<slot name="toolbar" />
 		</div>
 	</div>
-	<div class="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
-		<div class="overflow-hidden rounded-lg border">
-			<Table.Root>
-				<Table.Header class="bg-muted sticky top-0 z-10">
-					{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
-						<Table.Row>
-							{#each headerGroup.headers as header (header.id)}
-								<Table.Head colspan={header.colSpan}>
-									{#if !header.isPlaceholder}
+	<div class="rounded-md border">
+		<Table.Root>
+			<Table.Header class="bg-muted/50">
+				{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
+					<Table.Row>
+						{#each headerGroup.headers as header (header.id)}
+							<Table.Head colspan={header.colSpan} class={header.column.columnDef.meta?.class}>
+								{#if !header.isPlaceholder}
+									{@const canSort = header.column.getCanSort()}
+									<Button
+										variant="ghost"
+										class={canSort ? 'p-2' : ''}
+										onclick={header.column.getToggleSortingHandler()}
+									>
 										<FlexRender
 											content={header.column.columnDef.header}
 											context={header.getContext()}
 										/>
-									{/if}
-								</Table.Head>
+										{#if canSort}
+											{#if header.column.getIsSorted() === 'asc'}
+												<ChevronUp class="ml-2 h-4 w-4" />
+											{:else if header.column.getIsSorted() === 'desc'}
+												<ChevronDown class="ml-2 h-4 w-4" />
+											{:else}
+												<ChevronsUpDown class="ml-2 h-4 w-4" />
+											{/if}
+										{/if}
+									</Button>
+								{/if}
+							</Table.Head>
+						{/each}
+					</Table.Row>
+				{/each}
+			</Table.Header>
+			<Table.Body>
+				{#if table.getRowModel().rows?.length}
+					{#each table.getRowModel().rows as row (row.id)}
+						<Table.Row data-state={row.getIsSelected() && 'selected'}>
+							{#each row.getVisibleCells() as cell (cell.id)}
+								<Table.Cell>
+									<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+								</Table.Cell>
 							{/each}
 						</Table.Row>
 					{/each}
-				</Table.Header>
-				<Table.Body class="**:data-[slot=table-cell]:first:w-8">
-					{#if table.getRowModel().rows?.length}
-						{#each table.getRowModel().rows as row (row.id)}
-							<Table.Row data-state={row.getIsSelected() && 'selected'}>
-								{#each row.getVisibleCells() as cell (cell.id)}
-									<Table.Cell>
-										<FlexRender
-											content={cell.column.columnDef.cell}
-											context={cell.getContext()}
-										/>
-									</Table.Cell>
-								{/each}
-							</Table.Row>
-						{/each}
-					{:else}
-						<Table.Row>
-							<Table.Cell colspan={columns.length} class="h-24 text-center">
-								No results.
-							</Table.Cell>
-						</Table.Row>
-					{/if}
-				</Table.Body>
-			</Table.Root>
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={columns.length} class="h-24 text-center">No results.</Table.Cell>
+					</Table.Row>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
+	<div class="flex items-center justify-between px-1">
+		<div class="flex-1 text-sm text-muted-foreground">
+			{table.getFilteredSelectedRowModel().rows.length} of
+			{table.getFilteredRowModel().rows.length} row(s) selected.
 		</div>
-		<div class="flex items-center justify-between px-4">
-			<div class="text-muted-foreground hidden flex-1 text-sm lg:flex">
-				{table.getFilteredSelectedRowModel().rows.length} of
-				{table.getFilteredRowModel().rows.length} row(s) selected.
+		<div class="flex items-center space-x-6 lg:space-x-8">
+			<div class="flex items-center space-x-2">
+				<p class="text-sm font-medium">Rows per page</p>
+				<Select.Root
+					type="single"
+					value={`${table.getState().pagination.pageSize}`}
+					onValueChange={(v) => {
+						if (v) table.setPageSize(Number(v));
+					}}
+				>
+					<Select.Trigger class="h-8 w-[70px]">
+						<span>{table.getState().pagination.pageSize}</span>
+					</Select.Trigger>
+					<Select.Content>
+						{#each [10, 20, 30, 40, 50] as pageSize}
+							<Select.Item value={`${pageSize}`}>{pageSize}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 			</div>
-			<div class="flex w-full items-center gap-8 lg:w-fit">
-				<div class="hidden items-center gap-2 lg:flex">
-					<Label for="rows-per-page" class="text-sm font-medium">Rows per page</Label>
-					<Select.Root
-						type="single"
-						bind:value={
-							() => `${table.getState().pagination.pageSize}`, (v) => table.setPageSize(Number(v))
-						}
-					>
-						<Select.Trigger size="sm" class="w-20" id="rows-per-page">
-							{table.getState().pagination.pageSize}
-						</Select.Trigger>
-						<Select.Content side="top">
-							{#each [10, 20, 30, 40, 50] as pageSize (pageSize)}
-								<Select.Item value={pageSize.toString()}>
-									{pageSize}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="flex w-fit items-center justify-center text-sm font-medium">
-					Page {table.getState().pagination.pageIndex + 1} of
-					{table.getPageCount()}
-				</div>
-				<div class="ml-auto flex items-center gap-2 lg:ml-0">
-					<Button
-						variant="outline"
-						class="hidden h-8 w-8 p-0 lg:flex"
-						onclick={() => table.setPageIndex(0)}
-						disabled={!table.getCanPreviousPage()}
-					>
-						<span class="sr-only">Go to first page</span>
-						<ChevronsLeft />
-					</Button>
-					<Button
-						variant="outline"
-						class="size-8"
-						size="icon"
-						onclick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
-					>
-						<span class="sr-only">Go to previous page</span>
-						<ChevronLeft />
-					</Button>
-					<Button
-						variant="outline"
-						class="size-8"
-						size="icon"
-						onclick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
-					>
-						<span class="sr-only">Go to next page</span>
-						<ChevronRight />
-					</Button>
-					<Button
-						variant="outline"
-						class="hidden size-8 lg:flex"
-						size="icon"
-						onclick={() => table.setPageIndex(table.getPageCount() - 1)}
-						disabled={!table.getCanNextPage()}
-					>
-						<span class="sr-only">Go to last page</span>
-						<ChevronsRight />
-					</Button>
-				</div>
+			<div class="flex w-[100px] items-center justify-center text-sm font-medium">
+				Page {table.getState().pagination.pageIndex + 1} of
+				{table.getPageCount()}
+			</div>
+			<div class="flex items-center space-x-2">
+				<Button
+					variant="outline"
+					class="hidden h-8 w-8 p-0 lg:flex"
+					onclick={() => table.setPageIndex(0)}
+					disabled={!table.getCanPreviousPage()}
+				>
+					<ChevronsLeft class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					class="h-8 w-8 p-0"
+					onclick={() => table.previousPage()}
+					disabled={!table.getCanPreviousPage()}
+				>
+					<ChevronLeft class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					class="h-8 w-8 p-0"
+					onclick={() => table.nextPage()}
+					disabled={!table.getCanNextPage()}
+				>
+					<ChevronRight class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					class="hidden h-8 w-8 p-0 lg:flex"
+					onclick={() => table.setPageIndex(table.getPageCount() - 1)}
+					disabled={!table.getCanNextPage()}
+				>
+					<ChevronsRight class="h-4 w-4" />
+				</Button>
 			</div>
 		</div>
 	</div>
 </div>
-
