@@ -8,18 +8,18 @@
 		LayoutGrid,
 		Calendar,
 		BookOpen,
-		Search,
 		PlusCircle,
 		Pencil,
-		Eye,
 		Trash2,
 		LoaderCircle,
 		BookMarked
 	} from '@lucide/svelte';
+	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import type { ColumnDef } from '@tanstack/table-core';
+	import { renderSnippet } from '$lib/components/ui/data-table';
 
 	// shadcn-svelte components
 	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
@@ -44,10 +44,9 @@
 	let { data } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- State Management ---
-	let viewMode: 'table' | 'grid' = $state('grid');
+	let viewMode: 'table' | 'grid' = $state('table');
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
-	let searchQuery = $state('');
 	let isSubmitting = $state(false);
 
 	let createOpen = $state(false);
@@ -55,6 +54,10 @@
 	let deleteOpen = $state(false);
 	let qualificationsOpen = $state(false);
 	let selectedInstructor = $state<Instructor | null>(null);
+
+	// Data Table State
+	let rowSelection = $state<import('@tanstack/table-core').RowSelectionState>({});
+	let selectedInstructors = $state<Instructor[]>([]);
 
 	// Form State
 	let formName = $state('');
@@ -64,18 +67,7 @@
 	let formMinLoad = $state(12);
 	let formQualificationIds = $state<number[]>([]);
 
-	const filteredInstructors: Instructor[] = $derived.by(() => {
-		const instructors = data.instructors || [];
-		if (!searchQuery) return instructors;
-		const lowerQuery = searchQuery.toLowerCase();
-		return instructors.filter(
-			(i) =>
-				i.name.toLowerCase().includes(lowerQuery) ||
-				i.colleges?.some((c) => c.college_name.toLowerCase().includes(lowerQuery))
-		);
-	});
-
-	// Filter subjects in the qualifications modal based on the selected instructor's colleges
+	// --- Event Handlers ---
 	const availableSubjects = $derived.by(() => {
 		if (!selectedInstructor) return [];
 		const instructorCollegeIds = new Set(selectedInstructor.colleges.map((c) => c.id));
@@ -85,13 +77,11 @@
 			) || []
 		);
 	});
-
-	// --- Event Handlers ---
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
 		params.set('year', academicYear);
 		params.set('semester', semester);
-		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
+		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true, keepData: true });
 	}
 
 	function generateAcademicYears() {
@@ -143,7 +133,72 @@
 			formCollegeIds = [];
 		}
 	}
+
+	const columns: ColumnDef<Instructor>[] = [
+		{
+			accessorKey: 'name',
+			header: 'Name'
+		},
+		{
+			accessorKey: 'colleges',
+			header: 'College',
+			cell: ({ row }) => renderSnippet(collegesCell, { instructor: row.original })
+		},
+		{
+			id: 'workload',
+			header: 'Workload',
+			cell: ({ row }) => renderSnippet(workloadCell, { instructor: row.original })
+		},
+		{
+			id: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => renderSnippet(actionsCell, { instructor: row.original }),
+			meta: {
+				class: 'text-right'
+			}
+		}
+	];
 </script>
+
+{#snippet collegesCell({ instructor }: { instructor: Instructor })}
+	<div class="flex flex-wrap gap-1">
+		{#each instructor.colleges as college}
+			<Badge variant="secondary">{college.college_name}</Badge>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet workloadCell({ instructor }: { instructor: Instructor })}
+	<div class="flex items-center gap-2">
+		<Progress
+			class="w-24"
+			value={(instructor.current_load / instructor.max_load) * 100}
+			style="--indicator-color: {getLoadColor(instructor.current_load, instructor.max_load)};"
+		/>
+		<span class="text-xs text-muted-foreground"
+			>{instructor.current_load} / {instructor.max_load}</span
+		>
+	</div>
+{/snippet}
+
+{#snippet actionsCell({ instructor }: { instructor: Instructor })}
+	<Button variant="ghost" size="sm" onclick={() => openQualificationsModal(instructor)}>
+		<BookMarked class="h-4 w-4" />
+	</Button>
+	<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}>
+		<Pencil class="h-4 w-4" />
+	</Button>
+	{#if data.profile?.role === 'Admin'}
+		<Button
+			variant="ghost"
+			size="icon"
+			class="text-destructive hover:text-destructive"
+			onclick={() => openDeleteModal(instructor)}
+		>
+			<Trash2 class="h-4 w-4" />
+		</Button>
+	{/if}
+{/snippet}
 
 <svelte:head>
 	<title>Instructor Management | smart-sched</title>
@@ -157,82 +212,11 @@
 		</p>
 	</header>
 
-	<Card.Root>
-		<Card.Content class="m-2 flex items-center justify-between gap-4 overflow-auto">
-			<div class="flex flex-1 items-center gap-4">
-				<div class="flex items-center gap-2">
-					<Calendar class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={academicYear}
-						onValueChange={(v) => {
-							if (v) {
-								academicYear = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]">
-							<span>{academicYear || 'Academic Year'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each generateAcademicYears() as year}
-								<Select.Item value={year}>{year}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="flex items-center gap-2">
-					<BookOpen class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={semester}
-						onValueChange={(v) => {
-							if (v) {
-								semester = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]">
-							<span>{semester || 'Semester'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="1st Semester">1st Semester</Select.Item>
-							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-							<Select.Item value="Summer">Summer</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="relative w-full max-w-sm">
-					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-					<Input placeholder="Search by name or college..." class="pl-8" bind:value={searchQuery} />
-				</div>
-			</div>
-			<div class="flex items-center gap-2">
-				<Button
-					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
-				>
-				<Button
-					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-					size="icon"
-					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
-				>
-				{#if data.profile?.role === 'Admin' || data.profile?.role === 'Dean'}
-					<Button onclick={() => (createOpen = true)}
-						><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
-					>
-				{/if}
-			</div>
-		</Card.Content>
-	</Card.Root>
-
 	{#if viewMode === 'grid'}
+		<!-- The existing Grid view remains unchanged -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-			{#if filteredInstructors.length > 0}
-				{#each filteredInstructors as instructor (instructor.id)}
+			{#if data.instructors.length > 0}
+				{#each data.instructors as instructor (instructor.id)}
 					<div class="hover-lift transition-base">
 						<Card.Root class="flex flex-col ">
 							<Card.Header>
@@ -277,79 +261,81 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="border rounded-md">
-			<Table.Root>
-				<Table.Header class="bg-muted/50">
-					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head>College</Table.Head>
-						<Table.Head>Workload</Table.Head>
-						<Table.Head class="text-right pr-6">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#if filteredInstructors.length > 0}
-						{#each filteredInstructors as instructor (instructor.id)}
-							<Table.Row>
-								<Table.Cell class="font-medium">{instructor.name}</Table.Cell>
-								<Table.Cell>
-									<div class="flex flex-wrap gap-1">
-										{#each instructor.colleges as college}
-											<Badge variant="secondary">{college.college_name}</Badge>
-										{/each}
-									</div>
-								</Table.Cell>
-								<Table.Cell>
-									<div class="flex items-center gap-2">
-										<Progress
-											class="w-24"
-											value={(instructor.current_load / instructor.max_load) * 100}
-											style="--indicator-color: {getLoadColor(
-												instructor.current_load,
-												instructor.max_load
-											)};"
-										/>
-										<span class="text-xs text-muted-foreground"
-											>{instructor.current_load} / {instructor.max_load}</span
-										>
-									</div>
-								</Table.Cell>
-								<Table.Cell class="text-right space-x-1">
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => openQualificationsModal(instructor)}
-										><BookMarked class="h-4 w-4" /></Button
-									>
-									<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}
-										><Pencil class="h-4 w-4" /></Button
-									>
-									{#if data.profile?.role === 'Admin'}
-										<Button
-											variant="ghost"
-											size="icon"
-											class="text-destructive hover:text-destructive"
-											onclick={() => openDeleteModal(instructor)}><Trash2 class="h-4 w-4" /></Button
-										>
-									{/if}
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					{:else}
-						<Table.Row>
-							<Table.Cell colspan={4} class="h-24 text-center">
-								No instructors found matching your criteria.
-							</Table.Cell>
-						</Table.Row>
-					{/if}
-				</Table.Body>
-			</Table.Root>
-		</div>
+		<DataTable
+			data={data.instructors}
+			{columns}
+			showCheckbox={data.profile?.role === 'Admin'}
+			bind:rowSelection
+			bind:selectedRowsData={selectedInstructors}
+		>
+			<div slot="filters" class="flex items-center gap-4">
+				<div class="flex items-center gap-2">
+					<Calendar class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={academicYear}
+						onValueChange={(v) => {
+							if (v) {
+								academicYear = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-[150px]">
+							<span>{academicYear || 'Academic Year'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each generateAcademicYears() as year}
+								<Select.Item value={year}>{year}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="flex items-center gap-2">
+					<BookOpen class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={semester}
+						onValueChange={(v) => {
+							if (v) {
+								semester = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-[150px]">
+							<span>{semester || 'Semester'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="1st Semester">1st Semester</Select.Item>
+							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+							<Select.Item value="Summer">Summer</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</div>
+			</div>
+			<div slot="toolbar" class="flex items-center gap-2">
+				<Button
+					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
+				>
+				<Button
+					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
+				>
+				{#if data.profile?.role === 'Admin' || data.profile?.role === 'Dean'}
+					<Button onclick={() => (createOpen = true)}
+						><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
+					>
+				{/if}
+			</div>
+		</DataTable>
 	{/if}
 </div>
 
-<!-- === MODALS === -->
-
+<!-- MODALS are unchanged -->
 <!-- Create Instructor Modal -->
 <Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && handleCreateFormReset()}>
 	<Dialog.Content>

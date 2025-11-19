@@ -3,19 +3,20 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import { AlertCircle, PlusCircle, Trash2, Pencil, LoaderCircle, Search } from '@lucide/svelte';
+	import { PlusCircle, Trash2, Pencil, LoaderCircle } from '@lucide/svelte';
+	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import type { ColumnDef } from '@tanstack/table-core';
+	import { renderSnippet } from '$lib/components/ui/data-table';
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
-	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 
 	// --- Type Definition for Clarity and Type Safety ---
 	type Subject = {
@@ -35,14 +36,9 @@
 	let deleteOpen = $state(false);
 	let selectedSubject = $state<Subject | null>(null);
 	let isSubmitting = $state(false);
-	let searchQuery = $state('');
 	let selectedCollegeId = $state('all');
-
-	// Multi-select state
-	let selectedRows = $state<number[]>([]);
-	let selectedRowCount = $derived(selectedRows.length);
-
-	let hasSelection = $derived(selectedRowCount > 0);
+	let rowSelection = $state<import('@tanstack/table-core').RowSelectionState>({});
+	let selectedSubjects = $state<Subject[]>([]);
 
 	// --- Form State ---
 	let createCode = $state('');
@@ -65,21 +61,12 @@
 	const filteredSubjects: Subject[] = $derived.by(() => {
 		const subjects = data.subjects || [];
 
-		const collegeFiltered =
-			selectedCollegeId === 'all'
-				? subjects
-				: subjects.filter((s) => s.colleges.some((c) => c.id.toString() === selectedCollegeId));
-
-		if (!searchQuery) {
-			return collegeFiltered;
-		}
-		const lowerQuery = searchQuery.toLowerCase();
-		return collegeFiltered.filter(
-			(s) =>
-				s.subject_code.toLowerCase().includes(lowerQuery) ||
-				s.subject_name.toLowerCase().includes(lowerQuery)
-		);
+		return selectedCollegeId === 'all'
+			? subjects
+			: subjects.filter((s) => s.colleges.some((c) => c.id.toString() === selectedCollegeId));
 	});
+
+	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 
 	// --- Event Handlers ---
 	function openEditModal(subject: Subject) {
@@ -97,18 +84,6 @@
 		deleteOpen = true;
 	}
 
-	function toggleSelectAll(checked: boolean) {
-		selectedRows = checked ? filteredSubjects.map((s) => s.id) : [];
-	}
-
-	function toggleSelectRow(id: number, checked: boolean) {
-		if (checked) {
-			selectedRows = [...selectedRows, id];
-		} else {
-			selectedRows = selectedRows.filter((rowId) => rowId !== id);
-		}
-	}
-
 	function handleCreateFormReset() {
 		createCode = '';
 		createName = '';
@@ -117,14 +92,79 @@
 		createCollegeIds = [];
 	}
 
-	// Reactive stuff
-	let isAllSelected = $derived(
-		filteredSubjects?.length > 0 && selectedRowCount === filteredSubjects?.length
-	);
-	let isIndeterminate = $derived(
-		selectedRowCount > 0 && selectedRowCount < (filteredSubjects?.length || 0)
-	);
+	const columns: ColumnDef<Subject>[] = [
+		{
+			accessorKey: 'subject_code',
+			header: 'Code',
+			cell: ({ row }) => renderSnippet(codeBadge, { rowData: row.original })
+		},
+		{
+			accessorKey: 'subject_name',
+			header: 'Subject Name'
+		},
+		{
+			accessorKey: 'colleges',
+			header: 'Offered In',
+			cell: ({ row }) => renderSnippet(collegesBadges, { rowData: row.original })
+		},
+		{
+			accessorKey: 'lecture_hours',
+			header: 'Lec Hours',
+			meta: {
+				class: 'text-center'
+			}
+		},
+		{
+			accessorKey: 'lab_hours',
+			header: 'Lab Hours',
+			meta: {
+				class: 'text-center'
+			}
+		},
+		{
+			id: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => renderSnippet(actionsCell, { rowData: row.original }),
+			meta: {
+				class: 'text-right'
+			}
+		}
+	];
 </script>
+
+{#snippet codeBadge({ rowData }: { rowData: Subject })}
+	<Badge variant="outline">{rowData.subject_code}</Badge>
+{/snippet}
+
+{#snippet collegesBadges({ rowData }: { rowData: Subject })}
+	<div class="flex flex-wrap gap-1">
+		{#each rowData.colleges as college}
+			<Badge variant="secondary">{college.college_name}</Badge>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet actionsCell({ rowData }: { rowData: Subject })}
+	{#if data.profile?.role === 'Admin'}
+		<Button
+			onclick={() => openEditModal(rowData)}
+			variant="ghost"
+			size="icon"
+			disabled={isSubmitting}
+		>
+			<Pencil class="h-4 w-4" />
+		</Button>
+		<Button
+			onclick={() => openDeleteModal(rowData)}
+			variant="ghost"
+			size="icon"
+			class="text-destructive hover:text-destructive"
+			disabled={isSubmitting}
+		>
+			<Trash2 class="h-4 w-4" />
+		</Button>
+	{/if}
+{/snippet}
 
 <svelte:head>
 	<title>Subjects Management | smart-sched</title>
@@ -138,17 +178,14 @@
 		</p>
 	</header>
 
-	<div class="flex items-center justify-between gap-4">
-		<div class="flex flex-1 items-center gap-4">
-			<div class="relative w-full max-w-sm">
-				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-				<Input
-					placeholder="Search by code or name..."
-					class="pl-10"
-					bind:value={searchQuery}
-					disabled={isSubmitting}
-				/>
-			</div>
+	<DataTable
+		data={filteredSubjects}
+		{columns}
+		showCheckbox={data.profile?.role === 'Admin'}
+		bind:rowSelection
+		bind:selectedRowsData={selectedSubjects}
+	>
+		<div slot="filters">
 			<Select.Root type="single" bind:value={selectedCollegeId}>
 				<Select.Trigger disabled={isSubmitting} class="w-[200px]">
 					<span>{selectedCollegeName || 'Filter by College'}</span>
@@ -163,123 +200,27 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-		<div class="flex items-center gap-2">
+		<div slot="toolbar" class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
-				{#if hasSelection}
-					<Button
-						variant="destructive"
-						disabled={isSubmitting}
-						onclick={() => {
-							selectedSubject = null;
-							deleteOpen = true;
-						}}
-					>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete ({selectedRowCount})
-					</Button>
-				{:else}
-					<Button variant="outline" disabled={true}>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete (0)
-					</Button>
-				{/if}
+				<Button
+					variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+					class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+					disabled={isSubmitting || selectedRowsCount === 0}
+					onclick={() => {
+						selectedSubject = null; // Ensure we're in bulk delete mode
+						deleteOpen = true;
+					}}
+				>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Delete ({selectedRowsCount})
+				</Button>
 				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Add Subject
 				</Button>
 			{/if}
 		</div>
-	</div>
-
-	<div class="border rounded-md">
-		<Table.Root>
-			<Table.Header class="bg-muted/50">
-				<Table.Row>
-					{#if data.profile?.role === 'Admin'}
-						<Table.Head class="w-[50px]">
-							<Checkbox
-								checked={isAllSelected}
-								indeterminate={isIndeterminate}
-								onCheckedChange={(checked) => toggleSelectAll(!!checked)}
-							/>
-						</Table.Head>
-					{/if}
-					<Table.Head class="w-[120px]">Code</Table.Head>
-					<Table.Head>Subject Name</Table.Head>
-					<Table.Head>Offered In</Table.Head>
-					<Table.Head class="text-center">Lec Hours</Table.Head>
-					<Table.Head class="text-center">Lab Hours</Table.Head>
-					{#if data.profile?.role === 'Admin'}
-						<Table.Head class="text-right pr-6">Actions</Table.Head>
-					{/if}
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#if filteredSubjects.length > 0}
-					{#each filteredSubjects as subject (subject.id)}
-						<Table.Row selected={selectedRows.includes(subject.id)}>
-							{#if data.profile?.role === 'Admin'}
-								<Table.Cell>
-									<Checkbox
-										checked={selectedRows.includes(subject.id)}
-										onCheckedChange={(checked) => toggleSelectRow(subject.id, !!checked)}
-									/>
-								</Table.Cell>
-							{/if}
-							<Table.Cell class="font-medium"
-								><Badge variant="outline">{subject.subject_code}</Badge></Table.Cell
-							>
-							<Table.Cell>{subject.subject_name}</Table.Cell>
-							<Table.Cell class="max-w-xs">
-								<div class="flex flex-wrap gap-1">
-									{#each subject.colleges as college}
-										<Badge variant="secondary">{college.college_name}</Badge>
-									{/each}
-								</div>
-							</Table.Cell>
-							<Table.Cell class="text-center">{subject.lecture_hours}</Table.Cell>
-							<Table.Cell class="text-center">{subject.lab_hours}</Table.Cell>
-							{#if data.profile?.role === 'Admin'}
-								<Table.Cell class="text-right">
-									<Button
-										onclick={() => openEditModal(subject)}
-										variant="ghost"
-										size="icon"
-										disabled={isSubmitting}
-									>
-										<Pencil class="h-4 w-4" />
-									</Button>
-									<Button
-										onclick={() => openDeleteModal(subject)}
-										variant="ghost"
-										size="icon"
-										class="text-destructive hover:text-destructive"
-										disabled={isSubmitting}
-									>
-										<Trash2 class="h-4 w-4" />
-									</Button>
-								</Table.Cell>
-							{/if}
-						</Table.Row>
-					{/each}
-				{:else}
-					<Table.Row>
-						<Table.Cell colspan={7} class="h-24 text-center">
-							{#if searchQuery || selectedCollegeId !== 'all'}
-								No subjects match your current filter.
-							{:else}
-								No subjects found. Start by adding a new subject.
-							{/if}
-						</Table.Cell>
-					</Table.Row>
-				{/if}
-			</Table.Body>
-		</Table.Root>
-	</div>
-
-	<div class="text-sm text-muted-foreground">
-		{selectedRowCount} of {filteredSubjects.length} row{selectedRowCount === 1 ? '' : 's'} selected
-	</div>
+	</DataTable>
 </div>
 
 <!-- === DIALOGS / MODALS === -->
@@ -493,8 +434,8 @@
 				{#if selectedSubject}
 					This will permanently delete the subject
 					<strong>{selectedSubject.subject_code} - {selectedSubject.subject_name}</strong>.
-				{:else if selectedRows.length > 0}
-					This will permanently delete <strong>{selectedRows.length}</strong> selected subjects.
+				{:else if selectedSubjects.length > 0}
+					This will permanently delete <strong>{selectedSubjects.length}</strong> selected subjects.
 				{/if}
 				This action cannot be undone.
 			</Dialog.Description>
@@ -512,7 +453,7 @@
 						toast.success(result.data?.message, { id: toastId });
 						await invalidateAll();
 						deleteOpen = false;
-						selectedRows = [];
+						rowSelection = {};
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
 					}
@@ -523,7 +464,7 @@
 			{#if selectedSubject}
 				<input type="hidden" name="id" value={selectedSubject.id} />
 			{:else}
-				<input type="hidden" name="ids" value={selectedRows.join(',')} />
+				<input type="hidden" name="ids" value={selectedSubjects.map((s) => s.id).join(',')} />
 			{/if}
 			<Dialog.Footer>
 				<Button
@@ -531,7 +472,6 @@
 					variant="outline"
 					onclick={() => {
 						deleteOpen = false;
-						if (!selectedSubject) selectedRows = []; // Clear multi-selection when canceling
 					}}
 					disabled={isSubmitting}>Cancel</Button
 				>
@@ -540,7 +480,7 @@
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 						Deleting...
 					{:else}
-						Yes, Delete {selectedSubject ? 'Subject' : `${selectedRows.length} Subjects`}
+						Yes, Delete {selectedSubject ? 'Subject' : `${selectedRowsCount} Subjects`}
 					{/if}
 				</Button>
 			</Dialog.Footer>

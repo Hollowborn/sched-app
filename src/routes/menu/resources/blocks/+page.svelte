@@ -6,6 +6,7 @@
 	import { Trash2, LoaderCircle, Wand2 } from '@lucide/svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
+	import { renderSnippet } from '$lib/components/ui/data-table';
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
@@ -14,6 +15,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Popover from '$lib/components/ui/popover';
+	import { Badge } from '$lib/components/ui/badge';
 
 	type Block = {
 		id: number;
@@ -77,7 +79,13 @@
 
 			header: 'Program',
 
-			cell: ({ row }) => row.original.programs?.program_name || 'N/A'
+			cell: ({ row }) => {
+				const programName = row.original.programs?.program_name;
+				if (!programName) {
+					return 'N/A'; // Fallback for no program
+				}
+				return renderSnippet(programBadge, { programName });
+			}
 		},
 
 		{
@@ -86,9 +94,27 @@
 			header: 'Year Level'
 		}
 	];
-
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 </script>
+
+{#snippet programBadge({ programName }: { programName: string })}
+	{@const chartColors = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5']}
+	{@const getProgramColorVar = (name: string) => {
+		let hash = 0;
+		for (let i = 0; i < name.length; i++) {
+			hash = name.charCodeAt(i) + ((hash << 5) - hash);
+		}
+		const index = Math.abs(hash % chartColors.length);
+		return chartColors[index];
+	}}
+	{@const colorVar = getProgramColorVar(programName)}
+	<Badge
+		variant="outline"
+		style={`background-color: oklch(from var(${colorVar}) l c h / 0.15); color: var(${colorVar}); border-color: oklch(from var(${colorVar}) l c h / 0.2);`}
+	>
+		{programName}
+	</Badge>
+{/snippet}
 
 <svelte:head>
 	<title>Block Management | smart-sched</title>
@@ -109,17 +135,17 @@
 		bind:selectedRowsData={selectedBlocks}
 	>
 		<div slot="toolbar">
-						<Button
-							variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
-							class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
-							disabled={isSubmitting || selectedRowsCount === 0}
-							onclick={() => {
-								blockDeleteOpen = true;
-							}}
-						>
-							<Trash2 class="mr-2 h-4 w-4" />
-							Delete ({selectedRowsCount})
-						</Button>
+			<Button
+				variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+				class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+				disabled={isSubmitting || selectedRowsCount === 0}
+				onclick={() => {
+					blockDeleteOpen = true;
+				}}
+			>
+				<Trash2 class="mr-2 h-4 w-4" />
+				Delete ({selectedRowsCount})
+			</Button>
 
 			<Popover.Root>
 				<Popover.Trigger>
