@@ -9,27 +9,27 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Resources',
 		url: '/menu/resources',
 		icon: 'Library',
-		roles: ['Admin', 'Dean', 'Registrar'],
+		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Subjects (Catalog)',
 				url: '/menu/resources/subjects',
-				roles: ['Admin', 'Dean', 'Registrar']
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Instructors',
 				url: '/menu/resources/instructors',
-				roles: ['Admin', 'Dean']
+				roles: ['Admin', 'Dean', 'Chairperson']
 			},
 			{
 				title: 'Rooms & Venues',
 				url: '/menu/resources/rooms',
-				roles: ['Admin', 'Registrar']
+				roles: ['Admin', 'Registrar', 'Chairperson']
 			},
 			{
-				title: 'Programs & Blocks',
+				title: 'Blocks',
 				url: '/menu/resources/blocks',
-				roles: ['Admin', 'Registrar']
+				roles: ['Admin', 'Registrar', 'Chairperson']
 			}
 		]
 	},
@@ -37,22 +37,22 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Academics',
 		url: '/menu/academics',
 		icon: 'School',
-		roles: ['Admin', 'Dean', 'Registrar'],
+		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Class Offerings',
 				url: '/menu/academics/offerings',
-				roles: ['Admin', 'Dean', 'Registrar']
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Instructor Assignments',
 				url: '/menu/academics/assignments',
-				roles: ['Admin', 'Dean']
+				roles: ['Admin', 'Dean', 'Chairperson']
 			},
 			{
 				title: 'Dash-bro?',
 				url: '/menu/dashboard',
-				roles: ['Admin', 'Dean', 'Registrar']
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
 	},
@@ -61,22 +61,22 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Timetables',
 		url: '/menu/timetables',
 		icon: 'CalendarDays',
-		roles: ['Admin', 'Dean', 'Registrar'],
+		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Master Scheduler',
 				url: '/menu/timetables/scheduler',
-				roles: ['Admin', 'Dean', 'Registrar']
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Generate Schedules',
 				url: '/menu/timetables/generate',
-				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'] 
 			},
 			{
 				title: 'View Schedules',
 				url: '/menu/timetables/view',
-				roles: ['Admin', 'Dean', 'Registrar'] // Eventually, a 'public' role can be added here
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'] 
 			}
 		]
 	},
@@ -92,11 +92,15 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				roles: ['Admin']
 			},
 			{
+				title: 'Programs',
+				url: '/menu/admin/programs',
+				roles: ['Admin']
+			},
+			{
 				title: 'System Settings',
 				url: '/menu/admin/settings',
 				roles: ['Admin']
 			}
-			// { title: 'Activity Log', url: '/menu/admin/log', roles: ['Admin'] } // Can be added back later
 		]
 	}
 ];
