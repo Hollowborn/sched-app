@@ -206,13 +206,6 @@
 <div class={`space-y-4 ${className}`}>
 	<div class="flex items-center justify-between">
 		<div class="flex flex-1 items-center gap-4">
-			<div class="relative w-full max-w-sm">
-				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-				<Input placeholder="Search..." class="pl-10" bind:value={globalFilter} />
-			</div>
-			<slot name="filters" />
-		</div>
-		<div class="flex items-center gap-2">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
@@ -238,6 +231,13 @@
 					{/each}
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
+			<div class="relative w-full max-w-sm">
+				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input placeholder="Search..." class="pl-10" bind:value={globalFilter} />
+			</div>
+			<slot name="filters" />
+		</div>
+		<div class="flex items-center gap-2">
 			<slot name="toolbar" />
 		</div>
 	</div>
