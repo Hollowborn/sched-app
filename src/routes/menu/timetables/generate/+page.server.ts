@@ -1,7 +1,7 @@
 import { fail, error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
 // --- Helper function to format time (HH:MM:SS) ---
 function formatTime(time: string): string {
@@ -20,8 +20,8 @@ function calculateEndTime(startTime: string, durationHours: number): string {
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const userRole = locals.profile?.role;
-	if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+	const profile = locals.profile;
+	if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
 		throw error(403, 'Forbidden: You do not have permission to access this page.');
 	}
 
@@ -32,64 +32,108 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		| '2nd Semester'
 		| 'Summer';
 
-	// Fetch available draft timetables
-	let timetableQuery = locals.supabase
-		.from('timetables')
-		.select('id, name, status')
-		.eq('academic_year', academic_year)
-		.eq('semester', semester)
-		.eq('status', 'draft') // Only show drafts to generate into
-		.order('created_at', { ascending: false });
+	let programsToFetch: { id: number; program_name: string }[] = [];
 
-	if (userRole === 'Dean' && locals.profile?.college_id) {
-		timetableQuery = timetableQuery.eq('college_id', locals.profile.college_id);
+	// --- Role-based Program Fetching ---
+	if (profile.role === 'Chairperson') {
+		if (!profile.program_id) {
+			throw error(403, 'Your account is not associated with a program.');
+		}
+		const { data: program, error: programError } = await locals.supabase
+			.from('programs')
+			.select('id, program_name')
+			.eq('id', profile.program_id)
+			.single();
+		if (programError || !program) throw error(404, 'Associated program not found.');
+		programsToFetch = [program];
+	} else if (profile.role === 'Dean') {
+		if (!profile.college_id) {
+			throw error(403, 'Your account is not associated with a college.');
+		}
+		const { data: collegePrograms, error: programsError } = await locals.supabase
+			.from('programs')
+			.select('id, program_name')
+			.eq('college_id', profile.college_id);
+		if (programsError) throw error(500, 'Could not fetch programs for your college.');
+		programsToFetch = collegePrograms || [];
+	} else if (profile.role === 'Admin') {
+		// For Admins, let them select a college first in the UI
+		const college_filter_id = url.searchParams.get('college');
+		if (college_filter_id) {
+			const { data: collegePrograms, error: programsError } = await locals.supabase
+				.from('programs')
+				.select('id, program_name')
+				.eq('college_id', college_filter_id);
+			if (programsError) throw error(500, 'Could not fetch programs for the selected college.');
+			programsToFetch = collegePrograms || [];
+		}
 	}
 
-	const { data: availableTimetables, error: timetablesError } = await timetableQuery;
+	// --- Fetch Stats for each Program ---
+	const programStats = await Promise.all(
+		programsToFetch.map(async (program) => {
+			// Get all block IDs for the current program
+			const { data: blockIdsData } = await locals.supabase
+				.from('blocks')
+				.select('id')
+				.eq('program_id', program.id);
+			const blockIds = blockIdsData?.map((b) => b.id) || [];
 
-	// Fetch colleges
-	const { data: colleges, error: collegesError } = await locals.supabase
-		.from('colleges')
-		.select('*');
+			// Get all class IDs for those blocks in the current term
+			const { data: classIdsData } = await locals.supabase
+				.from('classes')
+				.select('id, instructor_id')
+				.in('block_id', blockIds)
+				.eq('academic_year', academic_year)
+				.eq('semester', semester);
+			const classIds = classIdsData?.map((c) => c.id) || [];
 
-	// Fetch rooms, grouped by building for a better UI
-	const { data: rooms, error: roomsError } = await locals.supabase
+			const totalClasses = classIds.length;
+			const unassignedClasses = (classIdsData || []).filter((c) => c.instructor_id === null).length;
+
+			// Find blocks that do not appear in any class offering for the term
+			const { count: assignedBlockCount } = await locals.supabase
+				.from('classes')
+				.select('block_id', { count: 'exact', head: true })
+				.in('block_id', blockIds)
+				.eq('academic_year', academic_year)
+				.eq('semester', semester);
+
+			const totalBlocks = blockIds.length;
+			const emptyBlocks = totalBlocks - (assignedBlockCount || 0);
+
+			return {
+				...program,
+				stats: {
+					totalClasses,
+					unassignedClasses,
+					totalBlocks,
+					emptyBlocks
+				}
+			};
+		})
+	);
+
+	// Fetch other necessary data for filters and modals
+	const { data: colleges } = await locals.supabase.from('colleges').select('*');
+	const { data: rooms } = await locals.supabase
 		.from('rooms')
 		.select('id, room_name, building, type, capacity');
 
-	if (timetablesError || collegesError || roomsError) {
-		console.error('Error loading generator data:', timetablesError || collegesError || roomsError);
-		throw error(500, 'Could not load initial data.');
-	}
-
-	// Group rooms by building
-	const roomsByBuilding = (rooms || []).reduce(
-		(acc, room) => {
-			const building = room.building || 'General';
-			if (!acc[building]) {
-				acc[building] = [];
-			}
-			acc[building].push(room);
-			return acc;
-		},
-		{} as Record<string, typeof rooms>
-	);
-
 	return {
-		availableTimetables: availableTimetables || [],
+		programStats: programStats || [],
 		colleges: colleges || [],
-		roomsByBuilding,
-		profile: locals.profile,
-		filters: { academic_year, semester }
+		allRooms: rooms || [],
+		profile,
+		filters: { academic_year, semester, college: url.searchParams.get('college') }
 	};
 };
 
 // --- ACTIONS ---
 export const actions: Actions = {
-	// Action to create a new timetable (needed for the modal)
 	createTimetable: async ({ request, locals }) => {
-		const userRole = locals.profile?.role;
-		if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+		const profile = locals.profile;
+		if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
 			return fail(403, { message: 'Forbidden' });
 		}
 
@@ -100,7 +144,8 @@ export const actions: Actions = {
 			| '1st Semester'
 			| '2nd Semester'
 			| 'Summer';
-		const college_id = userRole === 'Dean' ? locals.profile?.college_id : null;
+		const program_id = Number(formData.get('program_id')) || null;
+		const college_id = Number(formData.get('college_id')) || profile.college_id; // Use form's college_id or Dean's
 
 		if (!name || !academic_year || !semester) {
 			return fail(400, { createError: 'Name, Academic Year, and Semester are required.' });
@@ -113,6 +158,7 @@ export const actions: Actions = {
 				academic_year,
 				semester,
 				college_id,
+				program_id,
 				created_by: locals.user?.id,
 				status: 'draft'
 			})
@@ -121,21 +167,21 @@ export const actions: Actions = {
 
 		if (insertError) {
 			console.error('Error creating timetable:', insertError);
+			if (insertError.code === '23505') {
+				return fail(409, {
+					createError: 'A timetable with this name already exists for this term/program.'
+				});
+			}
 			return fail(500, { createError: 'Could not create timetable.' });
 		}
 
-		// Redirect back to the page, now with the new timetable selected
-		const params = new URLSearchParams();
-		params.set('year', academic_year);
-		params.set('semester', semester);
-		params.set('timetableId', newTimetable.id.toString());
-		throw redirect(303, `/menu/timetables/generate?${params.toString()}`);
+		return { success: true, message: 'Timetable created successfully.' };
 	},
 
 	// --- The Main Generator Action ---
 	generateSchedule: async ({ request, locals }) => {
-		const userRole = locals.profile?.role;
-		if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+		const profile = locals.profile;
+		if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
 			return fail(403, { message: 'Forbidden: You do not have permission.' });
 		}
 
@@ -148,7 +194,7 @@ export const actions: Actions = {
 			| '1st Semester'
 			| '2nd Semester'
 			| 'Summer';
-		const college_ids = formData.getAll('college_ids').map(Number);
+		const program_id = Number(formData.get('program_id'));
 		const room_ids = formData.getAll('room_ids').map(Number);
 		const scheduleStartTime = formData.get('scheduleStartTime')?.toString() || '07:30';
 
@@ -160,8 +206,8 @@ export const actions: Actions = {
 			enforceBlock: !!formData.get('enforceBlock')
 		};
 
-		if (!timetable_id || college_ids.length === 0 || room_ids.length === 0) {
-			return fail(400, { message: 'Timetable, Colleges, and Rooms must be selected.' });
+		if (!timetable_id || !program_id || room_ids.length === 0) {
+			return fail(400, { message: 'Timetable, Program, and Rooms must be selected.' });
 		}
 
 		// --- Start Solver Logic ---
@@ -170,12 +216,10 @@ export const actions: Actions = {
 			await Promise.all([
 				locals.supabase
 					.from('classes')
-					.select(
-						'*, subjects!inner(*), blocks!inner(*, programs!inner(college_id)), instructors(id, name)'
-					)
+					.select('*, subjects!inner(*), blocks!inner(*), instructors(id, name)')
 					.eq('academic_year', academic_year)
 					.eq('semester', semester)
-					.in('blocks.programs.college_id', college_ids),
+					.eq('blocks.program_id', program_id),
 				locals.supabase.from('rooms').select('*').in('id', room_ids)
 			]);
 
@@ -183,43 +227,61 @@ export const actions: Actions = {
 
 		// 4. Define Domain (Playable Slots)
 		const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-		const SLOT_DURATION_MINUTES = 90; // 1.5 hours
+		const SLOT_DURATION_HOURS = 1.5;
 
-		function generateTimeslots(start: string, end: string, duration: number) {
+		function generateTimeslots(start: string, end: string, durationMinutes: number) {
 			const slots = [];
 			let currentTime = new Date(`1970-01-01T${start}:00`);
 			const endTime = new Date(`1970-01-01T${end}:00`);
-
 			while (currentTime < endTime) {
 				slots.push(currentTime.toTimeString().substring(0, 5));
-				currentTime.setMinutes(currentTime.getMinutes() + duration);
+				currentTime.setMinutes(currentTime.getMinutes() + durationMinutes);
 			}
 			return slots;
 		}
-		const TIMESLOTS = generateTimeslots(scheduleStartTime, '17:00', SLOT_DURATION_MINUTES);
+		const TIMESLOTS = generateTimeslots(scheduleStartTime, '17:00', 90);
 
-		// 5. Create the "Job List" (splitting Lec/Lab and calculating slots needed)
+		// 5. Create the "Job List"
 		const tasksToSchedule: any[] = [];
 		(classesData || []).forEach((cls) => {
-			if (cls.subjects.lecture_hours > 0) {
+			// Handle split lectures
+			if (cls.split_lecture && cls.subjects.lecture_hours > 0) {
+				const splitHours = Number(cls.subjects.lecture_hours) / 2;
+				tasksToSchedule.push({
+					class: cls,
+					type: 'Lecture',
+					hours: splitHours,
+					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
+					splitGroup: `split_${cls.id}_1`,
+					allowedDays: cls.lecture_days
+				});
+				tasksToSchedule.push({
+					class: cls,
+					type: 'Lecture',
+					hours: splitHours,
+					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
+					splitGroup: `split_${cls.id}_2`,
+					allowedDays: cls.lecture_days
+				});
+			} else if (cls.subjects.lecture_hours > 0) {
 				tasksToSchedule.push({
 					class: cls,
 					type: 'Lecture',
 					hours: Number(cls.subjects.lecture_hours),
-					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / 1.5)
+					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS)
 				});
 			}
+
 			if (cls.subjects.lab_hours > 0) {
 				tasksToSchedule.push({
 					class: cls,
 					type: 'Lab',
 					hours: Number(cls.subjects.lab_hours),
-					slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / 1.5)
+					slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS)
 				});
 			}
 		});
 
-		// Sort tasks to schedule multi-slot (harder) ones first
 		tasksToSchedule.sort((a, b) => b.slotsNeeded - a.slotsNeeded);
 
 		// 6. Initialize Solver State
@@ -232,20 +294,17 @@ export const actions: Actions = {
 
 			const attemptSchedulingInRooms = (roomsToTry: any[]) => {
 				if (slotFound || !roomsToTry) return;
+				const orderedRoomsToTry = [...roomsToTry].sort((a, b) => a.capacity - b.capacity);
 
-				const preferredRoom = task.class.pref_room_id
-					? roomsToTry.find((r) => r.id === task.class.pref_room_id)
-					: null;
-				const otherRooms = roomsToTry.filter((r) => r.id !== task.class.pref_room_id);
-				const orderedRoomsToTry = preferredRoom ? [preferredRoom, ...otherRooms] : otherRooms;
+				const daysToTry = task.allowedDays && task.allowedDays.length > 0 ? task.allowedDays : DAYS;
 
 				for (const room of orderedRoomsToTry) {
 					if (slotFound) break;
-					if (constraints.enforceCapacity && room.capacity < task.class.blocks.estimated_students) {
+					if (constraints.enforceCapacity && room.capacity < task.class.blocks.estimated_students)
 						continue;
-					}
+					if (constraints.enforceRoomType && room.type !== task.type) continue;
 
-					for (const day of DAYS) {
+					for (const day of daysToTry) {
 						if (slotFound) break;
 						for (let i = 0; i <= TIMESLOTS.length - task.slotsNeeded; i++) {
 							if (slotFound) break;
@@ -256,25 +315,19 @@ export const actions: Actions = {
 								if (
 									scheduledEntries.some(
 										(e) =>
-											e.room_id === room.id &&
-											e.day_of_week === day &&
-											e.start_time.startsWith(time)
-									) ||
-									(constraints.enforceInstructor &&
-										task.class.instructor_id &&
-										scheduledEntries.some(
-											(e) =>
+											(e.room_id === room.id &&
+												e.day_of_week === day &&
+												e.start_time.startsWith(time)) ||
+											(constraints.enforceInstructor &&
+												e.class.instructor_id &&
 												e.class.instructor_id === task.class.instructor_id &&
 												e.day_of_week === day &&
-												e.start_time.startsWith(time)
-										)) ||
-									(constraints.enforceBlock &&
-										scheduledEntries.some(
-											(e) =>
+												e.start_time.startsWith(time)) ||
+											(constraints.enforceBlock &&
 												e.class.block_id === task.class.block_id &&
 												e.day_of_week === day &&
-												e.start_time.startsWith(time)
-										))
+												e.start_time.startsWith(time))
+									)
 								) {
 									isRangeFree = false;
 									break;
@@ -284,7 +337,7 @@ export const actions: Actions = {
 							if (isRangeFree) {
 								for (let j = 0; j < task.slotsNeeded; j++) {
 									const time = TIMESLOTS[i + j];
-									const endTime = calculateEndTime(time, 1.5);
+									const endTime = calculateEndTime(time, SLOT_DURATION_HOURS);
 									scheduledEntries.push({
 										timetable_id,
 										class_id: task.class.id,
@@ -293,7 +346,7 @@ export const actions: Actions = {
 										start_time: formatTime(time),
 										end_time: formatTime(endTime),
 										course_type: task.type,
-										class: task.class
+										class: task.class // Keep original class for constraint checking
 									});
 								}
 								slotFound = true;
@@ -303,20 +356,7 @@ export const actions: Actions = {
 				}
 			};
 
-			const allLectureRooms = roomsData?.filter((r) => r.type === 'Lecture') || [];
-			const allLabRooms = roomsData?.filter((r) => r.type === 'Lab') || [];
-
-			if (task.type === 'Lecture') {
-				// Stage 1: Try to place Lecture in Lecture rooms
-				attemptSchedulingInRooms(allLectureRooms);
-				// Stage 2: If not found and constraint is on, try Lab rooms as fallback
-				if (!slotFound && !constraints.enforceRoomType) {
-					attemptSchedulingInRooms(allLabRooms);
-				}
-			} else if (task.type === 'Lab') {
-				// For Labs, only ever try Lab rooms
-				attemptSchedulingInRooms(allLabRooms);
-			}
+			attemptSchedulingInRooms(roomsData);
 
 			if (!slotFound) {
 				failedClasses.push({
@@ -326,27 +366,24 @@ export const actions: Actions = {
 			}
 		}
 
-		// 8. Insert successful entries into the database
+		// 8. Insert successful entries
 		if (scheduledEntries.length > 0) {
-			const entriesToInsert = scheduledEntries.map((e) => {
-				const { class: _, ...dbEntry } = e;
-				return dbEntry;
-			});
+			const entriesToInsert = scheduledEntries.map(({ class: _, ...dbEntry }) => dbEntry);
+			await locals.supabase.from('schedules').delete().eq('timetable_id', timetable_id);
 			const { error: insertError } = await locals.supabase
 				.from('schedules')
 				.insert(entriesToInsert);
 			if (insertError) {
-				console.error('Error inserting schedules:', insertError);
-				return fail(500, {
-					message: `Failed to save ${scheduledEntries.length} found slots. Error: ${insertError.message}`
-				});
+				return fail(500, { message: `Failed to save schedule: ${insertError.message}` });
 			}
 		}
 
 		// 9. Return summary
 		return {
 			success: true,
-			message: `Generation complete. Successfully created ${scheduledEntries.length} schedule entries.`,
+			message: `Generation complete. Successfully scheduled ${
+				tasksToSchedule.length - failedClasses.length
+			} out of ${tasksToSchedule.length} tasks.`,
 			failedClasses,
 			generatedTimetableId: timetable_id
 		};
