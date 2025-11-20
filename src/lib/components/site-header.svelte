@@ -1,14 +1,19 @@
 <script lang="ts">
+	import { page, navigating } from '$app/stores'; // Import SvelteKit's page store
+	import { goto } from '$app/navigation'; // Import goto for navigation
+
+	// Shadcn-Svelte imports
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js'; // Import Breadcrumb components
-	import { page } from '$app/stores'; // Import SvelteKit's page store
 	import { Input } from '$lib/components/ui/input'; // Import Input component
 	import { Search } from '@lucide/svelte'; // Import Search icon
-	import { goto } from '$app/navigation'; // Import goto for navigation
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
+	import Spinner from './ui/spinner/spinner.svelte';
+
+	// Icons
 	import SearchIcon from '@lucide/svelte/icons/search';
 	// Reactive variable for the current path
 	let headerTitle = $derived(getPageTitle($page.url.pathname));
@@ -65,10 +70,15 @@
 	<div class="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6 fixed backdrop-blur-sm">
 		<Sidebar.Trigger class="-ml-1" />
 		<Separator orientation="vertical" class="mx-2 data-[orientation=vertical]:h-4" />
+		{#if $navigating}
+			<h1 class="font-bold animate-pulse">Loading</h1>
+			<Spinner />
+		{:else}
+			<h1 class="font-bold">{headerTitle}</h1>
+			<div class="ml-auto w-100 max-w-sm lg:max-w-md md:mr-100"></div>
+		{/if}
 
-		<h1 class="font-bold">{headerTitle}</h1>
-		<div class="ml-auto w-100 max-w-sm lg:max-w-md md:mr-100">
-			<!-- <InputGroup.Root>
+		<!-- <InputGroup.Root>
 				<InputGroup.Input placeholder="Search..." />
 				<InputGroup.Addon>
 					<SearchIcon />
@@ -78,6 +88,5 @@
 					<Kbd.Root>K</Kbd.Root>
 				</InputGroup.Addon>
 			</InputGroup.Root> -->
-		</div>
 	</div>
 </header>
