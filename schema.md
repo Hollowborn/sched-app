@@ -132,6 +132,8 @@ CREATE TABLE IF NOT EXISTS classes (
     block_id INTEGER REFERENCES blocks(id) ON DELETE CASCADE NOT NULL, -- If block deleted, offering is too
     semester course_offering_semester NOT NULL,
     academic_year VARCHAR(10) NOT NULL,
+    split_lecture BOOLEAN NOT NULL DEFAULT FALSE,
+    lecture_days TEXT[] NULL,
     -- A block should only have one offering of a subject per term
     UNIQUE(subject_id, block_id, semester, academic_year)
 );
