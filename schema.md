@@ -121,7 +121,8 @@ CREATE TABLE IF NOT EXISTS timetables (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by UUID REFERENCES users(id) ON DELETE SET NULL, -- Keep record even if user deleted
     college_id INTEGER REFERENCES colleges(id) ON DELETE SET NULL, -- Keep record even if college deleted
-    UNIQUE(name, college_id, academic_year, semester) -- Name must be unique for a college in a specific term
+    program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL, -- For program-specific timetables
+    UNIQUE(name, college_id, program_id, academic_year, semester) -- Name must be unique for a college/program in a specific term
 );
 
 -- 9. CLASSES TABLE (Course Offerings)

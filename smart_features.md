@@ -44,3 +44,27 @@ This is the ultimate smart feature, turning weeks of manual work into a single c
     - Try to assign the `pref_room_id`.
     - Minimize large gaps in the schedule for student blocks.
     - Group classes for the same block close together.
+
+### 5. In-App Guidance & Feature Discovery
+
+To help users become familiar with the application's features, we can implement several standard UX patterns.
+
+-   **Contextual Tooltips (for Icons and Buttons)**
+    -   **How it works:** When a user hovers over an icon or button, a small label appears explaining its function.
+    -   **Best for:** Clarifying the function of unlabeled icons.
+    -   **Component to use:** The **`<Tooltip>`** component.
+
+-   **Feature Spotlights (for New or Key Features)**
+    -   **How it works:** A small pop-up with a short message and a "Got it" button points to a new UI element the first time a user sees it.
+    -   **Best for:** Announcing new features like the "Split Lecture" badges.
+    -   **Component to use:** The **`<Popover>`** component.
+
+-   **A "What's New" or "Tips" Center**
+    -   **How it works:** A dedicated icon (e.g., a question mark) in the header opens a modal or drawer containing a list of recent changes and tips.
+    -   **Best for:** Providing a non-intrusive, on-demand help center.
+    -   **Component to use:** The **`<Dialog>`** (modal) or **`<Drawer>`** (side panel).
+
+-   **Guided Product Tour (for First-Time Onboarding)**
+    -   **How it works:** A series of popovers guide the user step-by-step through a key workflow.
+    -   **Best for:** A user's very first visit to a complex page like the Scheduler.
+    -   **Component to use:** Can be built with a series of **`<Popover>`** components, often managed by a state machine or a small routing library.
