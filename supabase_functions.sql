@@ -10,6 +10,18 @@ ADD COLUMN IF NOT EXISTS split_lecture BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE public.classes
 ADD COLUMN IF NOT EXISTS lecture_days TEXT[] NULL;
 
+-- Add program_id to timetables for program-specific scheduling
+ALTER TABLE public.timetables
+ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL;
+
+-- Drop the old unique constraint and add a new one including program_id
+ALTER TABLE public.timetables
+DROP CONSTRAINT IF EXISTS timetables_name_college_id_academic_year_semester_key;
+
+ALTER TABLE public.timetables
+ADD CONSTRAINT timetables_name_college_id_program_id_academic_year_sem_key
+UNIQUE(name, college_id, program_id, academic_year, semester);
+
 -- =====================================================
 -- RPC Functions for conflict checking when adding schedule entries
 -- =====================================================
