@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import { Trash2, LoaderCircle, Wand2 } from '@lucide/svelte';
+	import { Trash2, LoaderCircle, Sparkles } from '@lucide/svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
@@ -150,7 +150,7 @@
 			<Popover.Root>
 				<Popover.Trigger>
 					<Button variant="outline">
-						<Wand2 class="mr-2 h-4 w-4" />
+						<Sparkles class="mr-2 h-4 w-4" />
 
 						Bulk Generate
 					</Button>
