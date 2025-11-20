@@ -335,7 +335,6 @@
 		<DataTable
 			data={data.instructors}
 			{columns}
-			showCheckbox={data.profile?.role === 'Admin'}
 			bind:rowSelection
 			bind:selectedRowsData={selectedInstructors}
 		/>
