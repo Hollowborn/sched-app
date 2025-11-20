@@ -22,6 +22,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.select(
 			`
             id,
+            split_lecture,
+            lecture_days,
             subjects!inner (id, subject_code, subject_name),
             instructors (id, name),
             blocks!inner (
@@ -52,6 +54,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		console.error('Error fetching classes:', classesError);
 		throw error(500, 'Failed to load class offerings.');
 	}
+
+	// Post-process the data to ensure lecture_days is always an array
+	const processedClasses = classes.map((c) => {
+		if (c.lecture_days && typeof c.lecture_days === 'string') {
+			try {
+				return { ...c, lecture_days: JSON.parse(c.lecture_days) };
+			} catch (e) {
+				// Fallback for malformed JSON or other string formats
+				return { ...c, lecture_days: [] };
+			}
+		}
+		return c;
+	});
 
 	// --- 2. Fetch Instructors and Calculate Their Current Workload ---
 	let instructorQuery = locals.supabase
@@ -100,7 +115,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			: { data: [] };
 
 	return {
-		classes: classes || [],
+		classes: processedClasses || [],
 		instructors: instructorsWithLoad || [],
 		colleges: colleges || [],
 		profile: locals.profile,
@@ -139,5 +154,40 @@ export const actions: Actions = {
 		}
 
 		return { message: 'Instructor assigned successfully.' };
+	},
+
+	updateLectureSplit: async ({ request, locals }) => {
+		const userRole = locals.profile?.role;
+		if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+			return fail(403, { message: 'You do not have permission to modify lecture splits.' });
+		}
+
+		const formData = await request.formData();
+		const classId = Number(formData.get('classId'));
+		const split_lecture = formData.get('split_lecture') === 'true';
+		const lecture_days_str = formData.get('lecture_days')?.toString();
+		const lecture_days = lecture_days_str ? JSON.parse(lecture_days_str) : [];
+
+		if (!classId) {
+			return fail(400, { message: 'Invalid class ID.' });
+		}
+
+		// If splitting is turned off, ensure lecture_days is cleared.
+		const dataToUpdate = {
+			split_lecture,
+			lecture_days: split_lecture ? lecture_days : []
+		};
+
+		const { error: updateError } = await locals.supabase
+			.from('classes')
+			.update(dataToUpdate)
+			.eq('id', classId);
+
+		if (updateError) {
+			console.error('Error updating lecture split:', updateError);
+			return fail(500, { message: 'Failed to update lecture split settings.' });
+		}
+
+		return { message: 'Lecture split settings updated.' };
 	}
 };

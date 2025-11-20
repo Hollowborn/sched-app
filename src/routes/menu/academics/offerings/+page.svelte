@@ -149,6 +149,14 @@
 		createBlockId = '';
 	});
 
+	const dayColorMap: Record<string, string> = {
+		Monday: 'var(--chart-1)',
+		Tuesday: 'var(--chart-2)',
+		Wednesday: 'var(--chart-3)',
+		Thursday: 'var(--chart-4)',
+		Friday: 'var(--chart-5)'
+	};
+
 	const columns: ColumnDef<ClassOffering>[] = [
 		{
 			accessorKey: 'subjects',
@@ -157,7 +165,8 @@
 		},
 		{
 			accessorFn: (d) => d.subjects?.subject_name,
-			header: 'Subject Name'
+			header: 'Subject Name',
+			cell: ({ row }) => renderSnippet(subjectNameCell, { rowData: row.original })
 		},
 		{
 			accessorFn: (d) => d.blocks?.block_name,
@@ -189,6 +198,29 @@
 	<Badge variant="outline">{rowData.subjects?.subject_code || 'N/A'}</Badge>
 {/snippet}
 
+{#snippet subjectNameCell({ rowData }: { rowData: ClassOffering })}
+	<div class="flex items-center gap-2">
+		<span>{rowData.subjects?.subject_name || 'N/A'}</span>
+		<div class="flex gap-1">
+			{#if rowData.split_lecture && rowData.lecture_days}
+				{#each rowData.lecture_days as day}
+					<Badge
+						variant="outline"
+						class="border font-mono"
+						style={`
+							background-color: oklch(from ${dayColorMap[day]} l c h / 0.15);
+							color: ${dayColorMap[day]};
+							border-color: oklch(from ${dayColorMap[day]} l c h / 0.2);
+						`}
+					>
+						{day.slice(0, 3)}
+					</Badge>
+				{/each}
+			{/if}
+		</div>
+	</div>
+{/snippet}
+
 {#snippet instructorCell({ rowData }: { rowData: ClassOffering })}
 	{#if rowData.instructors?.name}
 		{rowData.instructors.name}
@@ -205,15 +237,17 @@
 {/snippet}
 
 {#snippet actionsCell({ rowData }: { rowData: ClassOffering })}
-	<Button
-		onclick={() => openDeleteModal(rowData)}
-		variant="ghost"
-		size="icon"
-		class="text-destructive hover:text-destructive"
-		disabled={isSubmitting}
-	>
-		<Trash2 class="h-4 w-4" />
-	</Button>
+	<div class="flex justify-end">
+		<Button
+			onclick={() => openDeleteModal(rowData)}
+			variant="ghost"
+			size="icon"
+			class="text-destructive hover:text-destructive"
+			disabled={isSubmitting}
+		>
+			<Trash2 class="h-4 w-4" />
+		</Button>
+	</div>
 {/snippet}
 
 <svelte:head>

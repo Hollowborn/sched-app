@@ -51,6 +51,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(500, 'Failed to load class offerings.');
 	}
 
+	// Post-process the data to ensure lecture_days is always an array
+	const processedClasses = classes.map((c) => {
+		if (c.lecture_days && typeof c.lecture_days === 'string') {
+			try {
+				return { ...c, lecture_days: JSON.parse(c.lecture_days) };
+			} catch (e) {
+				// Fallback for malformed JSON or other string formats
+				return { ...c, lecture_days: [] };
+			}
+		}
+		return c;
+	});
+
 	// Fetch all necessary data for the "Create" modal dropdowns
 	const [
 		{ data: subjects, error: subjectsError },
@@ -80,7 +93,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	return {
-		classes: classes || [],
+		classes: processedClasses || [],
 		subjects: subjects || [],
 		instructors: instructors || [],
 		blocks: blocks || [],
