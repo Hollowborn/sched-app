@@ -24,6 +24,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             semester,
             academic_year,
             pref_room_id,
+            split_lecture,
+            lecture_days,
             subjects!inner (id, subject_code, subject_name),
             instructors (id, name),
             blocks!inner (
@@ -106,6 +108,10 @@ export const actions: Actions = {
 			pref_room_id_val && Number(pref_room_id_val) > 0 ? Number(pref_room_id_val) : null;
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
+		const split_lecture_str = formData.get('split_lecture')?.toString();
+		const split_lecture = split_lecture_str === 'true'; // Convert string to boolean
+		const lecture_days_str = formData.get('lecture_days')?.toString();
+		const lecture_days = lecture_days_str ? JSON.parse(lecture_days_str) : null;
 
 		if (!subject_id || !block_id || !academic_year || !semester) {
 			return fail(400, { message: 'Subject, Block, Academic Year, and Semester are required.' });
@@ -117,7 +123,9 @@ export const actions: Actions = {
 			instructor_id,
 			pref_room_id,
 			academic_year,
-			semester
+			semester,
+			split_lecture,
+			lecture_days
 		});
 
 		if (insertError) {

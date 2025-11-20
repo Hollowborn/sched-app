@@ -1,4 +1,16 @@
 -- =====================================================
+-- Schema Migrations
+-- =====================================================
+-- Add new columns or modify existing ones here.
+-- =====================================================
+
+ALTER TABLE public.classes
+ADD COLUMN IF NOT EXISTS split_lecture BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE public.classes
+ADD COLUMN IF NOT EXISTS lecture_days TEXT[] NULL;
+
+-- =====================================================
 -- RPC Functions for conflict checking when adding schedule entries
 -- =====================================================
 -- Instructions:

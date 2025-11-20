@@ -25,12 +25,17 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Toggle } from '$lib/components/ui/toggle'; // New Import
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
 	type Instructor = PageData['instructors'][number];
 	type Room = PageData['rooms'][number];
-	type ClassOffering = PageData['classes'][number];
+	// Updated ClassOffering type to include new fields
+	type ClassOffering = PageData['classes'][number] & {
+		split_lecture?: boolean;
+		lecture_days?: string[];
+	};
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
@@ -53,6 +58,8 @@
 	let createInstructorId = $state('');
 	let createPrefRoomId = $state('');
 	let createOfferingCollegeId = $state(''); // For subjects in multiple colleges
+	let createSplitLecture = $state(false); // New State
+	let createLectureDays = $state<string[]>([]); // New State
 
 	// --- Derived State ---
 	const selectedRowCount = $derived(selectedRows.length);
@@ -170,6 +177,8 @@
 		createInstructorId = '';
 		createPrefRoomId = '';
 		createOfferingCollegeId = '';
+		createSplitLecture = false; // Reset new state
+		createLectureDays = []; // Reset new state
 	}
 
 	$effect(() => {
@@ -536,6 +545,39 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
+
+				<div class="flex items-center space-x-2">
+					<Toggle pressed={createSplitLecture} onPressedChange={(p) => (createSplitLecture = p)}>
+						Split Lecture
+					</Toggle>
+					<input type="hidden" name="split_lecture" value={createSplitLecture} />
+					<Label for="split-lecture-toggle">Split Lecture into two sessions</Label>
+				</div>
+
+				{#if createSplitLecture}
+					<div class="space-y-2">
+						<Label>Lecture Days</Label>
+						<div class="flex flex-wrap gap-2">
+							{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as day}
+								<div class="flex items-center space-x-2">
+									<Checkbox
+										id={day}
+										checked={createLectureDays.includes(day)}
+										onCheckedChange={(checked) => {
+											if (checked) {
+												createLectureDays = [...createLectureDays, day];
+											} else {
+												createLectureDays = createLectureDays.filter((d) => d !== day);
+											}
+										}}
+									/>
+									<Label for={day}>{day}</Label>
+								</div>
+							{/each}
+						</div>
+						<input type="hidden" name="lecture_days" value={JSON.stringify(createLectureDays)} />
+					</div>
+				{/if}
 			</div>
 			<Dialog.Footer>
 				<Button type="submit" disabled={isSubmitting}>
