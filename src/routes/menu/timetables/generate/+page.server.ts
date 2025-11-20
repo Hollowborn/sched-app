@@ -241,10 +241,7 @@ export const actions: Actions = {
 
 				for (const room of orderedRoomsToTry) {
 					if (slotFound) break;
-					if (
-						constraints.enforceCapacity &&
-						room.capacity < task.class.blocks.estimated_students
-					) {
+					if (constraints.enforceCapacity && room.capacity < task.class.blocks.estimated_students) {
 						continue;
 					}
 

@@ -56,7 +56,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// --- 2. Fetch Instructors and Calculate Their Current Workload ---
 	let instructorQuery = locals.supabase
 		.from('instructors')
-		.select('id, name, max_load, instructor_colleges!inner(college_id), instructor_subjects(subject_id)');
+		.select(
+			'id, name, max_load, instructor_colleges!inner(college_id), instructor_subjects(subject_id)'
+		);
 
 	// Deans should only be able to assign instructors from their own college
 	if (profile.role === 'Dean' && profile.college_id) {

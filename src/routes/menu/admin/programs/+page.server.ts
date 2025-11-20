@@ -20,10 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	]);
 
 	if (programsRes.error || collegesRes.error) {
-		console.error(
-			'Error fetching data:',
-			programsRes.error || collegesRes.error
-		);
+		console.error('Error fetching data:', programsRes.error || collegesRes.error);
 		throw error(500, 'Failed to load necessary resources from the database.');
 	}
 

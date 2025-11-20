@@ -90,9 +90,9 @@ The following pages and features are considered complete and functional:
 - **Timetable Viewer (`/menu/timetables/view`):** A read-only, filterable view of published timetables.
 - **Data Analysis:** A plan is drafted (see `data_analysis_worksheet.md`) to analyze the generated data to evaluate the thesis.
 - **Implement `Chairperson` Role:** Add a new 'Chairperson' user role to allow for more granular control over class offerings. This will involve:
-    - Updating the `users` table schema to include the 'Chairperson' role and a link to their program.
-    - Modifying backend RBAC to restrict Chairpersons to their own program's data.
-    - Adjusting the UI to accommodate the new role's workflow.
+  - Updating the `users` table schema to include the 'Chairperson' role and a link to their program.
+  - Modifying backend RBAC to restrict Chairpersons to their own program's data.
+  - Adjusting the UI to accommodate the new role's workflow.
 
 ## 9. Full Database Schema
 

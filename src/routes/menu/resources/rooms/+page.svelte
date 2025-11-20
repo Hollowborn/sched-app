@@ -19,9 +19,9 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Switch } from '$lib/components/ui/switch';
 
-    import DataTable from '$lib/components/data-table/data-table.svelte'; // Added
-    import type { ColumnDef } from '@tanstack/table-core'; // Added
-    import { renderSnippet } from '$lib/components/ui/data-table'; // Added
+	import DataTable from '$lib/components/data-table/data-table.svelte'; // Added
+	import type { ColumnDef } from '@tanstack/table-core'; // Added
+	import { renderSnippet } from '$lib/components/ui/data-table'; // Added
 
 	// Shadcn Components
 	import { Input } from '$lib/components/ui/input';
@@ -58,7 +58,7 @@
 	let editOpen = $state(false);
 	let deleteOpen = $state(false);
 
-    // Data Table State (Added)
+	// Data Table State (Added)
 	let rowSelection = $state<import('@tanstack/table-core').RowSelectionState>({});
 	let selectedRowsData = $state<Room[]>([]);
 
@@ -114,11 +114,11 @@
 		data.colleges?.find((c) => c.id.toString() === formCollegeId)?.college_name
 	);
 
-    // --- DataTable Columns --- (Added)
-    const columns: ColumnDef<Room>[] = [
+	// --- DataTable Columns --- (Added)
+	const columns: ColumnDef<Room>[] = [
 		{
 			accessorKey: 'room_name',
-			header: 'Room Name',
+			header: 'Room Name'
 		},
 		{
 			accessorKey: 'building',
@@ -127,7 +127,7 @@
 		{
 			accessorKey: 'type',
 			header: 'Type',
-            cell: ({ row }) => renderSnippet(typeCell, { room: row.original })
+			cell: ({ row }) => renderSnippet(typeCell, { room: row.original })
 		},
 		{
 			accessorKey: 'capacity',
@@ -136,7 +136,7 @@
 		{
 			accessorKey: 'owner_college_id', // Accessor for ID, but cell renders name
 			header: 'Owner',
-            cell: ({ row }) => renderSnippet(ownerCell, { room: row.original })
+			cell: ({ row }) => renderSnippet(ownerCell, { room: row.original })
 		},
 		{
 			id: 'actions',
@@ -159,7 +159,8 @@
 
 {#snippet actionsCell({ room }: { room: Room })}
 	<div class="flex justify-end">
-		<Button variant="ghost" size="sm"><Eye /></Button> <!-- View Schedule -->
+		<Button variant="ghost" size="sm"><Eye /></Button>
+		<!-- View Schedule -->
 		<Button variant="ghost" size="sm" onclick={() => openEditModal(room)}><Pencil /></Button>
 		<Button
 			variant="ghost"

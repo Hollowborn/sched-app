@@ -71,12 +71,12 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 			{
 				title: 'Generate Schedules',
 				url: '/menu/timetables/generate',
-				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'] 
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'View Schedules',
 				url: '/menu/timetables/view',
-				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'] 
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
 	},

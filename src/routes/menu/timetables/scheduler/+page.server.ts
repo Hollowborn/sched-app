@@ -144,7 +144,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 				class: classes // Rename 'classes' to 'class'
 			};
 		});
-		
+
 		// Apply filters to schedule data (client-side filtering)
 		let filteredScheduleData = transformedScheduleData;
 		if (room_id_filter) {

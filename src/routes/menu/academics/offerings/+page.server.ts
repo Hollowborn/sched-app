@@ -61,7 +61,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		{ data: rooms }
 	] = await Promise.all([
 		locals.supabase.from('subjects').select('*, colleges(id, college_name)').order('subject_code'),
-		locals.supabase.from('instructors').select('id, name, instructor_subjects(subject_id)').order('name'),
+		locals.supabase
+			.from('instructors')
+			.select('id, name, instructor_subjects(subject_id)')
+			.order('name'),
 		locals.supabase
 			.from('blocks')
 			.select('id, block_name, year_level, programs!inner(college_id)')

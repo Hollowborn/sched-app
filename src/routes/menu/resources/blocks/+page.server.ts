@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const [blocksRes, programsRes] = await Promise.all([
 		locals.supabase.from('blocks').select(`*, programs ( program_name )`).order('block_name'),
-		locals.supabase.from('programs').select(`id, program_name`).order('program_name'),
+		locals.supabase.from('programs').select(`id, program_name`).order('program_name')
 	]);
 
 	if (blocksRes.error || programsRes.error) {
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		blocks: blocksRes.data,
 		programs: programsRes.data,
-		profile: locals.profile,
+		profile: locals.profile
 	};
 };
 

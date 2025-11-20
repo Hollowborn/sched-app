@@ -30,8 +30,7 @@ export const animateInView: Action<HTMLElement, AnimateInViewOptions | undefined
 	const viewportAction = viewport(node, { once: true, threshold: 0.2 });
 
 	node.addEventListener('enterViewport', () => {
-		const targetElements =
-			elements.length > 0 ? Array.from(elements) : [node];
+		const targetElements = elements.length > 0 ? Array.from(elements) : [node];
 
 		targetElements.forEach((el, i) => {
 			el.style.setProperty('--stagger-delay', `${i * stagger}ms`);

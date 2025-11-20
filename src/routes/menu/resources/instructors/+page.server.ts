@@ -67,7 +67,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.from('subjects')
 		.select('*, colleges(id, college_name)');
 
-
 	return {
 		instructors: instructorsWithLoad,
 		colleges: colleges || [],
@@ -122,7 +121,9 @@ export const actions: Actions = {
 			instructor_id: newInstructor.id,
 			college_id
 		}));
-		const { error: linkError } = await locals.supabase.from('instructor_colleges').insert(collegeLinks);
+		const { error: linkError } = await locals.supabase
+			.from('instructor_colleges')
+			.insert(collegeLinks);
 
 		if (linkError) {
 			console.error('Create instructor link error:', linkError);
@@ -162,7 +163,9 @@ export const actions: Actions = {
 				.eq('college_id', profile.college_id);
 
 			if (count === 0) {
-				return fail(403, { message: "Forbidden: You can't edit an instructor outside your college." });
+				return fail(403, {
+					message: "Forbidden: You can't edit an instructor outside your college."
+				});
 			}
 		}
 
@@ -188,7 +191,9 @@ export const actions: Actions = {
 
 			// Create new links
 			const collegeLinks = college_ids.map((college_id) => ({ instructor_id: id, college_id }));
-			const { error: linkError } = await locals.supabase.from('instructor_colleges').insert(collegeLinks);
+			const { error: linkError } = await locals.supabase
+				.from('instructor_colleges')
+				.insert(collegeLinks);
 
 			if (linkError) {
 				console.error('Update instructor link error:', linkError);
@@ -202,7 +207,9 @@ export const actions: Actions = {
 	updateQualifications: async ({ request, locals }) => {
 		const profile = locals.profile;
 		if (!profile || !ALLOWED_ROLES_EDIT.includes(profile.role)) {
-			return fail(403, { message: 'Forbidden: You do not have permission to update qualifications.' });
+			return fail(403, {
+				message: 'Forbidden: You do not have permission to update qualifications.'
+			});
 		}
 
 		const formData = await request.formData();
@@ -223,7 +230,9 @@ export const actions: Actions = {
 				.eq('college_id', profile.college_id);
 
 			if (count === 0) {
-				return fail(403, { message: "Forbidden: You can't edit an instructor outside your college." });
+				return fail(403, {
+					message: "Forbidden: You can't edit an instructor outside your college."
+				});
 			}
 		}
 
@@ -231,8 +240,10 @@ export const actions: Actions = {
 		await locals.supabase.from('instructor_subjects').delete().eq('instructor_id', instructor_id);
 
 		if (subject_ids.length > 0) {
-			const newLinks = subject_ids.map(subject_id => ({ instructor_id, subject_id }));
-			const { error: insertError } = await locals.supabase.from('instructor_subjects').insert(newLinks);
+			const newLinks = subject_ids.map((subject_id) => ({ instructor_id, subject_id }));
+			const { error: insertError } = await locals.supabase
+				.from('instructor_subjects')
+				.insert(newLinks);
 			if (insertError) {
 				console.error('Update qualifications error:', insertError);
 				return fail(500, { message: 'Failed to save qualifications.' });

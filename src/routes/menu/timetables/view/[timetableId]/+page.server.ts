@@ -78,18 +78,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 
 	// 3. Fetch unique entities for filtering and navigation
-	const [
-		{ data: uniqueRoomsData },
-		{ data: uniqueInstructorsData },
-		{ data: uniqueBlocksData }
-	] = await Promise.all([
-		locals.supabase.from('rooms').select('id, room_name, building, type').order('room_name'),
-		locals.supabase.from('instructors').select('id, name, max_load, colleges(college_name)').order('name'),
-		locals.supabase
-			.from('blocks')
-			.select('id, block_name, year_level, programs(program_name)')
-			.order('block_name')
-	]);
+	const [{ data: uniqueRoomsData }, { data: uniqueInstructorsData }, { data: uniqueBlocksData }] =
+		await Promise.all([
+			locals.supabase.from('rooms').select('id, room_name, building, type').order('room_name'),
+			locals.supabase
+				.from('instructors')
+				.select('id, name, max_load, colleges(college_name)')
+				.order('name'),
+			locals.supabase
+				.from('blocks')
+				.select('id, block_name, year_level, programs(program_name)')
+				.order('block_name')
+		]);
 
 	return {
 		timetable,

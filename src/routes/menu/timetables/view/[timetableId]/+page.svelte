@@ -114,7 +114,8 @@
 			}
 			// Count for instructors
 			if (s.classes.instructor_id) {
-				counts[s.classes.instructor_id.toString()] = (counts[s.classes.instructor_id.toString()] || 0) + 1;
+				counts[s.classes.instructor_id.toString()] =
+					(counts[s.classes.instructor_id.toString()] || 0) + 1;
 			}
 			// Count for blocks
 			if (s.classes.block_id) {
@@ -165,65 +166,77 @@
 					</p>
 				</div>
 			</div>
-						<div class="flex items-center gap-2">
-							<Select.Root type="single" bind:value={viewBy}>
-								<Select.Trigger class="w-[180px]">
-									<span> {'View by ' + viewBy.charAt(0).toUpperCase() + viewBy.slice(1)}</span>
-								</Select.Trigger>
-								<Select.Content>
-									<Select.Item value="room"><DoorOpen class="mr-2 h-4 w-4" />View by Room</Select.Item>
-									<Select.Item value="instructor"
-										><UserIcon class="mr-2 h-4 w-4" />View by Instructor</Select.Item
+			<div class="flex items-center gap-2">
+				<Select.Root type="single" bind:value={viewBy}>
+					<Select.Trigger class="w-[180px]">
+						<span> {'View by ' + viewBy.charAt(0).toUpperCase() + viewBy.slice(1)}</span>
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="room"><DoorOpen class="mr-2 h-4 w-4" />View by Room</Select.Item>
+						<Select.Item value="instructor"
+							><UserIcon class="mr-2 h-4 w-4" />View by Instructor</Select.Item
+						>
+						<Select.Item value="block"><Users class="mr-2 h-4 w-4" />View by Block</Select.Item>
+					</Select.Content>
+				</Select.Root>
+
+				<!-- Dynamic "Jump To" Filter -->
+				<Select.Root
+					type="single"
+					value={currentItem?.id.toString()}
+					onValueChange={(v) => {
+						if (!v) return;
+						const newIndex = listSource.findIndex((item) => item.id.toString() === v);
+						if (newIndex !== -1) {
+							currentItemIndex = newIndex;
+						}
+					}}
+				>
+					<Select.Trigger class="w-[250px]">
+						<span class="truncate">{gridHeader.title || 'Select an item'}</span>
+					</Select.Trigger>
+					<Select.Content>
+						{#if listSource.length === 0}
+							<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
+						{:else if viewBy === 'room'}
+							{#each listSource as room}
+								<Select.Item value={room.id.toString()} class="flex items-center justify-between">
+									<span>{room.room_name}</span>
+									<Badge variant="secondary"
+										>{itemClassCounts[room.id.toString()] || 0} Classes</Badge
 									>
-									<Select.Item value="block"><Users class="mr-2 h-4 w-4" />View by Block</Select.Item>
-								</Select.Content>
-							</Select.Root>
-			
-											<!-- Dynamic "Jump To" Filter -->
-											<Select.Root
-												type="single"
-												value={currentItem?.id.toString()}
-												onValueChange={(v) => {
-													if (!v) return;
-													const newIndex = listSource.findIndex((item) => item.id.toString() === v);
-													if (newIndex !== -1) {
-														currentItemIndex = newIndex;
-													}
-												}}
-											>
-												<Select.Trigger class="w-[250px]">
-													<span class="truncate">{gridHeader.title || 'Select an item'}</span>
-												</Select.Trigger>
-												<Select.Content>
-													{#if listSource.length === 0}
-														<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
-													{:else if viewBy === 'room'}
-														{#each listSource as room}
-															<Select.Item value={room.id.toString()} class="flex items-center justify-between">
-																<span>{room.room_name}</span>
-																<Badge variant="secondary">{itemClassCounts[room.id.toString()] || 0} Classes</Badge>
-															</Select.Item>
-														{/each}
-													{:else if viewBy === 'instructor'}
-														{#each listSource as instructor}
-															<Select.Item value={instructor.id.toString()} class="flex items-center justify-between">
-																<span>{instructor.name}</span>
-																<Badge variant="secondary">{itemClassCounts[instructor.id.toString()] || 0} Classes</Badge>
-															</Select.Item>
-														{/each}
-													{:else if viewBy === 'block'}
-														{#each listSource as block}
-															<Select.Item value={block.id.toString()} class="flex items-center justify-between">
-																<span>{block.block_name}</span>
-																<Badge variant="secondary">{itemClassCounts[block.id.toString()] || 0} Classes</Badge>
-															</Select.Item>
-														{/each}
-													{/if}
-												</Select.Content>
-											</Select.Root>
-							
-											<Button variant="outline" class="ml-auto"><Printer class="mr-2 h-4 w-4" />Print / PDF</Button>
-											<Button variant="outline"><FileDown class="mr-2 h-4 w-4" />Export</Button>						</div>
+								</Select.Item>
+							{/each}
+						{:else if viewBy === 'instructor'}
+							{#each listSource as instructor}
+								<Select.Item
+									value={instructor.id.toString()}
+									class="flex items-center justify-between"
+								>
+									<span>{instructor.name}</span>
+									<Badge variant="secondary"
+										>{itemClassCounts[instructor.id.toString()] || 0} Classes</Badge
+									>
+								</Select.Item>
+							{/each}
+						{:else if viewBy === 'block'}
+							{#each listSource as block}
+								<Select.Item value={block.id.toString()} class="flex items-center justify-between">
+									<span>{block.block_name}</span>
+									<Badge variant="secondary"
+										>{itemClassCounts[block.id.toString()] || 0} Classes</Badge
+									>
+								</Select.Item>
+							{/each}
+						{/if}
+					</Select.Content>
+				</Select.Root>
+
+				<Button variant="outline" class="ml-auto"
+					><Printer class="mr-2 h-4 w-4" />Print / PDF</Button
+				>
+				<Button variant="outline"><FileDown class="mr-2 h-4 w-4" />Export</Button>
+			</div>
 		</header>
 	</div>
 

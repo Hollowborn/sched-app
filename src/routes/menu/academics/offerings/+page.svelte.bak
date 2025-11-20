@@ -1,26 +1,38 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { PlusCircle, Trash2, LoaderCircle, Calendar, BookOpen, Filter } from '@lucide/svelte';
-	import type { ColumnDef, RowSelectionState } from '@tanstack/table-core';
-	import { renderSnippet } from '$lib/components/ui/data-table';
-	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import {
+		AlertCircle,
+		PlusCircle,
+		Trash2,
+		LoaderCircle,
+		Search,
+		Calendar,
+		BookOpen,
+		Filter
+	} from '@lucide/svelte';
 
 	// Shadcn Components
+	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Switch } from '$lib/components/ui/switch'; // New Import
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
 	type Instructor = PageData['instructors'][number];
 	type Room = PageData['rooms'][number];
+	// Updated ClassOffering type to include new fields
 	type ClassOffering = PageData['classes'][number] & {
 		split_lecture?: boolean;
 		lecture_days?: string[];
@@ -33,38 +45,48 @@
 	let deleteOpen = $state(false);
 	let selectedClass = $state<ClassOffering | null>(null);
 	let isSubmitting = $state(false);
-	let rowSelection = $state<RowSelectionState>({});
-	let selectedClasses = $state<ClassOffering[]>([]);
+	let selectedRows = $state<number[]>([]);
 
 	// Filters
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
 	let collegeFilterId = $state(data.filters.college);
+	let searchQuery = $state('');
 
 	// --- Form State ---
 	let createSubjectId = $state('');
 	let createBlockId = $state('');
 	let createInstructorId = $state('');
 	let createPrefRoomId = $state('');
-	let createOfferingCollegeId = $state('');
-	let createSplitLecture = $state(false);
-	let createLectureDays = $state<string[]>([]);
+	let createOfferingCollegeId = $state(''); // For subjects in multiple colleges
+	let createSplitLecture = $state(false); // New State
+	let createLectureDays = $state<string[]>([]); // New State
 
 	// --- Derived State ---
-	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
-
+	const selectedRowCount = $derived(selectedRows.length);
+	const hasSelection = $derived(selectedRowCount > 0);
+	const atLectureDaysLimit = $derived(createLectureDays.length >= 2);
 	const createSubject = $derived(data.subjects?.find((s) => s.id.toString() === createSubjectId));
 	const createBlockName = $derived(
 		data.blocks?.find((b) => b.id.toString() === createBlockId)?.block_name
 	);
-	const atLectureDaysLimit = $derived(createLectureDays.length >= 2);
 
 	const filteredClasses: ClassOffering[] = $derived.by(() => {
-		if (!collegeFilterId) return data.classes || [];
-		return (
-			data.classes?.filter((c) => c.blocks?.programs?.college_id.toString() === collegeFilterId) ||
-			[]
-		);
+		const classes = data.classes || [];
+		if (!searchQuery) return classes;
+		const lowerQuery = searchQuery.toLowerCase();
+		return classes.filter((c) => {
+			const subjectCode = c.subjects?.subject_code.toLowerCase() || '';
+			const subjectName = c.subjects?.subject_name.toLowerCase() || '';
+			const instructorName = c.instructors?.name.toLowerCase() || '';
+			const blockName = c.blocks?.block_name.toLowerCase() || '';
+			return (
+				subjectCode.includes(lowerQuery) ||
+				subjectName.includes(lowerQuery) ||
+				instructorName.includes(lowerQuery) ||
+				blockName.includes(lowerQuery)
+			);
+		});
 	});
 
 	// --- Create Modal Derived Logic ---
@@ -94,6 +116,7 @@
 	});
 
 	$effect(() => {
+		// If the selected instructor is not in the new list of qualified instructors, reset the selection.
 		if (
 			createInstructorId &&
 			!qualifiedInstructors.find((i) => i.id.toString() === createInstructorId)
@@ -126,9 +149,28 @@
 	}
 
 	function openDeleteModal(classItem: ClassOffering) {
-		selectedClass = classItem; // For single delete
+		selectedClass = classItem;
 		deleteOpen = true;
 	}
+
+	function toggleSelectAll(checked: boolean) {
+		selectedRows = checked ? filteredClasses.map((c) => c.id) : [];
+	}
+
+	function toggleSelectRow(id: number, checked: boolean) {
+		if (checked) {
+			selectedRows = [...selectedRows, id];
+		} else {
+			selectedRows = selectedRows.filter((rowId) => rowId !== id);
+		}
+	}
+
+	let isAllSelected = $derived(
+		filteredClasses?.length > 0 && selectedRowCount === filteredClasses?.length
+	);
+	let isIndeterminate = $derived(
+		selectedRowCount > 0 && selectedRowCount < (filteredClasses?.length || 0)
+	);
 
 	function resetCreateForm() {
 		createSubjectId = '';
@@ -136,8 +178,8 @@
 		createInstructorId = '';
 		createPrefRoomId = '';
 		createOfferingCollegeId = '';
-		createSplitLecture = false;
-		createLectureDays = [];
+		createSplitLecture = false; // Reset new state
+		createLectureDays = []; // Reset new state
 	}
 
 	$effect(() => {
@@ -148,73 +190,7 @@
 		}
 		createBlockId = '';
 	});
-
-	const columns: ColumnDef<ClassOffering>[] = [
-		{
-			accessorKey: 'subjects',
-			header: 'Code',
-			cell: ({ row }) => renderSnippet(codeBadge, { rowData: row.original })
-		},
-		{
-			accessorFn: (d) => d.subjects?.subject_name,
-			header: 'Subject Name'
-		},
-		{
-			accessorFn: (d) => d.blocks?.block_name,
-			header: 'Block'
-		},
-		{
-			accessorKey: 'instructors',
-			header: 'Instructor',
-			cell: ({ row }) => renderSnippet(instructorCell, { rowData: row.original })
-		},
-		{
-			accessorFn: (d) =>
-				data.colleges?.find((c) => c.id === d.blocks?.programs?.college_id)?.college_name,
-			header: 'College',
-			cell: ({ row }) => renderSnippet(collegeBadge, { rowData: row.original })
-		},
-		{
-			id: 'actions',
-			header: 'Actions',
-			cell: ({ row }) => renderSnippet(actionsCell, { rowData: row.original }),
-			meta: {
-				class: 'text-right'
-			}
-		}
-	];
 </script>
-
-{#snippet codeBadge({ rowData }: { rowData: ClassOffering })}
-	<Badge variant="outline">{rowData.subjects?.subject_code || 'N/A'}</Badge>
-{/snippet}
-
-{#snippet instructorCell({ rowData }: { rowData: ClassOffering })}
-	{#if rowData.instructors?.name}
-		{rowData.instructors.name}
-	{:else}
-		<span class="text-muted-foreground italic">Unassigned</span>
-	{/if}
-{/snippet}
-
-{#snippet collegeBadge({ rowData }: { rowData: ClassOffering })}
-	<Badge variant="secondary">
-		{data.colleges?.find((c) => c.id === rowData.blocks?.programs?.college_id)?.college_name ||
-			'N/A'}
-	</Badge>
-{/snippet}
-
-{#snippet actionsCell({ rowData }: { rowData: ClassOffering })}
-	<Button
-		onclick={() => openDeleteModal(rowData)}
-		variant="ghost"
-		size="icon"
-		class="text-destructive hover:text-destructive"
-		disabled={isSubmitting}
-	>
-		<Trash2 class="h-4 w-4" />
-	</Button>
-{/snippet}
 
 <svelte:head>
 	<title>Class Offerings | smart-sched</title>
@@ -228,106 +204,192 @@
 		</p>
 	</header>
 
-	<DataTable
-		data={filteredClasses}
-		{columns}
-		showCheckbox={true}
-		bind:rowSelection
-		bind:selectedRowsData={selectedClasses}
-	>
-		<div slot="filters" class="flex flex-wrap items-center gap-4">
-			<div class="flex items-center gap-2">
-				<Calendar class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={academicYear}
-					onValueChange={(v) => {
-						if (v) {
-							academicYear = v;
+	<Card.Root>
+		<Card.Content class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+			<div class="flex flex-col sm:flex-row flex-wrap flex-1 items-center gap-4 w-full md:w-auto">
+				<div class="flex w-full sm:w-auto items-center gap-2">
+					<Calendar class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={academicYear}
+						onValueChange={(v) => {
+							if (v) {
+								academicYear = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-full sm:w-[150px] shadow-sm">
+							<span>{academicYear || 'Academic Year'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each generateAcademicYears() as year}
+								<Select.Item value={year}>{year}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="flex w-full sm:w-auto items-center gap-2">
+					<BookOpen class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={semester}
+						onValueChange={(v) => {
+							if (v) {
+								semester = v;
+								handleFilterChange();
+							}
+						}}
+					>
+						<Select.Trigger class="w-full sm:w-[150px] shadow-sm">
+							<span>{semester || 'Semester'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="1st Semester">1st Semester</Select.Item>
+							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+							<Select.Item value="Summer">Summer</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="flex w-full sm:w-auto items-center gap-2">
+					<Filter class="h-4 w-4 text-muted-foreground" />
+					<Select.Root
+						type="single"
+						value={collegeFilterId}
+						onValueChange={(v) => {
+							collegeFilterId = v;
 							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[150px]">
-						<span>{academicYear || 'Academic Year'}</span>
-					</Select.Trigger>
-					<Select.Content>
-						{#each generateAcademicYears() as year}
-							<Select.Item value={year}>{year}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+						}}
+					>
+						<Select.Trigger class="w-full sm:w-[200px] shadow-sm">
+							<span class="truncate max-w-[200px]"
+								>{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
+									'All Colleges'}</span
+							>
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="">All Colleges</Select.Item>
+							{#each data.colleges || [] as college}
+								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+				<div class="relative w-full sm:max-w-sm">
+					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+					<Input
+						placeholder="Search code, subject, instructor..."
+						class="pl-8 shadow"
+						bind:value={searchQuery}
+					/>
+				</div>
 			</div>
-			<div class="flex items-center gap-2">
-				<BookOpen class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={semester}
-					onValueChange={(v) => {
-						if (v) {
-							semester = v;
-							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[150px]">
-						<span>{semester || 'Semester'}</span>
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="1st Semester">1st Semester</Select.Item>
-						<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-						<Select.Item value="Summer">Summer</Select.Item>
-					</Select.Content>
-				</Select.Root>
-			</div>
-			<div class="flex items-center gap-2">
-				<Filter class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={collegeFilterId}
-					onValueChange={(v) => {
-						collegeFilterId = v;
-						handleFilterChange();
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[200px]">
-						<span class="truncate max-w-[200px]"
-							>{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
-								'All Colleges'}</span
+
+			<div class="flex flex-col md:flex-row gap-2">
+				<ButtonGroup.Root>
+					{#if hasSelection}
+						<Button
+							class="w-full md:w-auto"
+							variant="destructive"
+							disabled={isSubmitting}
+							onclick={() => {
+								selectedClass = null;
+								deleteOpen = true;
+							}}
 						>
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="">All Colleges</Select.Item>
-						{#each data.colleges || [] as college}
-							<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete ({selectedRowCount})
+						</Button>
+					{:else}
+						<Button variant="outline" disabled={true} class="w-full md:w-auto">
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete (0)
+						</Button>
+					{/if}
+
+					<Button onclick={() => (createOpen = true)} class="w-full md:w-auto">
+						<PlusCircle class="mr-2 h-4 w-4" />
+						Create Offering
+					</Button>
+				</ButtonGroup.Root>
 			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<div class="border rounded-md">
+		<Table.Root>
+			<Table.Header class="bg-muted/50">
+				<Table.Row>
+					<Table.Head class="w-[50px]">
+						<Checkbox
+							checked={isAllSelected}
+							indeterminate={isIndeterminate}
+							onCheckedChange={toggleSelectAll}
+						/>
+					</Table.Head>
+					<Table.Head>Code</Table.Head>
+					<Table.Head>Subject Name</Table.Head>
+					<Table.Head>Block</Table.Head>
+					<Table.Head>Instructor</Table.Head>
+					<Table.Head>College</Table.Head>
+					<Table.Head class="text-right pr-6">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#if filteredClasses.length > 0}
+					{#each filteredClasses as classItem (classItem.id)}
+						<Table.Row selected={selectedRows.includes(classItem.id)}>
+							<Table.Cell>
+								<Checkbox
+									checked={selectedRows.includes(classItem.id)}
+									onCheckedChange={(checked) => toggleSelectRow(classItem.id, checked)}
+								/>
+							</Table.Cell>
+							<Table.Cell class="font-medium"
+								>{classItem.subjects?.subject_code || 'N/A'}</Table.Cell
+							>
+							<Table.Cell>{classItem.subjects?.subject_name || 'N/A'}</Table.Cell>
+							<Table.Cell>{classItem.blocks?.block_name || 'N/A'}</Table.Cell>
+							<Table.Cell>
+								{#if classItem.instructors?.name}
+									{classItem.instructors.name}
+								{:else}
+									<span class="text-muted-foreground italic">Unassigned</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								<Badge variant="secondary">
+									{data.colleges?.find((c) => c.id === classItem.blocks?.programs?.college_id)
+										?.college_name || 'N/A'}
+								</Badge>
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<Button
+									onclick={() => openDeleteModal(classItem)}
+									variant="ghost"
+									size="icon"
+									class="text-destructive hover:text-destructive"
+									disabled={isSubmitting}
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={7} class="h-24 text-center">
+							No class offerings found for this period/college.
+						</Table.Cell>
+					</Table.Row>
+				{/if}
+			</Table.Body>
+		</Table.Root>
+	</div>
+	<div class="flex justify-between items-center text-sm text-muted-foreground">
+		<div>
+			{selectedRowCount} of {filteredClasses.length} row{selectedRowCount === 1 ? '' : 's'} selected
 		</div>
-
-		<div slot="toolbar" class="flex items-center gap-2">
-			<Button
-				variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
-				class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
-				disabled={isSubmitting || selectedRowsCount === 0}
-				onclick={() => {
-					selectedClass = null; // Ensure bulk delete mode
-					deleteOpen = true;
-				}}
-			>
-				<Trash2 class="mr-2 h-4 w-4" />
-				Delete ({selectedRowsCount})
-			</Button>
-
-			<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
-				<PlusCircle class="mr-2 h-4 w-4" />
-				Create Offering
-			</Button>
-		</div>
-	</DataTable>
-
-	<div class="flex justify-end items-center text-sm text-muted-foreground">
 		<div>
 			Showing results for <span class="font-bold">{semester}</span> of Academic Year:
 			<span class="font-bold">{academicYear}</span>
@@ -484,7 +546,6 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
-
 				<div class="flex items-center space-x-2 rounded-md border p-4">
 					<Switch id="split-lecture-switch" bind:checked={createSplitLecture} />
 					<input type="hidden" name="split_lecture" value={createSplitLecture} />
@@ -543,8 +604,8 @@
 						>{selectedClass.subjects?.subject_code}</strong
 					>
 					for block <strong>{selectedClass.blocks?.block_name}</strong>.
-				{:else if selectedRowsCount > 0}
-					This will permanently delete <strong>{selectedRowsCount}</strong> selected class offerings.
+				{:else if selectedRows.length > 0}
+					This will permanently delete <strong>{selectedRows.length}</strong> selected class offerings.
 				{/if}
 				This action cannot be undone.
 			</Dialog.Description>
@@ -571,7 +632,7 @@
 			{#if selectedClass}
 				<input type="hidden" name="id" value={selectedClass.id} />
 			{:else}
-				<input type="hidden" name="ids" value={selectedClasses.map((c) => c.id).join(',')} />
+				<input type="hidden" name="ids" value={selectedRows.join(',')} />
 			{/if}
 			<Dialog.Footer>
 				<Button
@@ -579,13 +640,13 @@
 					variant="outline"
 					onclick={() => {
 						deleteOpen = false;
-						if (!selectedClass) rowSelection = {};
+						if (!selectedClass) selectedRows = [];
 					}}
 					disabled={isSubmitting}>Cancel</Button
 				>
 				<Button type="submit" variant="destructive" disabled={isSubmitting}>
 					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
-					Yes, Delete {selectedClass ? 'Offering' : `${selectedRowsCount} Offerings`}
+					Yes, Delete {selectedClass ? 'Offering' : `${selectedRows.length} Offerings`}
 				</Button>
 			</Dialog.Footer>
 		</form>
