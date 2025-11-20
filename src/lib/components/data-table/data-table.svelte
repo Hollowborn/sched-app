@@ -118,7 +118,7 @@
 				return columnVisibility;
 			},
 			get rowSelection() {
-				return rowSelection;
+				return rowSelection ?? {}; // Provide a default empty object
 			},
 			get columnFilters() {
 				return columnFilters;
@@ -127,7 +127,7 @@
 				return globalFilter;
 			}
 		},
-		enableRowSelection: true,
+		enableRowSelection: !!rowSelection, // Conditionally enable row selection
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
