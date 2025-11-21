@@ -132,8 +132,9 @@
 
 			<!-- Content -->
 			<div class="relative z-10 text-center max-w-4xl space-y-8 md:space-y-10">
-				<Badge variant="outline" class="text-primary/80 text-sm md:text-base" data-animate
-					>Hello, World</Badge
+				<Badge variant="outline" class="text-primary/80 text-sm md:text-base gap-1" data-animate
+					><div class="bg-primary size-2 rounded-full"></div>
+					fixing, still</Badge
 				>
 
 				<div class="space-y-4" data-animate>
