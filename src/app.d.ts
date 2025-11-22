@@ -1,5 +1,6 @@
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database } from './database.types.ts'; // import generated types
+import type { NavItem } from './nav';
 
 declare global {
 	namespace App {
@@ -13,11 +14,11 @@ declare global {
 		}
 		interface PageData {
 			session: Session | null;
-			user: User | null;
+			user?: User | null;
 			// The profile contains the role fetched from the DB
-			profile: { username: string; role: string; college_id: number; email: string } | null;
+			profile?: { username: string; role: string; college_id: number; email: string } | null;
 			// The filtered navigation items
-			navItems: NavItem[];
+			navItems?: NavItem[];
 		}
 		// interface PageState {}
 		// interface Platform {}
