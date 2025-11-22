@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PageData } from '$routes/menu/dashboard/$types';
+	// import type { PageData } from '../../../routes/menu/dashboard/$types';
 	import {
 		getCoreRowModel,
 		getFilteredRowModel,

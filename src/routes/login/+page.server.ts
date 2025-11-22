@@ -42,7 +42,7 @@ export const actions: Actions = {
 	}
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const {
 		data: { session }
 	} = await locals.supabase.auth.getSession();
@@ -51,5 +51,5 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/menu/dashboard');
 	}
 
-	return {};
+	return { url };
 };

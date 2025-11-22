@@ -2,10 +2,16 @@
 	import { GalleryVerticalEnd } from '@lucide/svelte';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import AppPreviewCard from '$lib/components/app-preview-card.svelte';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
+	import * as Alert from '$lib/components/ui/alert';
+	import { CheckCircle } from 'lucide-svelte';
 
-	let { form } = $props<{ form?: ActionData }>();
+	let { form, data } = $props<{ form?: ActionData; data: PageData }>();
+
+	let passwordUpdated = data.url.searchParams.get('passwordUpdated') === 'true';
 </script>
 
 <svelte:head>
@@ -31,6 +37,18 @@
 		</div>
 		<div class="flex flex-1 items-center justify-center">
 			<div class="w-full max-w-xs">
+				{#if passwordUpdated}
+					<Alert.Alert
+						variant="default"
+						class="mb-6 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-300"
+					>
+						<CheckCircle class="size-4" />
+						<Alert.AlertTitle>Password Updated</Alert.AlertTitle>
+						<Alert.AlertDescription>
+							You can now log in with your new password.
+						</Alert.AlertDescription>
+					</Alert.Alert>
+				{/if}
 				<LoginForm {form} />
 			</div>
 		</div>
