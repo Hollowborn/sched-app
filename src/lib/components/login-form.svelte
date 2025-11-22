@@ -13,7 +13,8 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { LoaderCircle } from '@lucide/svelte';
-	import type { ActionData } from '$routes/login/$types';
+	import type { ActionData } from '../../routes/login/$types';
+	import { goto } from '$app/navigation';
 
 	let {
 		ref = $bindable(null),
@@ -85,11 +86,7 @@
 		<Field>
 			<div class="flex items-center">
 				<FieldLabel for="password-{id}">Password</FieldLabel>
-				<a
-					href="##"
-					onclick={showToastError}
-					class="ml-auto text-sm underline-offset-4 hover:underline"
-				>
+				<a href="/forgot-password" class="ml-auto text-sm underline-offset-4 hover:underline">
 					Forgot your password?
 				</a>
 			</div>
@@ -99,7 +96,6 @@
 				type="password"
 				bind:value={password}
 				disabled={isSubmitting}
-				required
 				class={formErrors.password ? 'border-destructive' : ''}
 			/>
 			{#if formErrors.password}
