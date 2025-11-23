@@ -4,8 +4,9 @@
 	import UpdatePasswordForm from '$lib/components/update-password-form.svelte';
 	import { onMount } from 'svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { supabase } from '$lib/supabaseClients';
-	let { form } = $props<{ form: ActionData }>();
+
+	let { form, data } = $props<{ form: ActionData; data: PageData }>();
+	const { supabase } = data;
 	let sessionReady = $state(false);
 	let sessionError = $state<string | null>(null);
 
