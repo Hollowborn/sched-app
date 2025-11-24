@@ -48,8 +48,11 @@
 		Sparkle,
 		ChevronUp,
 		ArrowUp,
+		SunIcon,
+		MoonIcon,
 		GalleryVerticalEnd
 	} from 'lucide-svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Label from '$lib/components/ui/label/label.svelte';
 
 	let y = $state(0); // Scroll position
@@ -105,6 +108,7 @@
 						? 'text-primary'
 						: 'text-muted-foreground'}">Features</a
 				>
+
 				<a
 					href="#how-it-works"
 					class="hidden md:flex text-sm font-medium transition-colors hover:text-primary {activeSectionId ===
@@ -112,8 +116,18 @@
 						? 'text-primary'
 						: 'text-muted-foreground'}">How it Works</a
 				>
+
+				<Button onclick={toggleMode} variant="outline" size="icon">
+					<SunIcon
+						class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 !transition-all dark:-rotate-90 dark:scale-0"
+					/>
+					<MoonIcon
+						class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 !transition-all dark:rotate-0 dark:scale-100"
+					/>
+					<span class="sr-only">Toggle theme</span>
+				</Button>
 				<a href="/login" class="text-sm font-medium">
-					<Button size="sm">Login</Button>
+					<Button size="sm">Get Started</Button>
 				</a>
 			</div>
 		</div>
@@ -163,7 +177,7 @@
 							class="px-6 sm:px-8 py-3 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 relative overflow-hidden group"
 						>
 							<span class="relative z-10">
-								Login to <span class="font-semibold">smart</span>-sched
+								Start scheduling now!
 								<Rocket
 									class="ml-2 h-5 w-5 inline-block transition-transform group-hover:translate-x-1"
 								/>

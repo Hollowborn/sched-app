@@ -75,7 +75,8 @@
 				<AppPreviewCard />
 			</div>
 			<Badge variant="outline" class="mt-4 text-xs text-muted-foreground"
-				>Alpha version available!</Badge
+				><div class="bg-amber-500 size-2 rounded-full"></div>
+				Alpha version available!</Badge
 			>
 		</div>
 	</div>

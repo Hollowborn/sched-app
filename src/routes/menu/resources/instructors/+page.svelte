@@ -12,7 +12,9 @@
 		Pencil,
 		Trash2,
 		LoaderCircle,
-		BookMarked
+		BookMarked,
+		MoreHorizontal,
+		Mail
 	} from '@lucide/svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
@@ -29,6 +31,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import ScrollArea from '$lib/components/ui/scroll-area/scroll-area.svelte';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	type Instructor = {
 		id: number;
@@ -182,23 +185,36 @@
 {/snippet}
 
 {#snippet actionsCell({ instructor }: { instructor: Instructor })}
-	<div class="flex justify-end">
-		<Button variant="ghost" size="sm" onclick={() => openQualificationsModal(instructor)}>
-			<BookMarked class="h-4 w-4" />
-		</Button>
-		<Button variant="ghost" size="sm" onclick={() => openEditModal(instructor)}>
-			<Pencil class="h-4 w-4" />
-		</Button>
-		{#if data.profile?.role === 'Admin'}
-			<Button
-				variant="ghost"
-				size="icon"
-				class="text-destructive hover:text-destructive"
-				onclick={() => openDeleteModal(instructor)}
-			>
-				<Trash2 class="h-4 w-4" />
-			</Button>
-		{/if}
+	<div class="text-right">
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				<Button variant="ghost" size="icon">
+					<MoreHorizontal class="h-4 w-4" />
+				</Button>
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content>
+				<DropdownMenu.Item
+					onclick={() => openQualificationsModal(instructor)}
+					class="focus:bg-transparent focus:text-inherit"
+					><BookMarked class="h-4 w-4" /> Change Qualifications</DropdownMenu.Item
+				>
+
+				<DropdownMenu.Item
+					onclick={() => openEditModal(instructor)}
+					class="focus:bg-transparent focus:text-inherit"
+				>
+					<Pencil class="h-4 w-4" /> Edit
+				</DropdownMenu.Item>
+
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item
+					class="text-destructive focus:text-destructive"
+					onclick={() => openDeleteModal(instructor)}
+				>
+					<Trash2 class="mr-2 h-4 w-4" /> Delete
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	</div>
 {/snippet}
 
@@ -292,14 +308,21 @@
 						<Card.Root class="flex flex-col ">
 							<Card.Header>
 								<Card.Title>{instructor.name}</Card.Title>
-								<Card.Description class="flex flex-wrap gap-1 pt-1">
-									{#each instructor.colleges as college}
-										<Badge variant="secondary">{college.college_name}</Badge>
-									{/each}
+								<Card.Description class="flex items-center gap-2 text-sm text-muted-foreground">
+									{#if instructor.email}
+										{instructor.email}
+									{:else}
+										N/A
+									{/if}
 								</Card.Description>
 							</Card.Header>
 							<Card.Content class="flex-grow">
 								<div class="space-y-2">
+									<div class="flex flex-wrap gap-1 pt-1">
+										{#each instructor.colleges as college}
+											<Badge variant="secondary">{college.college_name}</Badge>
+										{/each}
+									</div>
 									<Label class="text-xs text-muted-foreground"
 										>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
 									>
@@ -590,7 +613,8 @@
 											}}
 										/>
 										<Label for="qual-subj-{subject.id}" class="font-normal"
-											>{subject.subject_code} - {subject.subject_name}</Label
+											>{subject.subject_name}
+											<Badge variant="secondary">{subject.subject_code}</Badge></Label
 										>
 									</div>
 								{/each}
