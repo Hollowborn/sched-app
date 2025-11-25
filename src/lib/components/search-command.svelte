@@ -142,12 +142,13 @@
 		// This prevents a race condition where the component unmounts and cancels the navigation.
 		// invalidateAll ensures the destination page's load function always re-runs.
 		await goto(href, { invalidateAll: true });
+
 		$isSearchOpen = false;
 	}
 </script>
 
 <Dialog.Root bind:open={$isSearchOpen}>
-	<Dialog.Content showCloseButton={false} class="overflow-hidden p-0 shadow-lg sm:max-w-2xl">
+	<Dialog.Content showCloseButton={false} class="overflow-hidden p-0 shadow-lg sm:max-w-2xl ">
 		<Command.Root
 			class="max-h-[min(calc(100vh-8rem),500px)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md transition-all [--cmdk-shadow:0_2px_10px_rgb(0_0_0_/_0.06)]"
 		>
@@ -171,7 +172,7 @@
 							{#each searchResults.instructors as instructor}
 								<Command.Item
 									value={instructor.name}
-									on:select={() => handleSelect(`/menu/resources/instructors?id=${instructor.id}`)}
+									onclick={() => handleSelect(`/menu/resources/instructors?id=${instructor.id}`)}
 									class="text-base py-3 mb-1 rounded-md"
 								>
 									{instructor.name}
@@ -185,7 +186,7 @@
 							{#each searchResults.subjects as subject}
 								<Command.Item
 									value={`${subject.code}: ${subject.name}`}
-									on:select={() => handleSelect(`/menu/resources/subjects?id=${subject.id}`)}
+									onclick={() => handleSelect(`/menu/resources/subjects?id=${subject.id}`)}
 									class="text-base py-3 mb-1 rounded-md"
 								>
 									{subject.code}: {subject.name}
@@ -199,7 +200,7 @@
 						{#each filteredStaticActions as action}
 							<Command.Item
 								value={action.label}
-								on:select={() => handleSelect(action.href)}
+								onclick={() => handleSelect(action.href)}
 								class="text-base py-3 mb-1 rounded-md flex items-center justify-between"
 							>
 								{action.label}
