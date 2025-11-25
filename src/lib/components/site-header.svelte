@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import { page, navigating } from '$app/stores'; // Import SvelteKit's page store
 	import { goto } from '$app/navigation'; // Import goto for navigation
 
@@ -8,10 +9,10 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js'; // Import Breadcrumb components
 	import { Input } from '$lib/components/ui/input'; // Import Input component
-	import { Search } from '@lucide/svelte'; // Import Search icon
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 	import Spinner from './ui/spinner/spinner.svelte';
+	import { isSearchOpen } from '$lib/stores/searchStore';
 
 	// Icons
 	import SearchIcon from '@lucide/svelte/icons/search';
@@ -53,6 +54,25 @@
 		}
 	}
 
+	function toggleSearch() {
+		isSearchOpen.update((val) => !val);
+	}
+
+	onMount(() => {
+		function handleKeyDown(event: KeyboardEvent) {
+			if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+				event.preventDefault();
+				toggleSearch();
+			}
+		}
+
+		window.addEventListener('keydown', handleKeyDown);
+
+		onDestroy(() => {
+			window.removeEventListener('keydown', handleKeyDown);
+		});
+	});
+
 	// Reactive derivation for breadcrumb items
 
 	// Helper function to capitalize the first letter of each word
@@ -75,18 +95,23 @@
 			<Spinner />
 		{:else}
 			<h1 class="font-bold">{headerTitle}</h1>
-			<div class="ml-auto w-100 max-w-sm lg:max-w-md md:mr-100"></div>
+			<div class="ml-auto w-100 max-w-sm lg:max-w-md md:mr-100">
+				<InputGroup.Root class="rounded-full overflow-hidden">
+					<InputGroup.Button
+						class="w-full justify-between pr-3 text-sm text-muted-foreground"
+						onclick={toggleSearch}
+					>
+						<div class="flex items-center">
+							<SearchIcon class="mr-2 h-4 w-4 shrink-0 opacity-50" />
+							<span>Search...</span>
+						</div>
+						<InputGroup.Addon align="inline-end">
+							<Kbd.Root>⌘</Kbd.Root>
+							<Kbd.Root>K</Kbd.Root>
+						</InputGroup.Addon>
+					</InputGroup.Button>
+				</InputGroup.Root>
+			</div>
 		{/if}
-
-		<!-- <InputGroup.Root>
-				<InputGroup.Input placeholder="Search..." />
-				<InputGroup.Addon>
-					<SearchIcon />
-				</InputGroup.Addon>
-				<InputGroup.Addon align="inline-end">
-					<Kbd.Root>⌘</Kbd.Root>
-					<Kbd.Root>K</Kbd.Root>
-				</InputGroup.Addon>
-			</InputGroup.Root> -->
 	</div>
 </header>

@@ -9,6 +9,7 @@
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import * as Table from '$lib/components/ui/table';
 	import * as Card from '$lib/components/ui/card';
+	import SearchCommand from '$lib/components/search-command.svelte';
 
 	// --- Settings Modal Imports ---
 	import { settingsModalOpen } from '$lib/stores/modalStore.js';
@@ -259,4 +260,6 @@
 			</Tabs.Root>
 		</Dialog.Content>
 	</Dialog.Root>
+
+	<SearchCommand />
 </Sidebar.Provider>
