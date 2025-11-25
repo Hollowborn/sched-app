@@ -68,3 +68,23 @@ To help users become familiar with the application's features, we can implement 
     -   **How it works:** A series of popovers guide the user step-by-step through a key workflow.
     -   **Best for:** A user's very first visit to a complex page like the Scheduler.
     -   **Component to use:** Can be built with a series of **`<Popover>`** components, often managed by a state machine or a small routing library.
+
+### 6. LLM-Powered Enhancements (e.g., Google Gemini)
+
+Integrating a Large Language Model can provide a new layer of intelligence and user-friendliness across the application.
+
+-   **LLM-Enhanced Auto-Scheduler**
+    -   **What it is:** Allow the scheduling algorithm to interpret and act on soft constraints written in natural language.
+    -   **Smart aspect:** A user could input requests like *"Prioritize morning classes for first-year students"* or *"Try to give Prof. Elara Vance Fridays off."* The LLM translates these into weighted rules for the generation algorithm.
+
+-   **Intelligent Conflict Resolution**
+    -   **What it is:** When a scheduling conflict occurs, the LLM can propose ranked, contextual solutions instead of just showing an error.
+    -   **Smart aspect:** For an instructor double-booking, it might suggest: *"1. Move class to the 2 PM slot in Room 402 (available). 2. Reassign to Dr. Ben Carter (qualified and available)."*
+
+-   **Natural Language Control & Querying**
+    -   **What it is:** A conversational interface (e.g., a chat box) allowing users to manage the schedule with text commands.
+    -   **Smart aspect:** Users can perform complex actions easily: *"Show all qualified instructors for 'Advanced Quantum Physics'"* or *"Find a lab room that's free on Tuesday mornings."*
+
+-   **AI-Powered Data Analysis & Reporting**
+    -   **What it is:** The LLM can analyze a completed timetable and generate a high-level summary of its quality.
+    -   **Smart aspect:** It can produce insights like: *"The schedule is 98% conflict-free. However, the average student has 4 hours of gaps between classes. Room utilization is high at 85%, but the main computer lab is a bottleneck."*

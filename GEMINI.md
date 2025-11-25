@@ -6,7 +6,7 @@ This document provides context and guidelines for the Gemini assistant when work
 
 - **Project Name:** smart-sched
 - **Description:** A web application for managing academic scheduling, including class offerings, instructor assignments, and timetable generation.
-- **Primary Goal:** To create an intuitive and efficient scheduling tool for educational institutions.
+- **Primary Goal:** To create an intuitive and efficient scheduling tool for educational institutions using Genetic Algorithm, Memetic Algorithm, Constraint Programming (CP).
 
 ## 2. Tech Stack
 
@@ -20,10 +20,7 @@ This document provides context and guidelines for the Gemini assistant when work
 
 ## 3. Coding Conventions & Style
 
-
-
 - **Svelte:**
-
   - Always use Svelte 5 Runes (`$state`, `$derived`, etc.) for reactivity.
 
   - Component file names should be `kebab-case.svelte`.
@@ -31,32 +28,24 @@ This document provides context and guidelines for the Gemini assistant when work
   - Use `lang="ts"` in script tags for TypeScript.
 
 - **TypeScript:**
-
   - Use explicit types. Avoid `any` where possible.
 
   - Interfaces and type definitions are located in `src/lib/types/` or colocated with components if specific.
 
 - **Imports:**
-
   - Use aliases for imports: `$lib/` for `src/lib/`, `$routes/` for `src/routes/`.
 
   - Group imports: 1. Svelte/SvelteKit, 2. External libs, 3. Internal aliases, 4. Relative paths.
 
 - **Styling:**
-
   - Use Tailwind CSS utility classes directly in the markup.
 
   - For custom component styles, use `@apply` in a `<style>` tag if necessary, but prefer utility classes.
 
 - **UI Components:**
-
   - Standardized usage of `DataTable` component for all tables, leveraging `ColumnDef` and `renderSnippet` for custom cell rendering.
 
-
-
 ## 4. Architectural Patterns
-
-
 
 - **Authentication:** Centralized in `src/hooks.server.ts`. It validates the session (`safeGetSession`) and fetches the user's profile (role, college_id) from the `public.users` table, storing them in `event.locals` for every server request.
 
@@ -72,11 +61,7 @@ This document provides context and guidelines for the Gemini assistant when work
 
 - **UI Components:** Core UI components are from `shadcn-svelte` and located in `src/lib/components/ui`. Custom, more complex components are in `src/lib/components`.
 
-
-
 ## 5. Important Commands
-
-
 
 - **Install Dependencies:** `npm install`
 
@@ -88,11 +73,7 @@ This document provides context and guidelines for the Gemini assistant when work
 
 - **Run Formatter:** `npm run format`
 
-
-
 ## 6. Dos and Don'ts
-
-
 
 - **DO:** Add tests for new features, especially for critical business logic.
 
@@ -102,24 +83,16 @@ This document provides context and guidelines for the Gemini assistant when work
 
 - **DON'T:** Introduce new dependencies without discussing it first.
 
-
-
 ## 7. Project Status (Implemented Pages)
-
-
 
 The following pages and features are considered complete and functional:
 
-
-
 - **Authentication:**
-
   - `src/routes/login`: A complete, styled login page with promise toasts and error handling.
 
   - `src/hooks.server.ts`: Correctly handles session and fetches the user's profile.
 
 - **Core Layout:**
-
   - `src/routes/menu/+layout.svelte`: Includes the dynamic sidebar, skeleton loading screen, and the global Settings Modal.
 
   - `src/lib/components/app-sidebar.svelte`: Dynamically renders navigation from navItems.
@@ -127,7 +100,6 @@ The following pages and features are considered complete and functional:
   - `src/lib/components/nav-user.svelte`: Displays user info and triggers the Settings Modal.
 
 - **Resource Management (`/menu/resources`)**
-
   - `.../subjects`: Full CRUD for the "Course Catalog" using a simple table and modals.
 
   - `.../instructors`: Full CRUD with a grid/table view switcher and dynamic workload calculation based on term filters.
@@ -137,23 +109,18 @@ The following pages and features are considered complete and functional:
   - `.../blocks`: Tabbed interface for full CRUD of "Programs" and "Blocks," including a "Bulk Generate" tool for blocks.
 
 - **Academic Planning (`/menu/academics`)**
-
   - `.../offerings`: Full CRUD for "Class Offerings" (linking subjects to blocks for a term), now with `split_lecture` and `lecture_days` fields.
-
-    -   Implemented a visual indicator for split lectures using colored badges in the `DataTable`.
+    - Implemented a visual indicator for split lectures using colored badges in the `DataTable`.
 
   - `.../assignments`: Page to assign instructors to Class Offerings, now refactored to use `DataTable` and includes an in-line popover editor for `split_lecture` and `lecture_days` settings, and is sortable by instructor.
 
 - **Admin Console (`/menu/admin`)**
-
   - `.../users`: A complete, unified User Management dashboard. Features include stat cards, CRUD for users (Auth + Profile tables), and advanced actions (Disable/Enable account, Send Password Reset).
 
 - **Error Handling:**
-
   - `src/routes/+error.svelte`: A global, dynamic error page that displays different content for 404, 403, etc.
 
 - **Timetable Generation (`/menu/timetables/generate`):**
-
   - Overhauled into a "Generation Dashboard" with a top-to-bottom layout.
 
   - Role-aware UI (Chairperson, Dean, Admin).
@@ -164,11 +131,7 @@ The following pages and features are considered complete and functional:
 
   - A new modal for configuring and initiating schedule generation for a selected program, now supporting the `split_lecture` feature.
 
-
-
 ## 8. Next Steps (In-Progress / Planned)
-
-
 
 - **Master Scheduler (`/menu/timetables/scheduler`):** The main visual, drag-and-drop scheduling interface. We are currently building this.
 
@@ -179,24 +142,17 @@ The following pages and features are considered complete and functional:
 - **Data Analysis:** A plan is drafted (see `data_analysis_worksheet.md`) to analyze the generated data to evaluate the thesis.
 
 - **Implement `Chairperson` Role:** Add a new 'Chairperson' user role to allow for more granular control over class offerings. This will involve:
+  - Updating the `users` table schema to include the 'Chairperson' role and a link to their program.
 
-    - Updating the `users` table schema to include the 'Chairperson' role and a link to their program.
+  - Modifying backend RBAC to restrict Chairpersons to their own program's data.
 
-    - Modifying backend RBAC to restrict Chairpersons to their own program's data.
-
-    - Adjusting the UI to accommodate the new role's workflow.
+  - Adjusting the UI to accommodate the new role's workflow.
 
 - **Future Features & UX Improvements:** See `smart_features.md` for a list of potential enhancements including in-app guidance and better data visualization.
 
-
-
 ## 9. Full Database Schema
 
-
-
 This is the complete, normalized schema used for the project.
-
-
 
 ```sql
 
