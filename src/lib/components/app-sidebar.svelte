@@ -1,6 +1,6 @@
 <script lang="ts">
 	import NavMain from './nav-main.svelte';
-	import UserAvatar from './UserAvatar.svelte';
+
 	import NavUser from './nav-user.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { ComponentProps } from 'svelte';
