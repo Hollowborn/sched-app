@@ -15,7 +15,8 @@
 	import { page } from '$app/stores';
 
 	// Receive the user object, which includes the email from the auth session
-	let { user }: { user: { username: string; role: string; email?: string } } = $props();
+	let { user }: { user: { username: string; role: string; email?: string; college_id?: number } } =
+		$props();
 	const sidebar = useSidebar();
 
 	// Get the supabase client from the page store, provided by the root +layout.ts
