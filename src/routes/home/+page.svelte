@@ -1,9 +1,12 @@
 <script lang="ts">
+	// shadcn-svelte components
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import * as Avatar from '$lib/components/ui/avatar';
+
 	import { shimmer } from '$lib/actions/shimmer';
 	import { onMount } from 'svelte';
 	// import beforeSC_webp from '$lib/assets/img2.png?w=800&format=webp';
@@ -447,25 +450,34 @@
 			<div
 				class="container mx-auto px-4 text-center text-sm md:flex md:justify-between md:items-center"
 			>
-				<p>
-					&copy; {new Date().getFullYear()}<span class="font-semibold text-primary">
-						&nbsp; smart</span
-					><span class="font-light">-sched</span>. All rights reserved.
-				</p>
+				<Label class="text-muted-foreground"
+					>&copy; 2025 All copyrights reserved. <span class="font-semibold">smart-sched</span
+					></Label
+				>
 				<div class="mt-4 md:mt-0 space-x-4">
 					<!-- Bottom Right Features (commented due to redundancy) -->
 					<!-- <a href="#features" class="hover:text-primary transition-colors">Features</a>
 					<a href="#how-it-works" class="hover:text-primary transition-colors">How it Works</a>
 					<a href="/login" class="hover:text-primary transition-colors">Login</a> -->
 					<div class="inline-flex items-center space-x-2">
-						<Label for="themeSwitcher"><SunMoon />Change theme</Label>
-						<Switch id="themeSwitcher" onclick={toggleMode} class="animate-in" />
+						<Avatar.Root>
+							<Avatar.Image
+								src="https://avatars.githubusercontent.com/u/102315773?v=4"
+								alt="@Finnex"
+							/>
+							<Avatar.Fallback>FX</Avatar.Fallback>
+						</Avatar.Root>
+						<Label class="text-muted-foreground"
+							>A project by<a href="https://github.com/Hollowborn" class="underline">Finnex</a
+							></Label
+						>
 					</div>
 				</div>
 			</div>
 		</footer>
 	</main>
 </div>
+
 {#if scrolled}
 	<div class="fixed bottom-8 right-8 z-50 animate-bounce">
 		<Button
@@ -473,6 +485,7 @@
 			onclick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
 		>
 			<!-- Icon Options -->
+
 			<!-- <ChevronUp /> -->
 			<ArrowUp />
 			<!-- <svg class="svgIcon" viewBox="0 0 384 512">
