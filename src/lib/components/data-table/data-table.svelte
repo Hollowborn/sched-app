@@ -14,16 +14,20 @@
 		type SortingState,
 		type VisibilityState
 	} from '@tanstack/table-core';
+
+	//shadcn-svelte component imports
 	import { createSvelteTable } from '$lib/components/ui/data-table/data-table.svelte.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { FlexRender, renderComponent } from '$lib/components/ui/data-table/index.js';
+
 	import DataTableCheckbox from './data-table-checkbox.svelte';
 
 	import {
@@ -332,22 +336,24 @@
 				>
 					<ChevronsLeft class="h-4 w-4" />
 				</Button>
-				<Button
-					variant="outline"
-					class="h-8 w-8 p-0"
-					onclick={() => table.previousPage()}
-					disabled={!table.getCanPreviousPage()}
-				>
-					<ChevronLeft class="h-4 w-4" />
-				</Button>
-				<Button
-					variant="outline"
-					class="h-8 w-8 p-0"
-					onclick={() => table.nextPage()}
-					disabled={!table.getCanNextPage()}
-				>
-					<ChevronRight class="h-4 w-4" />
-				</Button>
+				<ButtonGroup.Root>
+					<Button
+						variant="outline"
+						class="h-8 w-8 p-0"
+						onclick={() => table.previousPage()}
+						disabled={!table.getCanPreviousPage()}
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+					<Button
+						variant="outline"
+						class="h-8 w-8 p-0"
+						onclick={() => table.nextPage()}
+						disabled={!table.getCanNextPage()}
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+				</ButtonGroup.Root>
 				<Button
 					variant="outline"
 					class="hidden h-8 w-8 p-0 lg:flex"
