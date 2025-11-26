@@ -214,10 +214,8 @@ CREATE TABLE IF NOT EXISTS subjects (
     id SERIAL PRIMARY KEY,
     subject_code VARCHAR(50) NOT NULL UNIQUE,
     subject_name VARCHAR(255) NOT NULL,
-    lecture_hours NUMERIC(4, 2) NOT NULL DEFAULT 3.0 CHECK (lecture_hours >= 0),
-    lab_hours NUMERIC(4, 2) NOT NULL DEFAULT 0.0 CHECK (lab_hours >= 0),
-    college_id INTEGER REFERENCES colleges(id) ON DELETE RESTRICT NOT NULL,
-    default_semester course_offering_semester
+    lecture_hours NUMERIC(4, 2),
+    lab_hours NUMERIC(4, 2)
 );
 
 -- 8. TIMETABLES TABLE (The Master Container)
@@ -248,6 +246,8 @@ CREATE TABLE IF NOT EXISTS classes (
     UNIQUE(subject_id, block_id, semester, academic_year)
 );
 
+
+
 -- 10. SCHEDULES TABLE (The Time Slots)
 DROP TABLE IF EXISTS public.schedules;
 CREATE TABLE schedules (
@@ -270,6 +270,13 @@ CREATE TABLE IF NOT EXISTS instructor_subjects (
     PRIMARY KEY (instructor_id, subject_id)
 );
 
+-- 12. SUBJECT_COLLEGES (Many-to-Many between Subjects and Colleges)
+CREATE TABLE IF NOT EXISTS subject_colleges (
+    subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    college_id INTEGER NOT NULL REFERENCES colleges(id) ON DELETE CASCADE,
+    PRIMARY KEY (subject_id, college_id)
+);
+
 -- Add indexes for common query columns
 CREATE INDEX IF NOT EXISTS idx_schedules_timetable_id ON schedules(timetable_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_class_id ON schedules(class_id);
@@ -279,4 +286,41 @@ CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id);
 CREATE INDEX IF NOT EXISTS idx_classes_block_id ON classes(block_id);
 CREATE INDEX IF NOT EXISTS idx_classes_term ON classes(academic_year, semester);
 CREATE INDEX IF NOT EXISTS idx_timetables_term ON timetables(academic_year, semester);
+
+
+## 10. Development Log & Future Work
+
+### Summary of 2025-11-26 Session
+
+A major refactoring of the Timetable Generation page (`/menu/timetables/generate`) was completed. The goal was to create a more intuitive, powerful, and user-friendly interface for generating schedules.
+
+**Key Accomplishments:**
+
+1.  **UI/UX Overhaul:**
+    *   The previous multi-card "health dashboard" was replaced with a unified, step-by-step workflow contained within a single main card.
+    *   Program selection is now role-aware (Admins see all, Deans see their college's, Chairpersons see their own).
+    *   A dynamic "Health Check" panel was added to provide instant feedback on a selected program's data quality before generation.
+    *   "Smart Room Selection" is implemented, which pre-selects relevant rooms based on college ownership and general use status, while still allowing user customization.
+    *   The UI now includes more granular constraints like `endTime` and `breakTime`.
+    *   Users can now select between `Memetic Algorithm` and `Constraint Programming` (note: backend logic is currently placeholder).
+
+2.  **Backend Refactoring:**
+    *   The `load` function was optimized to support the new dynamic UI.
+    *   The `createTimetable` and `generateSchedule` server actions were consolidated into a single, atomic operation for better reliability.
+    *   The core solver was updated to respect the new `breakTime` constraint.
+    *   The action now provides "Actionable Failure Reports," which lists the specific classes that failed to be scheduled, helping users diagnose data issues.
+
+3.  **Bug Fixes & Schema Updates:**
+    *   Updated the database schema documentation in `GEMINI.md` to reflect the new many-to-many relationship between `subjects` and `colleges`.
+    *   Resolved a critical server-side Supabase error (`column ... does not exist`) caused by the schema change.
+    *   Fixed multiple client-side Svelte reactivity bugs, including an error that caused checkboxes to crash on render and a bug where the program selection would not display correctly.
+
+### Planned Future Enhancements
+
+The following features and suggestions were discussed and are planned for future development cycles:
+
+1.  **Advanced Algorithm Implementation:** The top priority is to implement the actual backend logic for the "Memetic Algorithm" and "Constraint Programming" options. The current implementation uses a basic greedy algorithm as a placeholder for both.
+2.  **Asynchronous (Background) Generation:** To prevent browser timeouts on large and complex generation tasks, this feature would move the solver process to a background job. The UI would poll for updates and notify the user upon completion.
+3.  **Saved Configuration Presets:** Allow users (especially Admins and Deans) to save a complete generator configuration (selected rooms, constraints, algorithm choice) as a named "preset" for quick one-click reuse in the future.
+4.  **Visualizing Constraints:** Enhance the UI by providing more context next to constraint toggles. For example, showing the number of unassigned instructors next to the "Enforce Instructor Availability" checkbox.
 ```
