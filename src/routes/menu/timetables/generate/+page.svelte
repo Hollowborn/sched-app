@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import {
 		Calendar,
 		BookOpen,
@@ -42,11 +43,17 @@
 	const currentYear = new Date().getFullYear();
 	let academicYear = $state(`${currentYear}-${currentYear + 1}`);
 	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>('1st Semester');
-	let selectedProgram = $state<Program | undefined>(
-		data.programs.length === 1 ? data.programs[0] : undefined
+
+	// --- Derived State ---
+	const programIdFromUrl = $derived($page.url.searchParams.get('program_id'));
+
+	const selectedProgram = $derived(
+		data.programs.find((p) => p.id.toString() === programIdFromUrl)
 	);
 
-	let selectedRoomIds = $state<Record<string, boolean>>({});
+	let selectedRoomIds = $state(
+		Object.fromEntries((data.allRooms || []).map((room) => [room.id, false]))
+	);
 	let constraints = $state({
 		enforceCapacity: true,
 		enforceRoomType: true,
@@ -58,7 +65,6 @@
 	let breakTime = $state('12:00-13:00');
 	let algorithm = $state<'memetic' | 'cp'>('memetic');
 
-	// --- Derived State ---
 	const programsByCollege = $derived.by(() => {
 		if (data.profile?.role !== 'Admin') return null;
 		return data.programs.reduce(
@@ -85,21 +91,17 @@
 	}
 
 	function handleProgramChange(programId: string | undefined) {
-		selectedProgram = data.programs.find((p) => p.id.toString() === programId);
-		// Reset subsequent state if program is deselected
-		if (!selectedProgram) {
-			selectedRoomIds = {};
-			// Invalidate to clear health stats
-			goto('?');
-			return;
+		const params = new URLSearchParams($page.url.searchParams);
+		if (programId) {
+			params.set('program_id', programId);
+		} else {
+			params.delete('program_id');
 		}
-
-		// Trigger health check stat fetching
-		const params = new URLSearchParams();
-		params.set('program_id', selectedProgram.id.toString());
+		// Pass academic term to load health stats
 		params.set('academic_year', academicYear);
 		params.set('semester', semester);
-		goto(`?${params.toString()}`, { keepData: true, noScroll: true });
+
+		goto(`?${params.toString()}`, { noScroll: true, keepData: true });
 	}
 
 	// Group rooms by building
@@ -126,16 +128,21 @@
 
 	// Smart Room Selection
 	$effect(() => {
-		if (selectedProgram) {
-			const newSelectedRoomIds: Record<string, boolean> = {};
-			const programCollegeId = selectedProgram.college_id;
-			for (const room of data.allRooms) {
-				if (room.is_general_use || room.owner_college_id === programCollegeId) {
-					newSelectedRoomIds[room.id] = true;
-				}
+		const newSelectedRoomIds: Record<string, boolean> = {};
+		const programCollegeId = selectedProgram?.college_id;
+
+		for (const room of data.allRooms) {
+			if (selectedProgram) {
+				// If a program is selected, apply smart selection logic
+				newSelectedRoomIds[room.id] = !!(
+					room.is_general_use || room.owner_college_id === programCollegeId
+				);
+			} else {
+				// If no program is selected, default all to false
+				newSelectedRoomIds[room.id] = false;
 			}
-			selectedRoomIds = newSelectedRoomIds;
 		}
+		selectedRoomIds = newSelectedRoomIds;
 	});
 </script>
 
@@ -199,7 +206,7 @@
 							type="single"
 							name="program_id"
 							onValueChange={(v) => handleProgramChange(v)}
-							value={selectedProgram?.id.toString()}
+							value={programIdFromUrl}
 						>
 							<Select.Trigger id="program" class="w-full">
 								<span>{selectedProgram?.program_name || 'Select a program'}</span>
@@ -225,7 +232,7 @@
 							type="single"
 							name="program_id"
 							onValueChange={(v) => handleProgramChange(v)}
-							value={selectedProgram?.id.toString()}
+							value={programIdFromUrl}
 						>
 							<Select.Trigger id="program" class="w-full">
 								<span>{selectedProgram?.program_name || 'Select a program'}</span>
@@ -280,74 +287,69 @@
 			</Card.Content>
 
 			{#if selectedProgram && data.healthStats}
-				<div use:animateInView={{ delay: 0, duration: 400 }}>
-					<Card.Footer class="grid gap-4 grid-cols-2 md:grid-cols-4 p-4 border-t">
-						<div class="p-4 border rounded-lg bg-background">
-							<div class="flex items-center justify-between">
-								<h3 class="text-sm font-medium text-muted-foreground">Total Classes</h3>
-								<BookCheck class="h-4 w-4 text-muted-foreground" />
-							</div>
-							<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
+				<Card.Footer class="grid gap-4 grid-cols-2 md:grid-cols-4 p-4 border-t">
+					<div class="p-4 border rounded-lg bg-background">
+						<div class="flex items-center justify-between">
+							<h3 class="text-sm font-medium text-muted-foreground">Total Classes</h3>
+							<BookCheck class="h-4 w-4 text-muted-foreground" />
 						</div>
-						<div
+						<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
+					</div>
+					<div
+						class={cn(
+							'p-4 border rounded-lg',
+							data.healthStats.unassignedClasses > 0 && 'border-destructive'
+						)}
+					>
+						<div class="flex items-center justify-between">
+							<h3 class="text-sm font-medium">Unassigned</h3>
+							<Users
+								class={cn(
+									'h-4 w-4',
+									data.healthStats.unassignedClasses > 0
+										? 'text-destructive'
+										: 'text-muted-foreground'
+								)}
+							/>
+						</div>
+						<p
 							class={cn(
-								'p-4 border rounded-lg',
-								data.healthStats.unassignedClasses > 0 && 'border-destructive'
+								'text-2xl font-bold',
+								data.healthStats.unassignedClasses > 0 && 'text-destructive'
 							)}
 						>
-							<div class="flex items-center justify-between">
-								<h3 class="text-sm font-medium">Unassigned</h3>
-								<Users
-									class={cn(
-										'h-4 w-4',
-										data.healthStats.unassignedClasses > 0
-											? 'text-destructive'
-											: 'text-muted-foreground'
-									)}
-								/>
-							</div>
-							<p
+							{data.healthStats.unassignedClasses}
+						</p>
+					</div>
+					<div
+						class={cn(
+							'p-4 border rounded-lg',
+							data.healthStats.emptyBlocks > 0 && 'border-amber-500'
+						)}
+					>
+						<div class="flex items-center justify-between">
+							<h3 class="text-sm font-medium">Empty Blocks</h3>
+							<ClipboardX
 								class={cn(
-									'text-2xl font-bold',
-									data.healthStats.unassignedClasses > 0 && 'text-destructive'
+									'h-4 w-4',
+									data.healthStats.emptyBlocks > 0 ? 'text-amber-600' : 'text-muted-foreground'
 								)}
-							>
-								{data.healthStats.unassignedClasses}
-							</p>
+							/>
 						</div>
-						<div
-							class={cn(
-								'p-4 border rounded-lg',
-								data.healthStats.emptyBlocks > 0 && 'border-amber-500'
-							)}
+						<p
+							class={cn('text-2xl font-bold', data.healthStats.emptyBlocks > 0 && 'text-amber-600')}
 						>
-							<div class="flex items-center justify-between">
-								<h3 class="text-sm font-medium">Empty Blocks</h3>
-								<ClipboardX
-									class={cn(
-										'h-4 w-4',
-										data.healthStats.emptyBlocks > 0 ? 'text-amber-600' : 'text-muted-foreground'
-									)}
-								/>
-							</div>
-							<p
-								class={cn(
-									'text-2xl font-bold',
-									data.healthStats.emptyBlocks > 0 && 'text-amber-600'
-								)}
-							>
-								{data.healthStats.emptyBlocks}
-							</p>
+							{data.healthStats.emptyBlocks}
+						</p>
+					</div>
+					<div class="p-4 border rounded-lg bg-background">
+						<div class="flex items-center justify-between">
+							<h3 class="text-sm font-medium text-muted-foreground">Total Blocks</h3>
+							<PackageOpen class="h-4 w-4 text-muted-foreground" />
 						</div>
-						<div class="p-4 border rounded-lg bg-background">
-							<div class="flex items-center justify-between">
-								<h3 class="text-sm font-medium text-muted-foreground">Total Blocks</h3>
-								<PackageOpen class="h-4 w-4 text-muted-foreground" />
-							</div>
-							<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
-						</div>
-					</Card.Footer>
-				</div>
+						<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
+					</div>
+				</Card.Footer>
 			{/if}
 
 			<!-- All other steps will be added here -->
