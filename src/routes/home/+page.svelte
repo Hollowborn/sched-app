@@ -455,10 +455,6 @@
 					></Label
 				>
 				<div class="mt-4 md:mt-0 space-x-4">
-					<!-- Bottom Right Features (commented due to redundancy) -->
-					<!-- <a href="#features" class="hover:text-primary transition-colors">Features</a>
-					<a href="#how-it-works" class="hover:text-primary transition-colors">How it Works</a>
-					<a href="/login" class="hover:text-primary transition-colors">Login</a> -->
 					<div class="inline-flex items-center space-x-2">
 						<Avatar.Root>
 							<Avatar.Image
