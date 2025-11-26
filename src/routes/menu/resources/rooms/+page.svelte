@@ -29,6 +29,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 	// Removed: import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
@@ -198,17 +199,20 @@
 		</div>
 
 		<!-- TOOLBAR -->
+
 		<div class="flex items-center gap-2">
-			<Button
-				variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-				size="icon"
-				onclick={() => (viewMode = 'table')}><List class="h-4 w-4" /></Button
-			>
-			<Button
-				variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-				size="icon"
-				onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
-			>
+			<ButtonGroup.Root>
+				<Button
+					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'table')}><List class="h-4 w-4" /></Button
+				>
+				<Button
+					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
+				>
+			</ButtonGroup.Root>
 			{#if data.profile?.role === 'Admin'}
 				<Button onclick={() => (createOpen = true)}>
 					<PlusCircle class="mr-2 h-4 w-4" /> Add Room

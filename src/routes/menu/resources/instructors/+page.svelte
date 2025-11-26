@@ -32,6 +32,7 @@
 	import ScrollArea from '$lib/components/ui/scroll-area/scroll-area.svelte';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 
 	type Instructor = {
 		id: number;
@@ -281,16 +282,18 @@
 
 		<!-- TOOLBAR -->
 		<div class="flex items-center gap-2">
-			<Button
-				variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-				size="icon"
-				onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
-			>
-			<Button
-				variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-				size="icon"
-				onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
-			>
+			<ButtonGroup.Root>
+				<Button
+					variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'table')}><User class="h-4 w-4" /></Button
+				>
+				<Button
+					variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+					size="icon"
+					onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></Button
+				>
+			</ButtonGroup.Root>
 			{#if data.profile?.role !== 'Registrar'}
 				<Button onclick={() => (createOpen = true)}
 					><PlusCircle class="mr-2 h-4 w-4" /> Add Instructor</Button
