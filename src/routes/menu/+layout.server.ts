@@ -90,7 +90,7 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 			{
 				title: 'Generate Schedules',
 				url: '/menu/timetables/generate',
-				icon: 'Wand2',
+				icon: 'Wand',
 				description: 'Automated schedule generation using advanced algorithms.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
