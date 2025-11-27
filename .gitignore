@@ -27,3 +27,7 @@ SCHEMA_OVERHAUL_PLAN.md
 /src/routes/test
 fix_timetables_constraint.sql
 add_metadata_column.sql
+src/routes/supabase-test/+page.svelte
+src/routes/prototypes/timetable_cards/+page.svelte
+src/routes/prototypes/table_layouts/+page.svelte
+src/routes/prototypes/navigation_hub/+page.svelte
