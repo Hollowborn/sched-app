@@ -43,7 +43,7 @@ interface Task {
 }
 
 export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => {
-	const SLOT_DURATION_HOURS = 1.5;
+	const SLOT_DURATION_HOURS = 0.5;
 	const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 	// 1. Preprocess Tasks
@@ -295,15 +295,8 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 	const scheduledEntries: ScheduleEntry[] = [];
 	const failedClasses: { class: string; reason: string }[] = [];
 
-	// If fitness is low, it means we have conflicts.
-	// We should probably filter out the conflicting ones or report them?
-	// For now, we'll return the schedule as is, but maybe we should run a final pass to remove invalid ones?
-	// A "valid" schedule in the DB shouldn't have overlaps.
-	// Let's do a final cleanup: if an entry conflicts with an already accepted entry in the best solution, drop it.
-
 	const acceptedGenes: Gene[] = [];
 	
-	// Sort genes by some priority to keep important ones? Or just order of tasks.
 	for (const gene of bestSolution.genes) {
 		const task = tasks.find((t) => t.id === gene.taskId)!;
 		const start = timeSlots[gene.startTimeIndex];
@@ -328,21 +321,15 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 
 		if (!isConflict) {
 			acceptedGenes.push(gene);
-			// Expand to entries
-			for (let j = 0; j < task.slotsNeeded; j++) {
-				const sTime = timeSlots[gene.startTimeIndex + j];
-				if(sTime) {
-					const eTime = calculateEndTime(sTime, SLOT_DURATION_HOURS);
-					scheduledEntries.push({
-						class_id: task.classData.id,
-						room_id: gene.roomId,
-						day_of_week: gene.day,
-						start_time: sTime + ':00',
-						end_time: eTime + ':00',
-						course_type: task.type
-					});
-				}
-			}
+			// Create a single entry for the entire duration
+			scheduledEntries.push({
+				class_id: task.classData.id,
+				room_id: gene.roomId,
+				day_of_week: gene.day,
+				start_time: start + ':00',
+				end_time: end + ':00',
+				course_type: task.type
+			});
 		} else {
 			failedClasses.push({
 				class: `${task.classData.subjects.subject_code} (${task.type})`,
