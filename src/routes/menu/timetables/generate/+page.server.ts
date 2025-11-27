@@ -158,6 +158,22 @@ export const actions: Actions = {
 				? custom_name.trim()
 				: `TT-${program.data.program_name}-${academic_year}-${semester}`;
 
+		// Initial metadata for the timetable entry
+		const initialMetadata = {
+			generation_params: {
+				academic_year,
+				semester,
+				program_id,
+				room_ids,
+				scheduleStartTime,
+				scheduleEndTime,
+				breakTime,
+				algorithm,
+				constraints
+			},
+			status: 'Generating'
+		};
+
 		const { data: newTimetable, error: insertError } = await locals.supabase
 			.from('timetables')
 			.insert({
@@ -167,7 +183,8 @@ export const actions: Actions = {
 				college_id: program.data.college_id,
 				program_id,
 				created_by: locals.user?.id,
-				status: 'draft'
+				status: 'draft',
+				metadata: initialMetadata // Save initial generation parameters
 			})
 			.select('id')
 			.single();
@@ -317,6 +334,32 @@ export const actions: Actions = {
 			}
 		}
 
+		// 8. Construct Final Report & Update Metadata
+		const timeTaken = (performance.now() - startTime).toFixed(2) + 'ms';
+		const successRate = Math.round(
+			((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
+		);
+
+		const finalMetadata = {
+			...initialMetadata,
+			status: 'Complete',
+			timeTaken,
+			successRate,
+			totalClasses: tasksToSchedule.length,
+			scheduledCount: tasksToSchedule.length - failedClasses.length,
+			roomsUsed: new Set(scheduledEntries.map((e) => e.room_id)).size,
+			failedClasses,
+			algorithm
+		};
+
+		await locals.supabase
+			.from('timetables')
+			.update({
+				metadata: finalMetadata,
+				status: 'Draft' // Ensure it's Draft (or whatever status implies done)
+			})
+			.eq('id', timetable_id);
+
 		// 10. Return summary
 		const message =
 			failedClasses.length === 0
@@ -328,15 +371,7 @@ export const actions: Actions = {
 			message,
 			failedClasses,
 			generatedTimetableId: timetable_id,
-			report: {
-				duration: (performance.now() - startTime).toFixed(2),
-				totalClasses: tasksToSchedule.length,
-				scheduledCount: tasksToSchedule.length - failedClasses.length,
-				successRate: Math.round(
-					((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
-				),
-				roomsUsed: new Set(scheduledEntries.map((e) => e.room_id)).size
-			}
+			report: finalMetadata // Return the full metadata as the report
 		};
 	}
 };
