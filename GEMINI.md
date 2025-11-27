@@ -315,11 +315,35 @@ A major refactoring of the Timetable Generation page (`/menu/timetables/generate
     *   Resolved a critical server-side Supabase error (`column ... does not exist`) caused by the schema change.
     *   Fixed multiple client-side Svelte reactivity bugs, including an error that caused checkboxes to crash on render and a bug where the program selection would not display correctly.
 
+### Summary of 2025-11-27 Session
+
+This session focused on implementing the core scheduling algorithms, fixing critical data integrity issues, and significantly enhancing the Timetable Viewer.
+
+**Key Accomplishments:**
+
+1.  **Algorithm Implementation:**
+    *   Implemented the **Constraint Programming (CP)** solver using a backtracking approach with forward checking.
+    *   Implemented the **Memetic Algorithm** (Genetic Algorithm + Local Search) for optimizing schedules.
+    *   Both algorithms now support `split_lecture` logic and respect the `breakTime` constraint.
+    *   Fixed a critical bug where `SLOT_DURATION_HOURS` was incorrect (1.5h instead of 0.5h), ensuring classes are now scheduled with accurate durations (e.g., 1 unit = 1 hour).
+    *   Implemented robust JSON parsing for `lecture_days` to prevent data corruption.
+
+2.  **Timetable Generation Enhancements:**
+    *   Added **Custom Timetable Naming** to allow users to specify a name during generation.
+    *   Implemented **Generation Report Persistence**: Detailed statistics (success rate, time taken, rooms used) and a list of failed classes are now saved to a `metadata` JSONB column in the `timetables` table.
+    *   Updated the server logic to ensure the final report is saved upon completion.
+
+3.  **Timetable Viewer Upgrades:**
+    *   **List View**: Added a searchable List View alongside the Grid View.
+    *   **Scoped Filters**: "Jump To" dropdowns for Instructors, Blocks, and Rooms are now filtered by the timetable's college/program context.
+    *   **Visual Polish**: Added badges to Grid View cells to distinguish between "Lecture" and "Lab" sessions.
+    *   **Report Dialog**: Implemented a `shadcn-svelte` Dialog to display the persisted Generation Report, including a loading state for "Generating" status.
+
 ### Planned Future Enhancements
 
-The following features and suggestions were discussed and are planned for future development cycles:
+The following features are planned for future development cycles:
 
-1.  **Advanced Algorithm Implementation:** The top priority is to implement the actual backend logic for the "Memetic Algorithm" and "Constraint Programming" options. The current implementation uses a basic greedy algorithm as a placeholder for both.
+1.  **Master Scheduler (`/menu/timetables/scheduler`):** The main visual, drag-and-drop scheduling interface for manual adjustments.
 2.  **Asynchronous (Background) Generation:** To prevent browser timeouts on large and complex generation tasks, this feature would move the solver process to a background job. The UI would poll for updates and notify the user upon completion.
 3.  **Saved Configuration Presets:** Allow users (especially Admins and Deans) to save a complete generator configuration (selected rooms, constraints, algorithm choice) as a named "preset" for quick one-click reuse in the future.
 4.  **Visualizing Constraints:** Enhance the UI by providing more context next to constraint toggles. For example, showing the number of unassigned instructors next to the "Enforce Instructor Availability" checkbox.
