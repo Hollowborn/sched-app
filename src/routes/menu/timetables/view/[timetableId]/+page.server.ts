@@ -78,17 +78,31 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 
 	// 3. Fetch unique entities for filtering and navigation
+	// 3. Fetch unique entities for filtering and navigation, scoped to the timetable's context
+	let blocksQuery = locals.supabase
+		.from('blocks')
+		.select('id, block_name, year_level, programs!inner(program_name, college_id)')
+		.order('block_name');
+
+	if (timetable.program_id) {
+		blocksQuery = blocksQuery.eq('program_id', timetable.program_id);
+	} else if (timetable.college_id) {
+		blocksQuery = blocksQuery.eq('programs.college_id', timetable.college_id);
+	}
+
 	const [{ data: uniqueRoomsData }, { data: uniqueInstructorsData }, { data: uniqueBlocksData }] =
 		await Promise.all([
-			locals.supabase.from('rooms').select('id, room_name, building, type').order('room_name'),
+			locals.supabase
+				.from('rooms')
+				.select('id, room_name, building, type')
+				.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`)
+				.order('room_name'),
 			locals.supabase
 				.from('instructors')
 				.select('id, name, max_load, colleges(college_name)')
+				.eq('college_id', timetable.college_id)
 				.order('name'),
-			locals.supabase
-				.from('blocks')
-				.select('id, block_name, year_level, programs(program_name)')
-				.order('block_name')
+			blocksQuery
 		]);
 
 	return {
