@@ -207,38 +207,24 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 
 					if (isConsistent(task, room, day, i)) {
 						// Create the entry
+						// Create a single entry for the entire duration
 						const start = timeSlots[i];
-						// We create multiple entries if it spans multiple slots?
-						// The database schema seems to store one entry per class-session.
-						// The greedy solver pushed multiple 30-min blocks?
-						// Looking at original code:
-						// "scheduledEntries.push({ ... })" inside a loop of slotsNeeded.
-						// It seems it pushes ONE entry per 30-min slot?
-						// Let's re-read the original code.
-						// "for (let j = 0; j < task.slotsNeeded; j++) { ... scheduledEntries.push(...) }"
-						// Yes, it pushes multiple entries.
+						const end = calculateEndTime(start, task.hours);
 
-						const newEntries: ScheduleEntry[] = [];
-						for (let j = 0; j < task.slotsNeeded; j++) {
-							const sTime = timeSlots[i + j];
-							// If we run out of slots (e.g. end of day), this loop might fail if we didn't check bounds properly.
-							// The outer loop `i <= timeSlots.length - task.slotsNeeded` ensures we have enough indices.
-							// But we must ensure `timeSlots[i+j]` is not undefined (e.g. if array has gaps? No, array is dense).
-							
-							if (!sTime) break; // Should not happen
+						const newEntries: ScheduleEntry[] = [{
+							class_id: task.classData.id,
+							room_id: room.id,
+							day_of_week: day,
+							start_time: start + ':00',
+							end_time: end + ':00',
+							course_type: task.type
+						}];
 
-							const eTime = calculateEndTime(sTime, SLOT_DURATION_HOURS);
-							newEntries.push({
-								class_id: task.classData.id,
-								room_id: room.id,
-								day_of_week: day,
-								start_time: sTime + ':00', // Format HH:MM:SS
-								end_time: eTime + ':00',
-								course_type: task.type
-							});
-						}
+						// We used to loop here, but now we just push one entry.
+						// The backtracking logic expects assignments[task.id] to hold the entries.
+						// We can just use this single entry array.
 
-						if (newEntries.length === task.slotsNeeded) {
+						if (newEntries.length === 1) {
 							assignments[task.id] = newEntries;
 							if (backtrack(taskIndex + 1)) {
 								return true;
