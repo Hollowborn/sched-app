@@ -49,9 +49,7 @@
 	// --- Derived State ---
 	const programIdFromUrl = $derived($page.url.searchParams.get('program_id'));
 
-	const selectedProgram = $derived(
-		data.programs.find((p) => p.id.toString() === programIdFromUrl)
-	);
+	const selectedProgram = $derived(data.programs.find((p) => p.id.toString() === programIdFromUrl));
 
 	let selectedRoomIds = $state(
 		Object.fromEntries((data.allRooms || []).map((room) => [room.id, false]))
@@ -366,7 +364,7 @@
 			<fieldset class="contents" disabled={!selectedProgram}>
 				<!-- Step 2: Room Selection -->
 				<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
-					<Card.Header>
+					<Card.Header class="pt-4">
 						<Card.Title>Step 2: Select Rooms</Card.Title>
 						<Card.Description>
 							Choose the rooms that can be used for scheduling. Rooms for your college and
@@ -442,7 +440,7 @@
 
 				<!-- Step 3: Define Constraints -->
 				<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
-					<Card.Header>
+					<Card.Header class="pt-4">
 						<Card.Title>Step 3: Define Constraints</Card.Title>
 						<Card.Description>
 							Set the rules and time boundaries for the schedule generation.
@@ -540,7 +538,7 @@
 
 			<!-- Step 4: Generate -->
 			<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
-				<Card.Header>
+				<Card.Header class="pt-4">
 					<Card.Title>Step 4: Generate</Card.Title>
 					<Card.Description>
 						Choose the algorithm and start the generation process.
@@ -562,7 +560,7 @@
 							</p>
 						</div>
 						<RadioGroup.Root
-							class="grid grid-cols-1 md:grid-cols-2 gap-4"
+							class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4"
 							name="algorithm"
 							bind:value={algorithm}
 						>
@@ -632,7 +630,9 @@
 		{#if reportData?.report}
 			<div class="grid grid-cols-3 gap-4 py-4">
 				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</span>
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+						>Time</span
+					>
 					<span class="text-2xl font-bold">{reportData.report.duration}ms</span>
 				</div>
 				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
@@ -652,7 +652,9 @@
 					>
 				</div>
 				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rooms</span>
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+						>Rooms</span
+					>
 					<span class="text-2xl font-bold">{reportData.report.roomsUsed}</span>
 				</div>
 			</div>
@@ -686,7 +688,9 @@
 			{#if reportData?.success}
 				<Button
 					onclick={() =>
-						goto(`/menu/timetables/view/${reportData?.generatedTimetableId}`, { invalidateAll: true })}
+						goto(`/menu/timetables/view/${reportData?.generatedTimetableId}`, {
+							invalidateAll: true
+						})}
 				>
 					View Timetable
 				</Button>
