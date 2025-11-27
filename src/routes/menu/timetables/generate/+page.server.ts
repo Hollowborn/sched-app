@@ -153,9 +153,10 @@ export const actions: Actions = {
 			.eq('id', program_id)
 			.single()) as { data: { program_name: string; college_id: number } };
 
-		const timetableName = custom_name && custom_name.trim() !== '' 
-			? custom_name.trim() 
-			: `TT-${program.data.program_name}-${academic_year}-${semester}`;
+		const timetableName =
+			custom_name && custom_name.trim() !== ''
+				? custom_name.trim()
+				: `TT-${program.data.program_name}-${academic_year}-${semester}`;
 
 		const { data: newTimetable, error: insertError } = await locals.supabase
 			.from('timetables')
@@ -310,7 +311,7 @@ export const actions: Actions = {
 			const { error: insertError } = await locals.supabase
 				.from('schedules')
 				.insert(entriesToInsert);
-			
+
 			if (insertError) {
 				return fail(500, { message: `Failed to save schedule: ${insertError.message}` });
 			}
