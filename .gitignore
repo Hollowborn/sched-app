@@ -25,3 +25,5 @@ SCHEMA_OVERHAUL_PLAN.md
 
 # Test files
 /src/routes/test
+fix_timetables_constraint.sql
+add_metadata_column.sql
