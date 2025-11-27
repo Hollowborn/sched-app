@@ -101,9 +101,11 @@
 	--shadow-xl:
 		0px 1px 3px 0px oklch(0.35 0.05 163.02 / 0.04), 0px 8px 10px -1px oklch(0.35 0.05 163.02 / 0.04);
 	--shadow-2xl: 0px 1px 3px 0px oklch(0.35 0.05 163.02 / 0.1);
+	--cell-fg-l: 0.3;
 }
 
 .dark {
+	--cell-fg-l: 0.9;
 	--background: var(--base-950);
 	--foreground: var(--base-200);
 	--card: var(--base-900);
