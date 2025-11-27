@@ -9,26 +9,35 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Resources',
 		url: '/menu/resources',
 		icon: 'Library',
+		description: 'Manage the fundamental building blocks of the schedule.',
 		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Subjects (Catalog)',
 				url: '/menu/resources/subjects',
+				icon: 'Book',
+				description: 'Manage the course catalog, including lecture/lab hours and subject codes.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Instructors',
 				url: '/menu/resources/instructors',
+				icon: 'User',
+				description: 'Manage faculty profiles, teaching loads, and availability.',
 				roles: ['Admin', 'Dean', 'Chairperson']
 			},
 			{
 				title: 'Rooms & Venues',
 				url: '/menu/resources/rooms',
+				icon: 'Building',
+				description: 'Manage classrooms, laboratories, and their capacities.',
 				roles: ['Admin', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Blocks',
 				url: '/menu/resources/blocks',
+				icon: 'Users',
+				description: 'Manage student blocks and program sections.',
 				roles: ['Admin', 'Registrar', 'Chairperson']
 			}
 		]
@@ -37,21 +46,28 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Academics',
 		url: '/menu/academics',
 		icon: 'School',
+		description: 'Configure academic offerings and assignments.',
 		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Class Offerings',
 				url: '/menu/academics/offerings',
+				icon: 'BookOpen',
+				description: 'Manage course offerings, schedules, and split lectures.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Instructor Assignments',
 				url: '/menu/academics/assignments',
+				icon: 'Users',
+				description: 'Assign faculty to classes and manage teaching loads.',
 				roles: ['Admin', 'Dean', 'Chairperson']
 			},
 			{
-				title: 'Dash-bro?',
+				title: 'Academic Dashboard',
 				url: '/menu/dashboard',
+				icon: 'LayoutDashboard',
+				description: 'Overview of department performance and key metrics.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
@@ -61,21 +77,28 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Timetables',
 		url: '/menu/timetables',
 		icon: 'CalendarDays',
+		description: 'Generate and manage class schedules.',
 		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
 			{
 				title: 'Master Scheduler',
 				url: '/menu/timetables/scheduler',
+				icon: 'Calendar',
+				description: 'Interactive drag-and-drop interface for manual scheduling.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'Generate Schedules',
 				url: '/menu/timetables/generate',
+				icon: 'Wand2',
+				description: 'Automated schedule generation using advanced algorithms.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
 				title: 'View Schedules',
 				url: '/menu/timetables/view',
+				icon: 'Eye',
+				description: 'Browse and print generated timetables.',
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
@@ -84,21 +107,28 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		title: 'Admin Console',
 		url: '/menu/admin',
 		icon: 'SquareTerminal',
+		description: 'System administration and user management.',
 		roles: ['Admin'],
 		items: [
 			{
 				title: 'User Management',
 				url: '/menu/admin/users',
+				icon: 'UserCog',
+				description: 'Manage system users, roles, and permissions.',
 				roles: ['Admin']
 			},
 			{
 				title: 'Programs',
 				url: '/menu/admin/programs',
+				icon: 'GraduationCap',
+				description: 'Manage academic programs and colleges.',
 				roles: ['Admin']
 			},
 			{
 				title: 'System Settings',
 				url: '/menu/admin/settings',
+				icon: 'Settings',
+				description: 'Configure global system settings and defaults.',
 				roles: ['Admin']
 			}
 		]
