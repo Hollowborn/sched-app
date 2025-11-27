@@ -1,5 +1,8 @@
 import { fail, error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { solveMemetic } from '$lib/server/algorithms/memetic';
+import { solveCP } from '$lib/server/algorithms/cp';
+import type { SolverResult } from '$lib/server/algorithms/types';
 
 const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
@@ -129,6 +132,7 @@ export const actions: Actions = {
 		const scheduleEndTime = formData.get('scheduleEndTime')?.toString() || '17:30';
 		const breakTime = formData.get('breakTime')?.toString() || 'none'; // e.g., '12:00-13:00'
 		const algorithm = formData.get('algorithm')?.toString() || 'memetic'; // 'memetic' or 'cp'
+		const custom_name = formData.get('custom_name')?.toString();
 
 		// 2. Get Constraints
 		const constraints = {
@@ -149,7 +153,9 @@ export const actions: Actions = {
 			.eq('id', program_id)
 			.single()) as { data: { program_name: string; college_id: number } };
 
-		const timetableName = `TT-${program.data.program_name}-${academic_year}-${semester}`;
+		const timetableName = custom_name && custom_name.trim() !== '' 
+			? custom_name.trim() 
+			: `TT-${program.data.program_name}-${academic_year}-${semester}`;
 
 		const { data: newTimetable, error: insertError } = await locals.supabase
 			.from('timetables')
@@ -241,7 +247,7 @@ export const actions: Actions = {
 			breakTime
 		);
 
-		// 6. Create the "Job List"
+		// 6. Create the "Job List" (Needed for stats and consistent task counting)
 		const tasksToSchedule: any[] = [];
 		(classesData || []).forEach((cls) => {
 			// Handle split lectures
@@ -280,101 +286,31 @@ export const actions: Actions = {
 			}
 		});
 
-		tasksToSchedule.sort((a, b) => b.slotsNeeded - a.slotsNeeded);
+		// 7. Run the Solver
+		const startTime = performance.now();
+		let result: SolverResult;
 
-		// 7. Initialize Solver State
-		let scheduledEntries: any[] = [];
-		let failedClasses: any[] = [];
-
-		// 8. Run the Solver (with placeholder for different algorithms)
-		if (algorithm === 'memetic' || algorithm === 'cp') {
-			// For now, both use the same greedy solver.
-			// This is where you would call different solver functions.
-			// e.g., if (algorithm === 'memetic') { results = memeticSolver(...) }
-			for (const task of tasksToSchedule) {
-				let slotFound = false;
-				const roomsToTry = [...(roomsData || [])].sort((a, b) => a.capacity - b.capacity);
-				const daysToTry =
-					task.class.lecture_days && task.class.lecture_days.length > 0
-						? task.class.lecture_days
-						: DAYS;
-
-				for (const room of roomsToTry) {
-					if (slotFound) break;
-					if (constraints.enforceCapacity && room.capacity < task.class.blocks.estimated_students)
-						continue;
-					if (constraints.enforceRoomType && room.type !== task.type) continue;
-
-					for (const day of daysToTry) {
-						if (slotFound) break;
-						for (let i = 0; i <= TIMESLOTS.length - task.slotsNeeded; i++) {
-							if (slotFound) break;
-
-							let isRangeFree = true;
-							for (let j = 0; j < task.slotsNeeded; j++) {
-								const time = TIMESLOTS[i + j];
-								if (!time) {
-									isRangeFree = false;
-									break;
-								}
-								if (
-									scheduledEntries.some(
-										(e) =>
-											(e.room_id === room.id &&
-												e.day_of_week === day &&
-												e.start_time.startsWith(time)) ||
-											(constraints.enforceInstructor &&
-												e.class.instructor_id &&
-												e.class.instructor_id === task.class.instructor_id &&
-												e.day_of_week === day &&
-												e.start_time.startsWith(time)) ||
-											(constraints.enforceBlock &&
-												e.class.block_id === task.class.block_id &&
-												e.day_of_week === day &&
-												e.start_time.startsWith(time))
-									)
-								) {
-									isRangeFree = false;
-									break;
-								}
-							}
-
-							if (isRangeFree) {
-								for (let j = 0; j < task.slotsNeeded; j++) {
-									const time = TIMESLOTS[i + j];
-									const endTime = calculateEndTime(time, SLOT_DURATION_HOURS);
-									scheduledEntries.push({
-										timetable_id,
-										class_id: task.class.id,
-										room_id: room.id,
-										day_of_week: day,
-										start_time: formatTime(time),
-										end_time: formatTime(endTime),
-										course_type: task.type,
-										class: task.class // Keep original class for constraint checking
-									});
-								}
-								slotFound = true;
-							}
-						}
-					}
-				}
-				if (!slotFound) {
-					failedClasses.push({
-						class: `${task.class.subjects.subject_code} (${task.type}) for ${task.class.blocks.block_name}`,
-						reason: 'No available slot found that meets all constraints.'
-					});
-				}
-			}
+		if (algorithm === 'cp') {
+			result = solveCP(classesData, roomsData, TIMESLOTS, constraints);
+		} else {
+			result = solveMemetic(classesData, roomsData, TIMESLOTS, constraints);
 		}
+		const endTime = performance.now();
 
-		// 9. Insert successful entries
+		const { scheduledEntries, failedClasses } = result;
+
+		// 7. Insert successful entries
 		if (scheduledEntries.length > 0) {
-			const entriesToInsert = scheduledEntries.map(({ class: _, ...dbEntry }) => dbEntry);
+			const entriesToInsert = scheduledEntries.map((entry) => ({
+				...entry,
+				timetable_id
+			}));
+
 			await locals.supabase.from('schedules').delete().eq('timetable_id', timetable_id);
 			const { error: insertError } = await locals.supabase
 				.from('schedules')
 				.insert(entriesToInsert);
+			
 			if (insertError) {
 				return fail(500, { message: `Failed to save schedule: ${insertError.message}` });
 			}
@@ -384,15 +320,22 @@ export const actions: Actions = {
 		const message =
 			failedClasses.length === 0
 				? 'Generation complete! All classes were successfully scheduled.'
-				: `Generation complete with some issues. Successfully scheduled ${
-						tasksToSchedule.length - failedClasses.length
-					} out of ${tasksToSchedule.length} tasks.`;
+				: `Generation complete with some issues. ${failedClasses.length} classes failed to schedule.`;
 
 		return {
 			success: true,
 			message,
 			failedClasses,
-			generatedTimetableId: timetable_id
+			generatedTimetableId: timetable_id,
+			report: {
+				duration: (performance.now() - startTime).toFixed(2),
+				totalClasses: tasksToSchedule.length,
+				scheduledCount: tasksToSchedule.length - failedClasses.length,
+				successRate: Math.round(
+					((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
+				),
+				roomsUsed: new Set(scheduledEntries.map((e) => e.room_id)).size
+			}
 		};
 	}
 };

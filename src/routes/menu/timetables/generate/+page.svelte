@@ -37,7 +37,9 @@
 
 	// --- Page State ---
 	let isSubmitting = $state(false);
+
 	let failedClassesModalOpen = $state(false);
+	let reportData = $state<any>(null);
 
 	// --- Form State ---
 	const currentYear = new Date().getFullYear();
@@ -166,10 +168,21 @@
 			const toastId = toast.loading('Starting schedule generation...');
 
 			return async ({ update, result }) => {
+				// await update(); // Skip default update to prevent global skeleton loading
 				isSubmitting = false;
-				await update();
 
 				if (result.type === 'success' && result.data?.success) {
+					// Store report data locally to ensure modal shows it regardless of form update quirks
+					if (result.data.report) {
+						reportData = {
+							report: result.data.report,
+							failedClasses: result.data.failedClasses,
+							generatedTimetableId: result.data.generatedTimetableId,
+							success: result.data.success
+						};
+						failedClassesModalOpen = true;
+					}
+
 					toast.success(result.data.message, {
 						id: toastId,
 						action: {
@@ -177,9 +190,6 @@
 							onClick: () => goto(`/menu/timetables/view/${result.data?.generatedTimetableId}`)
 						}
 					});
-					if (result.data.failedClasses && result.data.failedClasses.length > 0) {
-						failedClassesModalOpen = true;
-					}
 				} else if (
 					result.type === 'failure' ||
 					(result.type === 'success' && !result.data?.success)
@@ -538,6 +548,19 @@
 				</Card.Header>
 				<Card.Content>
 					<fieldset class="contents" disabled={!selectedProgram}>
+						<div class="space-y-2 mb-4">
+							<Label for="custom_name">Timetable Name (Optional)</Label>
+							<input
+								type="text"
+								name="custom_name"
+								id="custom_name"
+								placeholder="e.g., Draft Schedule v1"
+								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+							/>
+							<p class="text-sm text-muted-foreground">
+								Leave blank to auto-generate a name (e.g., TT-Program-Year-Sem).
+							</p>
+						</div>
 						<RadioGroup.Root
 							class="grid grid-cols-1 md:grid-cols-2 gap-4"
 							name="algorithm"
@@ -588,31 +611,86 @@
 	</form>
 </div>
 
-<!-- Failed Classes Modal -->
+<!-- Generation Report Modal -->
 <Dialog.Root bind:open={failedClassesModalOpen}>
-	<Dialog.Content>
+	<Dialog.Content class="sm:max-w-[600px]">
 		<Dialog.Header>
-			<Dialog.Title>Generation Issues Detected</Dialog.Title>
+			<Dialog.Title class="flex items-center gap-2">
+				{#if reportData?.report?.successRate === 100}
+					<BookCheck class="h-6 w-6 text-green-600" />
+					<span class="text-green-600">Generation Complete!</span>
+				{:else}
+					<Info class="h-6 w-6 text-amber-600" />
+					<span class="text-amber-600">Generation Complete with Issues</span>
+				{/if}
+			</Dialog.Title>
 			<Dialog.Description>
-				The following classes could not be scheduled due to conflicting constraints or lack of
-				available slots.
+				Here is the summary of the schedule generation process.
 			</Dialog.Description>
 		</Dialog.Header>
-		<div class="max-h-80 overflow-y-auto space-y-2 py-4">
-			{#if form?.failedClasses && form.failedClasses.length > 0}
-				{#each form.failedClasses as failed}
-					<Alert.Root variant="destructive">
-						<ClipboardX class="h-4 w-4" />
-						<Alert.AlertTitle>{failed.class}</Alert.AlertTitle>
-						<Alert.AlertDescription>{failed.reason}</Alert.AlertDescription>
-					</Alert.Root>
-				{/each}
-			{:else}
-				<p>No specific failures were reported.</p>
+
+		{#if reportData?.report}
+			<div class="grid grid-cols-3 gap-4 py-4">
+				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</span>
+					<span class="text-2xl font-bold">{reportData.report.duration}ms</span>
+				</div>
+				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+						>Success Rate</span
+					>
+					<span
+						class={cn(
+							'text-2xl font-bold',
+							reportData.report.successRate === 100 ? 'text-green-600' : 'text-amber-600'
+						)}
+					>
+						{reportData.report.successRate}%
+					</span>
+					<span class="text-xs text-muted-foreground"
+						>{reportData.report.scheduledCount}/{reportData.report.totalClasses}</span
+					>
+				</div>
+				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rooms</span>
+					<span class="text-2xl font-bold">{reportData.report.roomsUsed}</span>
+				</div>
+			</div>
+		{/if}
+
+		<div class="space-y-4">
+			<h4 class="font-semibold flex items-center gap-2">
+				{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
+					<ClipboardX class="h-4 w-4 text-destructive" />
+					<span class="text-destructive">Failed Classes ({reportData.failedClasses.length})</span>
+				{:else}
+					<BookCheck class="h-4 w-4 text-green-600" />
+					<span class="text-green-600">All classes scheduled successfully.</span>
+				{/if}
+			</h4>
+
+			{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
+				<div class="max-h-60 overflow-y-auto space-y-2 pr-2">
+					{#each reportData.failedClasses as failed}
+						<Alert.Root variant="destructive" class="py-2">
+							<Alert.AlertTitle class="text-sm font-semibold">{failed.class}</Alert.AlertTitle>
+							<Alert.AlertDescription class="text-xs">{failed.reason}</Alert.AlertDescription>
+						</Alert.Root>
+					{/each}
+				</div>
 			{/if}
 		</div>
-		<Dialog.Footer>
-			<Button onclick={() => (failedClassesModalOpen = false)}>Close</Button>
+
+		<Dialog.Footer class="sm:justify-between gap-2">
+			<Button variant="outline" onclick={() => (failedClassesModalOpen = false)}>Close</Button>
+			{#if reportData?.success}
+				<Button
+					onclick={() =>
+						goto(`/menu/timetables/view/${reportData?.generatedTimetableId}`, { invalidateAll: true })}
+				>
+					View Timetable
+				</Button>
+			{/if}
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
