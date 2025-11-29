@@ -5,6 +5,8 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import ChartStyle from '../ui/chart/chart-style.svelte';
 
+	import { TrendingUp, TrendingDown } from '@lucide/svelte';
+
 	type ScheduleStatusData = {
 		name: string;
 		value: number;
@@ -32,7 +34,30 @@
 	let activeStatus = $state(data[0]?.name ?? '');
 
 	const id = 'pie-interactive-status';
+	const statistics = $derived.by(() => {
+		// 1. Safely extract values (don't rely on array index order)
+		const assigned = data.find((d) => d.name === 'Assigned')?.value || 0;
+		const unassigned = data.find((d) => d.name === 'Unassigned')?.value || 0;
+		const total = assigned + unassigned;
 
+		// METHOD A: Percentage of Total (Standard Approach)
+		// Formula: (Part / Whole) * 100
+		const percentOfTotal = total > 0 ? (assigned / total) * 100 : 0;
+
+		// METHOD B: Lowest to Highest Ratio (Your specific request)
+		// Formula: (Smallest / Largest) * 100
+		const min = Math.min(assigned, unassigned);
+		const max = Math.max(assigned, unassigned);
+		const ratio = max > 0 ? (min / max) * 100 : 0;
+
+		return {
+			assigned,
+			unassigned,
+			total,
+			percentOfTotal: percentOfTotal.toFixed(1), // e.g., "11.1"
+			ratio: ratio.toFixed(1) // e.g., "12.5"
+		};
+	});
 	const activeIndex = $derived(chartData.findIndex((item) => item.name === activeStatus));
 	const activeValue = $derived(chartData.find((item) => item.name === activeStatus)?.value ?? 0);
 
@@ -138,4 +163,15 @@
 			</PieChart>
 		</Chart.Container>
 	</Card.Content>
+	<Card.Footer class="text-center text-muted-foreground text-sm">
+		{#if statistics.total === 0}
+			No classes available.
+		{:else if statistics.assigned >= statistics.unassigned}
+			{statistics.percentOfTotal}% of classes are assigned <TrendingUp />
+		{:else}
+			Only {statistics.percentOfTotal}% out of {statistics.total} classes are assigned <TrendingDown
+				class="ml-2 size-4"
+			/>
+		{/if}
+	</Card.Footer>
 </Card.Root>
