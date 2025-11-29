@@ -16,7 +16,7 @@
 	const chartConfig = {
 		desktop: { label: 'Desktop', color: 'var(--chart-1)' }
 	} satisfies Chart.ChartConfig;
-
+	const colorRange = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)'];
 	const statistics = $derived.by(() => {
 		// 1. Safely extract values (don't rely on array index order)
 		const underload = data.find((d) => d.name === 'Under-loaded')?.value || 0;
@@ -61,6 +61,8 @@
 				y="value"
 				axis="x"
 				legend
+				labels
+				cRange={colorRange}
 				series={[{ label: 'Workload', color: 'var(--chart-1)', key: 'value' }]}
 				props={{
 					bars: {
@@ -86,7 +88,7 @@
 			</BarChart>
 		</Chart.Container>
 	</Card.Content>
-	<Card.Footer>
+	<Card.Footer class="text-xs text-muted-foreground">
 		{#if statistics.total === 0}
 			No instructors available.
 		{:else if statistics.underload >= statistics.optimal && statistics.underload >= statistics.overloaded}

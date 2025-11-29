@@ -17,6 +17,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
+	import ButtonGroup from '$lib/components/ui/button-group/button-group.svelte';
 
 	// --- Type Definition for Clarity and Type Safety ---
 	type Subject = {
@@ -202,22 +203,24 @@
 		</div>
 		<div slot="toolbar" class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
-				<Button
-					variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
-					class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
-					disabled={isSubmitting || selectedRowsCount === 0}
-					onclick={() => {
-						selectedSubject = null; // Ensure we're in bulk delete mode
-						deleteOpen = true;
-					}}
-				>
-					<Trash2 class="mr-2 h-4 w-4" />
-					Delete ({selectedRowsCount})
-				</Button>
-				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
-					<PlusCircle class="mr-2 h-4 w-4" />
-					Add Subject
-				</Button>
+				<ButtonGroup>
+					<Button
+						variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+						class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+						disabled={isSubmitting || selectedRowsCount === 0}
+						onclick={() => {
+							selectedSubject = null; // Ensure we're in bulk delete mode
+							deleteOpen = true;
+						}}
+					>
+						<Trash2 class="mr-2 h-4 w-4" />
+						Delete ({selectedRowsCount})
+					</Button>
+					<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
+						<PlusCircle class="mr-2 h-4 w-4" />
+						Add Subject
+					</Button>
+				</ButtonGroup>
 			{/if}
 		</div>
 	</DataTable>

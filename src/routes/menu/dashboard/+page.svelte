@@ -2,12 +2,14 @@
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
-	import { Users, Building, BookCopy, GraduationCap } from 'lucide-svelte';
+	import { Users, Building, BookCopy, GraduationCap, Calendar, BookOpen } from 'lucide-svelte';
 	import ChartBarDefault from '$lib/components/charts/chart-bar-default.svelte';
 	import PieChartInteractive from '$lib/components/charts/pie-chart-interactive.svelte';
 	import ActionItemsTable from '$lib/components/dashboard/action-items-table.svelte';
 	import * as Select from '$lib/components/ui/select';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let { data } = $props<{ data: PageData }>();
 	const { profile, stats, workloadData, scheduleStatusData, actionItems, academic_year, semester } =
@@ -69,7 +71,7 @@
 				}}
 			>
 				<Select.Trigger class="w-[180px]">
-					<span>{selectedSemester}</span>
+					<Calendar /><span>{selectedSemester}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each semesters as sem}
@@ -88,7 +90,7 @@
 				}}
 			>
 				<Select.Trigger class="w-[180px]">
-					<span>{selectedAcademicYear}</span>
+					<BookOpen /><span>{selectedAcademicYear}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each academicYears as year}
@@ -98,17 +100,20 @@
 			</Select.Root>
 		</div>
 	</div>
-
+	<Separator class="md:mt-12 " />
 	<!-- Main content grid -->
 	<div class="grid grid-cols-12 gap-6">
 		<!-- Stat Cards -->
-		<Card.Root class="col-span-12 ">
+		<Card.Root class="col-span-12 lg:col-span-8 ">
 			<Card.Header>
 				<Card.Title>At a Glance</Card.Title>
 				<Card.Description>Your key resource metrics for the selected term.</Card.Description>
 
 				<Card.Action>
-					<Badge variant="outline" class="mt-1 text-xs text-muted-foreground">{scopeText}</Badge>
+					<Badge variant="outline" class="mt-1 text-xs text-muted-foreground"
+						><div class="bg-primary size-2 rounded-full"></div>
+						{scopeText}</Badge
+					>
 				</Card.Action>
 			</Card.Header>
 			<Card.Content class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -150,8 +155,26 @@
 				</Card.Root>
 			</Card.Content>
 		</Card.Root>
+		<Card.Root class="col-span-12 lg:col-span-4">
+			<Card.Header>
+				<Card.Title>Quick Actions</Card.Title>
+				<Card.Description>Navigate to commonly used sections.</Card.Description>
+			</Card.Header>
+			<Card.Content class="flex flex-col gap-2">
+				<Button variant="outline" href="/menu/resources/subjects">Add Subjects</Button>
+				<Button variant="outline" href="/menu/resources/instructors">Add Instructors</Button>
+				<Button variant="outline" href="/menu/resources/rooms">Add Rooms</Button>
+				<Button variant="outline" href="/menu/resources/blocks">Add Blocks</Button>
+			</Card.Content>
+		</Card.Root>
 
 		<!-- Charts -->
+		<Card.Root class="col-span-12 lg:col-span-4">
+			<Card.Content>
+				<PieChartInteractive data={scheduleStatusData} />
+			</Card.Content>
+		</Card.Root>
+
 		<Card.Root class="col-span-12 lg:col-span-8">
 			<Card.Header>
 				<Card.Title>Instructor Workload</Card.Title>
@@ -165,23 +188,11 @@
 			</Card.Content>
 		</Card.Root>
 
-		<Card.Root class="col-span-12 lg:col-span-4">
-			<Card.Header>
-				<Card.Title>Class Assignment Status</Card.Title>
-				<Card.Description
-					>A snapshot of assigned vs. unassigned classes for the term.</Card.Description
-				>
-			</Card.Header>
-			<Card.Content>
-				<PieChartInteractive data={scheduleStatusData} />
-			</Card.Content>
-		</Card.Root>
-
 		<!-- Action Items Table -->
 		<div class="col-span-12">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>Action Items: Assign Instructors</Card.Title>
+					<Card.Title>Assign Instructors</Card.Title>
 					<Card.Description>
 						The following classes are offered but still need an instructor.
 					</Card.Description>

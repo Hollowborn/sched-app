@@ -427,36 +427,9 @@
 		</div>
 		<div slot="toolbar" class="flex items-center">
 			<ToggleGroup.Root type="single" variant="outline" bind:value={statusFilter}>
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							><ToggleGroup.Item value="all"><List /></ToggleGroup.Item></Tooltip.Trigger
-						>
-						<Tooltip.Content>
-							<p>All</p>
-						</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							><ToggleGroup.Item value="assigned"><UserCheck /></ToggleGroup.Item></Tooltip.Trigger
-						>
-						<Tooltip.Content>
-							<p>Assigned</p>
-						</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							><ToggleGroup.Item value="unassigned"><UserX /></ToggleGroup.Item></Tooltip.Trigger
-						>
-						<Tooltip.Content>
-							<p>Unassigned</p>
-						</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
+				<ToggleGroup.Item value="all"><List /></ToggleGroup.Item>
+				<ToggleGroup.Item value="assigned"><UserCheck /></ToggleGroup.Item>
+				<ToggleGroup.Item value="unassigned"><UserX /></ToggleGroup.Item>
 			</ToggleGroup.Root>
 		</div>
 	</DataTable>

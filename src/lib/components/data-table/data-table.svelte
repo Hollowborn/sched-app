@@ -235,7 +235,7 @@
 					{/each}
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
-			<div class="relative w-full max-w-sm">
+			<div class="relative w-full max-w-sm md:w-64">
 				<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 				<Input placeholder="Search..." class="pl-10" bind:value={globalFilter} />
 			</div>
