@@ -78,7 +78,15 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			lectureDays = [];
 		}
 
-		const possibleDays = lectureDays.length > 0 ? lectureDays : DAYS;
+		let possibleDays: string[];
+
+		if (lectureDays.length > 0) {
+			// If specific days are requested, use them (bypass exclusion rules)
+			possibleDays = lectureDays;
+		} else {
+			// Otherwise, use all days minus excluded days
+			possibleDays = DAYS.filter((d) => !constraints.excludedDays?.includes(d));
+		}
 
 		if (cls.subjects.lecture_hours > 0) {
 			if (cls.split_lecture) {
@@ -132,11 +140,11 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 				type: 'Lab',
 				hours: Number(cls.subjects.lab_hours),
 				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
-				possibleRooms: rooms.filter(
-					(r) =>
-						(!constraints.enforceRoomType || r.type === 'Lab') &&
-						(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-				),
+				possibleRooms: rooms.filter((r) => {
+					const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
+					return capOk && typeOk;
+				}),
 				possibleDays: DAYS
 			});
 		}
@@ -176,6 +184,15 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			// But mutation might break it if we are not careful.
 			// For now, assume genes are always valid regarding "static" constraints (room type, capacity)
 			// because we only pick from `possibleRooms`.
+
+			// Soft Constraint: Room Type
+			if (constraints.roomTypeConstraint === 'soft') {
+				const roomA = rooms.find((r) => r.id === geneA.roomId);
+				if (roomA && roomA.type !== taskA.type) {
+					// Penalty for using wrong room type
+					score -= 10; 
+				}
+			}
 
 			for (let j = i + 1; j < genes.length; j++) {
 				const geneB = genes[j];

@@ -70,7 +70,15 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			lectureDays = [];
 		}
 
-		const possibleDays = lectureDays.length > 0 ? lectureDays : DAYS;
+		let possibleDays: string[];
+
+		if (lectureDays.length > 0) {
+			// If specific days are requested, use them (bypass exclusion rules)
+			possibleDays = lectureDays;
+		} else {
+			// Otherwise, use all days minus excluded days
+			possibleDays = DAYS.filter((d) => !constraints.excludedDays?.includes(d));
+		}
 
 		// Lecture
 		if (cls.subjects.lecture_hours > 0) {
@@ -82,11 +90,19 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: rooms
+						.filter((r) => {
+							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							return capOk && typeOk;
+						})
+						.sort((a, b) => {
+							if (constraints.roomTypeConstraint === 'soft') {
+								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
+								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
+							}
+							return 0;
+						}),
 					possibleDays: possibleDays
 				});
 				tasks.push({
@@ -95,11 +111,19 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: rooms
+						.filter((r) => {
+							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							return capOk && typeOk;
+						})
+						.sort((a, b) => {
+							if (constraints.roomTypeConstraint === 'soft') {
+								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
+								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
+							}
+							return 0;
+						}),
 					possibleDays: cls.lecture_days && cls.lecture_days.length > 0 ? cls.lecture_days : DAYS
 				});
 			} else {
@@ -109,11 +133,19 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: Number(cls.subjects.lecture_hours),
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: rooms
+						.filter((r) => {
+							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							return capOk && typeOk;
+						})
+						.sort((a, b) => {
+							if (constraints.roomTypeConstraint === 'soft') {
+								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
+								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
+							}
+							return 0;
+						}),
 					possibleDays: cls.lecture_days && cls.lecture_days.length > 0 ? cls.lecture_days : DAYS
 				});
 			}
@@ -126,11 +158,19 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 				type: 'Lab',
 				hours: Number(cls.subjects.lab_hours),
 				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
-				possibleRooms: rooms.filter(
-					(r) =>
-						(!constraints.enforceRoomType || r.type === 'Lab') &&
-						(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-				),
+				possibleRooms: rooms
+					.filter((r) => {
+						const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+						const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
+						return capOk && typeOk;
+					})
+					.sort((a, b) => {
+						if (constraints.roomTypeConstraint === 'soft') {
+							if (a.type === 'Lab' && b.type !== 'Lab') return -1;
+							if (a.type !== 'Lab' && b.type === 'Lab') return 1;
+						}
+						return 0;
+					}),
 				possibleDays: DAYS // Labs usually don't have specific day constraints in this system yet, or default to all
 			});
 		}
