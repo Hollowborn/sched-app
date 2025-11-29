@@ -30,6 +30,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Collapsible from '$lib/components/ui/collapsible';
+	import * as Field from '$lib/components/ui/field';
 
 	type Program = PageData['programs'][number];
 
@@ -56,7 +57,7 @@
 	);
 	let constraints = $state({
 		enforceCapacity: true,
-		enforceRoomType: true,
+		roomTypeConstraint: 'strict',
 		enforceInstructor: true,
 		enforceBlock: true
 	});
@@ -181,8 +182,9 @@
 						failedClassesModalOpen = true;
 					}
 
-					toast.success(result.data.message, {
+					toast.success('Generation complete!', {
 						id: toastId,
+						description: result.data.message,
 						action: {
 							label: 'View Timetable',
 							onClick: () => goto(`/menu/timetables/view/${result.data?.generatedTimetableId}`)
@@ -446,7 +448,26 @@
 							Set the rules and time boundaries for the schedule generation.
 						</Card.Description>
 					</Card.Header>
-					<Card.Content class="grid grid-cols-1 md:grid-cols-2 gap-6">
+					<Card.Content class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+						<!-- Day Rules -->
+						<div class="space-y-4 rounded-md border p-4">
+							<h4 class="font-semibold">Day Rules</h4>
+							<div class="space-y-2 ">
+								<Label class="text-sm text-muted-foreground">Exclude Days</Label>
+								<div class="flex flex-wrap gap-2 ">
+									{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
+										<div class="flex items-center gap-2">
+											<Checkbox id="exclude-{day}" name="excluded_days" value={day} />
+											<Label for="exclude-{day}" class="font-normal">{day}</Label>
+										</div>
+									{/each}
+								</div>
+								<p class="relative bottom-0 text-xs text-muted-foreground mt-2">
+									Classes with specific <code>lecture_days</code> will bypass this rule.
+								</p>
+							</div>
+						</div>
+
 						<!-- Time Constraints -->
 						<div class="space-y-4 rounded-md border p-4">
 							<h4 class="font-semibold">Time Rules</h4>
@@ -505,13 +526,18 @@
 									/>
 									<Label for="c-cap" class="font-normal">Enforce Room Capacity</Label>
 								</div>
-								<div class="flex items-center gap-2">
-									<Checkbox
-										id="c-type"
-										name="enforceRoomType"
-										bind:checked={constraints.enforceRoomType}
-									/>
-									<Label for="c-type" class="font-normal">Enforce Room Type (Lec/Lab)</Label>
+								<div class="space-y-2 pt-2">
+									<Label class="text-sm font-medium">Room Type Rules</Label>
+									<RadioGroup.Root bind:value={constraints.roomTypeConstraint} name="roomTypeConstraint">
+										<div class="flex items-center space-x-2">
+											<RadioGroup.Item value="strict" id="rt-strict" />
+											<Label for="rt-strict" class="font-normal">Strictly Enforce (Lec → Lec Room)</Label>
+										</div>
+										<div class="flex items-center space-x-2">
+											<RadioGroup.Item value="soft" id="rt-soft" />
+											<Label for="rt-soft" class="font-normal">Allow Overflow (Prefer correct type)</Label>
+										</div>
+									</RadioGroup.Root>
 								</div>
 								<div class="flex items-center gap-2">
 									<Checkbox
@@ -614,74 +640,90 @@
 	<Dialog.Content class="sm:max-w-[600px]">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
-				{#if reportData?.report?.successRate === 100}
-					<BookCheck class="h-6 w-6 text-green-600" />
-					<span class="text-green-600">Generation Complete!</span>
-				{:else}
-					<Info class="h-6 w-6 text-amber-600" />
-					<span class="text-amber-600">Generation Complete with Issues</span>
-				{/if}
+				Generation Statistics
 			</Dialog.Title>
 			<Dialog.Description>
-				Here is the summary of the schedule generation process.
+				Performance metrics for this generation run.
 			</Dialog.Description>
 		</Dialog.Header>
 
 		{#if reportData?.report}
-			<div class="grid grid-cols-3 gap-4 py-4">
-				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
-						>Time</span
-					>
-					<span class="text-2xl font-bold">{reportData.report.duration}ms</span>
-				</div>
-				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
-						>Success Rate</span
-					>
-					<span
-						class={cn(
-							'text-2xl font-bold',
-							reportData.report.successRate === 100 ? 'text-green-600' : 'text-amber-600'
-						)}
-					>
-						{reportData.report.successRate}%
-					</span>
-					<span class="text-xs text-muted-foreground"
-						>{reportData.report.scheduledCount}/{reportData.report.totalClasses}</span
-					>
-				</div>
-				<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
-						>Rooms</span
-					>
-					<span class="text-2xl font-bold">{reportData.report.roomsUsed}</span>
-				</div>
-			</div>
-		{/if}
-
-		<div class="space-y-4">
-			<h4 class="font-semibold flex items-center gap-2">
-				{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
-					<ClipboardX class="h-4 w-4 text-destructive" />
-					<span class="text-destructive">Failed Classes ({reportData.failedClasses.length})</span>
-				{:else}
+			<Field.Group class="py-4">
+				<Field.Set>
+					
+					<div class="grid grid-cols-3 gap-4 pt-2">
+						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+								>Time</span
+							>
+							<span class="text-2xl font-bold">{reportData.report.timeTaken}</span>
+						</div>
+						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+								>Success Rate</span
+							>
+							<span
+								class={cn(
+									'text-2xl font-bold',
+									reportData.report.successRate === 100 ? 'text-green-600' : 'text-amber-600'
+								)}
+							>
+								{reportData.report.successRate}%
+							</span>
+							<span class="text-xs text-muted-foreground"
+								>{reportData.report.scheduledCount}/{reportData.report.totalClasses}</span
+							>
+						</div>
+						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+								>Rooms</span
+							>
+							<span class="text-2xl font-bold">{reportData.report.roomsUsed}</span>
+						</div>
+					</div>
+					<Field.Description class="text-muted-foreground flex items-center gap-2 "> {#if reportData?.report?.successRate === 100}
 					<BookCheck class="h-4 w-4 text-green-600" />
-					<span class="text-green-600">All classes scheduled successfully.</span>
+					<span class="text-green-600">Generation Complete!</span>
+				{:else}
+					<Info class="h-4 w-4 text-amber-600" />
+					<span class="text-amber-600">Generation Complete with Issues</span>
 				{/if}
-			</h4>
+						</Field.Description>
+				</Field.Set>
 
-			{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
-				<div class="max-h-60 overflow-y-auto space-y-2 pr-2">
-					{#each reportData.failedClasses as failed}
-						<Alert.Root variant="destructive" class="py-2">
-							<Alert.AlertTitle class="text-sm font-semibold">{failed.class}</Alert.AlertTitle>
-							<Alert.AlertDescription class="text-xs">{failed.reason}</Alert.AlertDescription>
-						</Alert.Root>
-					{/each}
-				</div>
-			{/if}
-		</div>
+				<Field.Separator />
+
+				<Field.Set>
+					<Field.Legend class="flex items-center gap-2">
+						{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
+							<ClipboardX class="h-4 w-4 text-destructive" />
+							<span class="text-destructive">Failed Classes ({reportData.failedClasses.length})</span>
+						{:else}
+							<BookCheck class="h-4 w-4 text-green-600" />
+							<span class="text-green-600">Status</span>
+						{/if}
+					</Field.Legend>
+					<Field.Description>
+						{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
+							The following classes could not be scheduled.
+						{:else}
+							All classes were scheduled successfully.
+						{/if}
+					</Field.Description>
+					
+					{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
+						<div class="max-h-60 overflow-y-auto space-y-2 pr-2 pt-2">
+							{#each reportData.failedClasses as failed}
+								<Alert.Root variant="destructive" class="py-2">
+									<Alert.AlertTitle class="text-sm font-semibold">{failed.class}</Alert.AlertTitle>
+									<Alert.AlertDescription class="text-xs">{failed.reason}</Alert.AlertDescription>
+								</Alert.Root>
+							{/each}
+						</div>
+					{/if}
+				</Field.Set>
+			</Field.Group>
+		{/if}
 
 		<Dialog.Footer class="sm:justify-between gap-2">
 			<Button variant="outline" onclick={() => (failedClassesModalOpen = false)}>Close</Button>
