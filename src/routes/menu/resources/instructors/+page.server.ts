@@ -1,8 +1,8 @@
 import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-const ALLOWED_ROLES_VIEW = ['Admin', 'Dean', 'Registrar'];
-const ALLOWED_ROLES_EDIT = ['Admin', 'Dean'];
+const ALLOWED_ROLES_VIEW = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
+const ALLOWED_ROLES_EDIT = ['Admin', 'Dean', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {

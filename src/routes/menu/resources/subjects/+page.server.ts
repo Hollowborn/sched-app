@@ -2,7 +2,7 @@ import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
 // Define the roles that are allowed to view and manage this page.
-const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 // Fetches the initial data needed to render the subjects page.

@@ -2,7 +2,7 @@ import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
 // This page is primarily for Admins and Registrars who manage university-wide resources.
-const ALLOWED_ROLES = ['Admin', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Registrar', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals }) => {

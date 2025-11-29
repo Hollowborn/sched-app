@@ -2,7 +2,7 @@ import { fail, error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './[timetableId]/$types';
 
 // Allow all authenticated roles to view timetables
-const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {
