@@ -126,6 +126,7 @@ export const actions: Actions = {
 			| 'Summer';
 		const program_id = Number(formData.get('program_id'));
 		const room_ids = formData.getAll('room_ids').map(Number);
+		const excluded_days = formData.getAll('excluded_days').map(String);
 
 		// New inputs from the refactored UI
 		const scheduleStartTime = formData.get('scheduleStartTime')?.toString() || '07:30';
@@ -137,9 +138,13 @@ export const actions: Actions = {
 		// 2. Get Constraints
 		const constraints = {
 			enforceCapacity: !!formData.get('enforceCapacity'),
-			enforceRoomType: !!formData.get('enforceRoomType'),
+			roomTypeConstraint: (formData.get('roomTypeConstraint')?.toString() || 'strict') as
+				| 'strict'
+				| 'soft'
+				| 'none',
 			enforceInstructor: !!formData.get('enforceInstructor'),
-			enforceBlock: !!formData.get('enforceBlock')
+			enforceBlock: !!formData.get('enforceBlock'),
+			excludedDays: excluded_days
 		};
 
 		if (!academic_year || !semester || !program_id || room_ids.length === 0) {
@@ -363,7 +368,7 @@ export const actions: Actions = {
 		// 10. Return summary
 		const message =
 			failedClasses.length === 0
-				? 'Generation complete! All classes were successfully scheduled.'
+				? 'All classes were successfully scheduled.'
 				: `Generation complete with some issues. ${failedClasses.length} classes failed to schedule.`;
 
 		return {
