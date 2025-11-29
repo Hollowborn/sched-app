@@ -24,7 +24,7 @@
 	import { User, Lock, Info, LoaderCircle } from '@lucide/svelte';
 	// -------------------------------
 
-	let { data, children, ...restProps } = $props<
+	let { data, children, fab, ...restProps } = $props<
 		{ data: any } & ComponentProps<typeof Sidebar.Root>
 	>();
 
@@ -73,25 +73,21 @@
 								</div>
 							</header>
 
-							<Card.Root>
-								<Card.Content class="m-2">
-									<div class="space-y-4 md:hidden">
-										<Skeleton class="h-10 w-full rounded-md" />
-										<Skeleton class="h-10 w-full rounded-md" />
-									</div>
+							<div class="space-y-4 md:hidden">
+								<Skeleton class="h-10 w-full rounded-md" />
+								<Skeleton class="h-10 w-full rounded-md" />
+							</div>
 
-									<div class="hidden md:flex md:flex-row md:items-center md:justify-between gap-4">
-										<div class="flex flex-1 items-center gap-4">
-											<!-- <Skeleton class="h-10 w-[150px] rounded-md" />
+							<div class="hidden md:flex md:flex-row md:items-center md:justify-between gap-4">
+								<div class="flex flex-1 items-center gap-4">
+									<!-- <Skeleton class="h-10 w-[150px] rounded-md" />
                                             <Skeleton class="h-10 w-[150px] rounded-md" /> -->
-											<Skeleton class="h-10 max-w-sm flex-1 rounded-md" />
-										</div>
-										<Skeleton class="h-10 w-[240px] rounded-md" />
-									</div>
-								</Card.Content>
-							</Card.Root>
+									<Skeleton class="h-10 max-w-sm flex-1 rounded-md" />
+								</div>
+								<Skeleton class="h-10 w-[240px] rounded-md" />
+							</div>
 
-							<div class="border rounded-md">
+							<div class="md:hidden rounded-md">
 								<div class="divide-y md:hidden">
 									{#each Array(5) as _}
 										<div class="p-4 space-y-3">
@@ -133,7 +129,7 @@
 							</div>
 						</div>
 					{:else}
-						<div class="page-enter page-enter-active">
+						<div class="page-enter page-enter-active md:m-12">
 							{@render children?.()}
 						</div>
 					{/if}

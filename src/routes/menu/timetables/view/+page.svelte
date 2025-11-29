@@ -57,72 +57,70 @@
 		</p>
 	</header>
 
-	<Card.Root>
-		<Card.Content class="p-4 flex flex-col md:flex-row gap-4">
-			<!-- Filters -->
-			<div class="flex items-center gap-4">
-				<div class="flex items-center gap-2">
-					<Calendar class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={academicYear}
-						onValueChange={(v) => {
-							if (v) {
-								academicYear = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]"><span>{academicYear}</span></Select.Trigger>
-						<Select.Content>
-							{#each generateAcademicYears() as year}
-								<Select.Item value={year}>{year}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="flex items-center gap-2">
-					<BookOpen class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={semester}
-						onValueChange={(v) => {
-							if (v) {
-								semester = v;
-								handleFilterChange();
-							}
-						}}
-					>
-						<Select.Trigger class="w-[150px]"><span>{semester}</span></Select.Trigger>
-						<Select.Content>
-							<Select.Item value="1st Semester">1st Semester</Select.Item>
-							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-							<Select.Item value="Summer">Summer</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-			<!-- Status Tabs -->
-			<div class="flex-1 md:flex md:justify-end">
-				<Tabs.Root
-					value={status}
+	<div class="p-4 flex flex-col md:flex-row gap-4">
+		<!-- Filters -->
+		<div class="flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				<Calendar class="h-4 w-4 text-muted-foreground" />
+				<Select.Root
+					type="single"
+					value={academicYear}
 					onValueChange={(v) => {
 						if (v) {
-							status = v;
+							academicYear = v;
 							handleFilterChange();
 						}
 					}}
 				>
-					<Tabs.List>
-						<Tabs.Trigger value="All">All</Tabs.Trigger>
-						<Tabs.Trigger value="draft">Drafts</Tabs.Trigger>
-						<Tabs.Trigger value="published">Published</Tabs.Trigger>
-						<Tabs.Trigger value="archived">Archived</Tabs.Trigger>
-					</Tabs.List>
-				</Tabs.Root>
+					<Select.Trigger class="w-[150px]"><span>{academicYear}</span></Select.Trigger>
+					<Select.Content>
+						{#each generateAcademicYears() as year}
+							<Select.Item value={year}>{year}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 			</div>
-		</Card.Content>
-	</Card.Root>
+			<div class="flex items-center gap-2">
+				<BookOpen class="h-4 w-4 text-muted-foreground" />
+				<Select.Root
+					type="single"
+					value={semester}
+					onValueChange={(v) => {
+						if (v) {
+							semester = v;
+							handleFilterChange();
+						}
+					}}
+				>
+					<Select.Trigger class="w-[150px]"><span>{semester}</span></Select.Trigger>
+					<Select.Content>
+						<Select.Item value="1st Semester">1st Semester</Select.Item>
+						<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+						<Select.Item value="Summer">Summer</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</div>
+		</div>
+		<!-- Status Tabs -->
+		<div class="flex-1 md:flex md:justify-end">
+			<Tabs.Root
+				value={status}
+				onValueChange={(v) => {
+					if (v) {
+						status = v;
+						handleFilterChange();
+					}
+				}}
+			>
+				<Tabs.List>
+					<Tabs.Trigger value="All">All</Tabs.Trigger>
+					<Tabs.Trigger value="draft">Drafts</Tabs.Trigger>
+					<Tabs.Trigger value="published">Published</Tabs.Trigger>
+					<Tabs.Trigger value="archived">Archived</Tabs.Trigger>
+				</Tabs.List>
+			</Tabs.Root>
+		</div>
+	</div>
 
 	<!-- Timetable Grid -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

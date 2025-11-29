@@ -269,7 +269,7 @@
 		bind:rowSelection
 		bind:selectedRowsData={selectedClasses}
 	>
-		<div slot="filters" class="flex flex-wrap items-center gap-4">
+		<div slot="filters" class="flex items-center gap-2">
 			<div class="flex items-center gap-2">
 				<Calendar class="h-4 w-4 text-muted-foreground" />
 				<Select.Root
