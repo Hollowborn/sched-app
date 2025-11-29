@@ -39,9 +39,10 @@ export interface SolverResult {
 
 export interface SolverConstraints {
 	enforceCapacity: boolean;
-	enforceRoomType: boolean;
+	roomTypeConstraint: 'strict' | 'soft' | 'none';
 	enforceInstructor: boolean;
 	enforceBlock: boolean;
+	excludedDays: string[];
 }
 
 export type Solver = (
