@@ -31,7 +31,7 @@
 			class="flex items-center gap-2.5 transition-transform duration-200 hover:scale-101"
 		>
 			<div
-				class="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md"
+				class="ml-1 bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md"
 			>
 				<GalleryVerticalEndIcon class="size-4" />
 			</div>
