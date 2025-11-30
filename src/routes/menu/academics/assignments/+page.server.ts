@@ -33,7 +33,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                     college_id,
                     colleges (college_name)
                 )
-            )
+            ),
+            pref_room_id,
+            rooms (room_name)
         `
 		)
 		.eq('academic_year', academic_year)
@@ -114,9 +116,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			? await locals.supabase.from('colleges').select('id, college_name')
 			: { data: [] };
 
+	// Fetch rooms for the dropdown
+	const { data: rooms } = await locals.supabase
+		.from('rooms')
+		.select('id, room_name, owner_college_id, is_general_use')
+		.order('room_name');
+
 	return {
 		classes: processedClasses || [],
 		instructors: instructorsWithLoad || [],
+		rooms: rooms || [],
 		colleges: colleges || [],
 		profile: locals.profile,
 		filters: { academic_year, semester, college: college_filter_id }
@@ -154,6 +163,36 @@ export const actions: Actions = {
 		}
 
 		return { message: 'Instructor assigned successfully.' };
+	},
+
+	assignRoom: async ({ request, locals }) => {
+		const userRole = locals.profile?.role;
+		if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+			return fail(403, { message: 'You do not have permission to assign rooms.' });
+		}
+
+		const formData = await request.formData();
+		const classId = Number(formData.get('classId'));
+		const roomIdVal = formData.get('roomId');
+
+		// Handle "No Preference" selection
+		const pref_room_id = roomIdVal && Number(roomIdVal) > 0 ? Number(roomIdVal) : null;
+
+		if (!classId) {
+			return fail(400, { message: 'Invalid class ID.' });
+		}
+
+		const { error: updateError } = await locals.supabase
+			.from('classes')
+			.update({ pref_room_id })
+			.eq('id', classId);
+
+		if (updateError) {
+			console.error('Error assigning room:', updateError);
+			return fail(500, { message: 'Failed to assign room.' });
+		}
+
+		return { message: 'Room preference updated successfully.' };
 	},
 
 	updateLectureSplit: async ({ request, locals }) => {
