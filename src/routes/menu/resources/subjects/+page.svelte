@@ -203,24 +203,22 @@
 		</div>
 		<div slot="toolbar" class="flex items-center gap-2">
 			{#if data.profile?.role === 'Admin'}
-				<ButtonGroup>
-					<Button
-						variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
-						class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
-						disabled={isSubmitting || selectedRowsCount === 0}
-						onclick={() => {
-							selectedSubject = null; // Ensure we're in bulk delete mode
-							deleteOpen = true;
-						}}
-					>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Delete ({selectedRowsCount})
-					</Button>
-					<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
-						<PlusCircle class="mr-2 h-4 w-4" />
-						Add Subject
-					</Button>
-				</ButtonGroup>
+				<Button
+					variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+					class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+					disabled={isSubmitting || selectedRowsCount === 0}
+					onclick={() => {
+						selectedSubject = null; // Ensure we're in bulk delete mode
+						deleteOpen = true;
+					}}
+				>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Delete ({selectedRowsCount})
+				</Button>
+				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
+					<PlusCircle class="mr-2 h-4 w-4" />
+					Add Subject
+				</Button>
 			{/if}
 		</div>
 	</DataTable>

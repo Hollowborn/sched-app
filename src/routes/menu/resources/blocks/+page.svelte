@@ -149,7 +149,7 @@
 
 			<Popover.Root>
 				<Popover.Trigger>
-					<Button variant="outline">
+					<Button variant="default">
 						<Sparkles class="mr-2 h-4 w-4 animate-pulse" />
 
 						Bulk Generate
