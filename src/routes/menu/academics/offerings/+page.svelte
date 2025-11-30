@@ -3,10 +3,21 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { PlusCircle, Trash2, LoaderCircle, Calendar, BookOpen, Filter } from '@lucide/svelte';
+	import {
+		PlusCircle,
+		Trash2,
+		LoaderCircle,
+		Calendar,
+		BookOpen,
+		Filter,
+		Check,
+		ChevronsUpDown
+	} from '@lucide/svelte';
 	import type { ColumnDef, RowSelectionState } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import { cn } from '$lib/utils';
+	import { tick } from 'svelte';
 
 	// Shadcn Components
 	import { Button } from '$lib/components/ui/button';
@@ -16,6 +27,8 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
+	import * as Command from '$lib/components/ui/command';
+	import * as Popover from '$lib/components/ui/popover';
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
@@ -49,6 +62,14 @@
 	let createOfferingCollegeId = $state('');
 	let createSplitLecture = $state(false);
 	let createLectureDays = $state<string[]>([]);
+
+	// --- Combobox Open States ---
+	let subjectOpen = $state(false);
+	let collegeOpen = $state(false);
+	let blockOpen = $state(false);
+	let instructorOpen = $state(false);
+	let roomOpen = $state(false);
+	let filterOpen = $state(false);
 
 	// --- Derived State ---
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
@@ -201,23 +222,27 @@
 {#snippet subjectNameCell({ rowData }: { rowData: ClassOffering })}
 	<div class="flex items-center gap-2">
 		<span>{rowData.subjects?.subject_name || 'N/A'}</span>
-		<div class="flex gap-1">
-			{#if rowData.split_lecture && rowData.lecture_days}
-				{#each rowData.lecture_days as day}
-					<Badge
-						variant="outline"
-						class="border font-mono"
-						style={`
+		{#if rowData.split_lecture && rowData.lecture_days}
+			<div class="flex gap-1">
+				{#if rowData.lecture_days.length > 0}
+					{#each rowData.lecture_days as day}
+						<Badge
+							variant="outline"
+							class="border font-mono"
+							style={`
 							background-color: oklch(from ${dayColorMap[day]} l c h / 0.15);
 							color: ${dayColorMap[day]};
 							border-color: oklch(from ${dayColorMap[day]} l c h / 0.2);
 						`}
-					>
-						{day.slice(0, 3)}
-					</Badge>
-				{/each}
-			{/if}
-		</div>
+						>
+							{day.slice(0, 3)}
+						</Badge>
+					{/each}
+				{:else if rowData.split_lecture}
+					<Badge variant="secondary" class="border font-mono">/</Badge>
+				{/if}
+			</div>
+		{/if}
 	</div>
 {/snippet}
 
@@ -270,74 +295,94 @@
 		bind:selectedRowsData={selectedClasses}
 	>
 		<div slot="filters" class="flex items-center gap-2">
-			<div class="flex items-center gap-2">
-				<Calendar class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={academicYear}
-					onValueChange={(v) => {
-						if (v) {
-							academicYear = v;
-							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[150px]">
-						<span>{academicYear || 'Academic Year'}</span>
-					</Select.Trigger>
-					<Select.Content>
-						{#each generateAcademicYears() as year}
-							<Select.Item value={year}>{year}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
-			<div class="flex items-center gap-2">
-				<BookOpen class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={semester}
-					onValueChange={(v) => {
-						if (v) {
-							semester = v;
-							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[150px]">
-						<span>{semester || 'Semester'}</span>
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="1st Semester">1st Semester</Select.Item>
-						<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-						<Select.Item value="Summer">Summer</Select.Item>
-					</Select.Content>
-				</Select.Root>
-			</div>
-			<div class="flex items-center gap-2">
-				<Filter class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={collegeFilterId}
-					onValueChange={(v) => {
-						collegeFilterId = v;
-						handleFilterChange();
-					}}
-				>
-					<Select.Trigger class="w-full sm:w-[200px]">
-						<span class="truncate max-w-[200px]"
-							>{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
-								'All Colleges'}</span
-						>
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="">All Colleges</Select.Item>
-						{#each data.colleges || [] as college}
-							<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
+			<Popover.Root bind:open={filterOpen}>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" class="w-[200px] justify-between" {...props}>
+							Filter...
+							<Filter class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[250px] p-0" align="start">
+					<Command.Root>
+						<Command.Input placeholder="Search filters..." />
+						<Command.List>
+							<Command.Empty>No filter found.</Command.Empty>
+							<Command.Group heading="Academic Year">
+								{#each generateAcademicYears() as year}
+									<Command.Item
+										value={`year:${year}`}
+										onSelect={() => {
+											academicYear = year;
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn(
+												'mr-2 h-4 w-4',
+												academicYear === year ? 'opacity-100' : 'opacity-0'
+											)}
+										/>
+										{year}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+							<Command.Group heading="Semester">
+								{#each ['1st Semester', '2nd Semester', 'Summer'] as sem}
+									<Command.Item
+										value={`sem:${sem}`}
+										onSelect={() => {
+											semester = sem;
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn('mr-2 h-4 w-4', semester === sem ? 'opacity-100' : 'opacity-0')}
+										/>
+										{sem}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+							<Command.Group heading="College">
+								<Command.Item
+									value="col:all"
+									onSelect={() => {
+										collegeFilterId = '';
+										handleFilterChange();
+										filterOpen = false;
+									}}
+								>
+									<Check
+										class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
+									/>
+									All Colleges
+								</Command.Item>
+								{#each data.colleges || [] as college}
+									<Command.Item
+										value={`col:${college.college_name}`}
+										onSelect={() => {
+											collegeFilterId = college.id.toString();
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn(
+												'mr-2 h-4 w-4',
+												collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
+											)}
+										/>
+										{college.college_name}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
 		</div>
 
 		<div slot="toolbar" class="flex items-center gap-2">
@@ -400,123 +445,307 @@
 			<input type="hidden" name="academic_year" value={academicYear} />
 			<input type="hidden" name="semester" value={semester} />
 			<div class="grid gap-4 py-4">
-				<div class="space-y-2">
+				<div class="space-y-2 flex flex-col">
 					<Label>Subject</Label>
-					<Select.Root name="subject_id" type="single" bind:value={createSubjectId}>
-						<Select.Trigger>
-							<span class="placeholder:text-muted-foreground">
-								{createSubject?.subject_name || 'Select a subject'}
-							</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each data.subjects as subject}
-								<Select.Item value={subject.id.toString()}>
-									{subject.subject_code} - {subject.subject_name}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
+					<Popover.Root bind:open={subjectOpen}>
+						<Popover.Trigger>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={subjectOpen}
+								>
+									<span class="truncate max-w-64"
+										>{createSubject?.subject_name || 'Select a subject'}</span
+									>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search subject..." />
+								<Command.List>
+									<Command.Empty>No subject found.</Command.Empty>
+									<Command.Group>
+										{#each data.subjects as subject}
+											<Command.Item
+												value={subject.subject_name}
+												onSelect={() => {
+													createSubjectId = subject.id.toString();
+													subjectOpen = false;
+												}}
+											>
+												<Check
+													class={cn(
+														'mr-2 h-4 w-4',
+														createSubjectId === subject.id.toString() ? 'opacity-100' : 'opacity-0'
+													)}
+												/>
+												{subject.subject_code} - {subject.subject_name}
+											</Command.Item>
+										{/each}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+					<input type="hidden" name="subject_id" value={createSubjectId} />
 				</div>
 
 				{#if createSubject && createSubject.colleges.length > 1}
-					<div class="space-y-2">
+					<div class="space-y-2 flex flex-col">
 						<Label>Offered By College</Label>
-						<Select.Root
-							name="offering_college_id"
-							type="single"
-							bind:value={createOfferingCollegeId}
-						>
-							<Select.Trigger>
-								<span class="placeholder:text-muted-foreground">
-									{data.colleges.find((c) => c.id.toString() === createOfferingCollegeId)
-										?.college_name || 'Select a college'}
-								</span>
-							</Select.Trigger>
-							<Select.Content>
-								{#each createSubject.colleges as college}
-									<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+						<Popover.Root bind:open={collegeOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={collegeOpen}
+									>
+										<span class="truncate"
+											>{data.colleges.find((c) => c.id.toString() === createOfferingCollegeId)
+												?.college_name || 'Select a college'}</span
+										>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[400px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search college..." />
+									<Command.List>
+										<Command.Empty>No college found.</Command.Empty>
+										<Command.Group>
+											{#each createSubject.colleges as college}
+												<Command.Item
+													value={college.college_name}
+													onSelect={() => {
+														createOfferingCollegeId = college.id.toString();
+														collegeOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															createOfferingCollegeId === college.id.toString()
+																? 'opacity-100'
+																: 'opacity-0'
+														)}
+													/>
+													{college.college_name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input type="hidden" name="offering_college_id" value={createOfferingCollegeId} />
 					</div>
 				{/if}
 
-				<div class="space-y-2">
+				<div class="space-y-2 flex flex-col">
 					<Label>Block Section</Label>
-					<Select.Root
-						name="block_id"
-						type="single"
-						bind:value={createBlockId}
-						disabled={!createOfferingCollegeId}
-					>
-						<Select.Trigger disabled={!createOfferingCollegeId}>
-							<span class="placeholder:text-muted-foreground"
-								>{createBlockName || 'Select a block'}</span
-							>
-						</Select.Trigger>
-						<Select.Content>
-							{#if !createOfferingCollegeId}
-								<div class="p-2 text-sm text-muted-foreground text-center">
-									Select a subject first
-								</div>
-							{:else if availableBlocks.length === 0}
-								<div class="p-2 text-sm text-muted-foreground text-center">
-									No blocks for this college
-								</div>
-							{:else}
-								{#each availableBlocks as block}
-									<Select.Item value={block.id.toString()}>{block.block_name}</Select.Item>
-								{/each}
-							{/if}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
-					<Label>Instructor (Optional)</Label>
-					<Select.Root
-						type="single"
-						name="instructor_id"
-						bind:value={createInstructorId}
-						disabled={!createSubjectId}
-					>
-						<Select.Trigger disabled={!createSubjectId}>
-							<span class="placeholder:text-muted-foreground">
-								{qualifiedInstructors.find((i) => i.id.toString() === createInstructorId)?.name ||
-									'Assign an instructor'}
-							</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="0">Unassigned</Select.Item>
-							{#if qualifiedInstructors.length > 0}
-								{#each qualifiedInstructors as instructor}
-									<Select.Item value={instructor.id.toString()}>{instructor.name}</Select.Item>
-								{/each}
-							{:else if createSubjectId}
-								<div class="p-2 text-sm text-muted-foreground text-center">
-									No qualified instructors for this subject.
-								</div>
-							{/if}
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-2">
-					<Label>Preferred Room (Optional)</Label>
-					<Select.Root type="single" name="pref_room_id" bind:value={createPrefRoomId}>
-						<Select.Trigger>
-							<span class="placeholder:text-muted-foreground"
-								>{data.rooms.find((r) => r.id.toString() === createPrefRoomId)?.room_name ||
-									'Select a preferred room'}</span
-							>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="0">No Preference</Select.Item>
-							{#each data.rooms || [] as room}
-								<Select.Item value={room.id.toString()}
-									>{room.room_name} ({room.building})</Select.Item
+					<Popover.Root bind:open={blockOpen}>
+						<Popover.Trigger disabled={!createOfferingCollegeId}>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={blockOpen}
+									disabled={!createOfferingCollegeId}
 								>
-							{/each}
-						</Select.Content>
-					</Select.Root>
+									<span class="truncate">{createBlockName || 'Select a block'}</span>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search block..." />
+								<Command.List>
+									<Command.Empty>No block found.</Command.Empty>
+									<Command.Group>
+										{#if !createOfferingCollegeId}
+											<div class="p-2 text-sm text-muted-foreground text-center">
+												Select a subject first
+											</div>
+										{:else if availableBlocks.length === 0}
+											<div class="p-2 text-sm text-muted-foreground text-center">
+												No blocks for this college
+											</div>
+										{:else}
+											{#each availableBlocks as block}
+												<Command.Item
+													value={block.block_name}
+													onSelect={() => {
+														createBlockId = block.id.toString();
+														blockOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															createBlockId === block.id.toString() ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{block.block_name}
+												</Command.Item>
+											{/each}
+										{/if}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+					<input type="hidden" name="block_id" value={createBlockId} />
+				</div>
+				<div class="space-y-2 flex flex-col">
+					<Label>Instructor (Optional)</Label>
+					<Popover.Root bind:open={instructorOpen}>
+						<Popover.Trigger disabled={!createSubjectId}>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={instructorOpen}
+									disabled={!createSubjectId}
+								>
+									<span class="truncate"
+										>{qualifiedInstructors.find((i) => i.id.toString() === createInstructorId)
+											?.name || 'Assign an instructor'}</span
+									>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search instructor..." />
+								<Command.List>
+									<Command.Empty>No instructor found.</Command.Empty>
+									<Command.Group>
+										<Command.Item
+											value="Unassigned"
+											onSelect={() => {
+												createInstructorId = '0';
+												instructorOpen = false;
+											}}
+										>
+											<Check
+												class={cn(
+													'mr-2 h-4 w-4',
+													createInstructorId === '0' ? 'opacity-100' : 'opacity-0'
+												)}
+											/>
+											Unassigned
+										</Command.Item>
+										{#if qualifiedInstructors.length > 0}
+											{#each qualifiedInstructors as instructor}
+												<Command.Item
+													value={instructor.name}
+													onSelect={() => {
+														createInstructorId = instructor.id.toString();
+														instructorOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															createInstructorId === instructor.id.toString()
+																? 'opacity-100'
+																: 'opacity-0'
+														)}
+													/>
+													{instructor.name}
+												</Command.Item>
+											{/each}
+										{:else if createSubjectId}
+											<div class="p-2 text-sm text-muted-foreground text-center">
+												No qualified instructors for this subject.
+											</div>
+										{/if}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+					<input type="hidden" name="instructor_id" value={createInstructorId} />
+				</div>
+				<div class="space-y-2 flex flex-col">
+					<Label>Preferred Room (Optional)</Label>
+					<Popover.Root bind:open={roomOpen}>
+						<Popover.Trigger>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={roomOpen}
+								>
+									<span class="truncate"
+										>{data.rooms.find((r) => r.id.toString() === createPrefRoomId)?.room_name ||
+											'Select a preferred room'}</span
+									>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search room..." />
+								<Command.List>
+									<Command.Empty>No room found.</Command.Empty>
+									<Command.Group>
+										<Command.Item
+											value="No Preference"
+											onSelect={() => {
+												createPrefRoomId = '0';
+												roomOpen = false;
+											}}
+										>
+											<Check
+												class={cn(
+													'mr-2 h-4 w-4',
+													createPrefRoomId === '0' ? 'opacity-100' : 'opacity-0'
+												)}
+											/>
+											No Preference
+										</Command.Item>
+										{#each data.rooms || [] as room}
+											<Command.Item
+												value={room.room_name}
+												onSelect={() => {
+													createPrefRoomId = room.id.toString();
+													roomOpen = false;
+												}}
+											>
+												<Check
+													class={cn(
+														'mr-2 h-4 w-4',
+														createPrefRoomId === room.id.toString() ? 'opacity-100' : 'opacity-0'
+													)}
+												/>
+												{room.room_name} ({room.building})
+											</Command.Item>
+										{/each}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+					<input type="hidden" name="pref_room_id" value={createPrefRoomId} />
 				</div>
 
 				<div class="flex items-center space-x-2 rounded-md border p-4">

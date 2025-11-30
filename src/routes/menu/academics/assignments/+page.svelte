@@ -3,7 +3,17 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { Calendar, BookOpen, List, UserCheck, UserX, Filter, Pencil } from '@lucide/svelte';
+	import { cn } from '$lib/utils';
+	import {
+		Calendar,
+		BookOpen,
+		List,
+		UserCheck,
+		UserX,
+		Filter,
+		Pencil,
+		Check
+	} from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
@@ -15,6 +25,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
@@ -32,21 +43,27 @@
 	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
 
 	let selectedInstructorIds = $state<{ [key: number]: string | undefined }>({});
+	let selectedRoomIds = $state<{ [key: number]: string | undefined }>({});
 
 	// --- Edit Popover State ---
 	let editingClassId = $state<number | null>(null);
 	let editSplitLecture = $state(false);
 	let editLectureDays = $state<string[]>([]);
+	let filterOpen = $state(false);
+
 	const atEditLectureDaysLimit = $derived(editLectureDays.length >= 2);
 
 	$effect(() => {
 		const initialIds: { [key: number]: string | undefined } = {};
+		const initialRoomIds: { [key: number]: string | undefined } = {};
 		if (data.classes) {
 			for (const c of data.classes) {
 				initialIds[c.id] = c.instructors?.id.toString() ?? '0';
+				initialRoomIds[c.id] = c.pref_room_id?.toString() ?? '0';
 			}
 		}
 		selectedInstructorIds = initialIds;
+		selectedRoomIds = initialRoomIds;
 	});
 
 	// --- Derived State ---
@@ -118,6 +135,15 @@
 		}
 	}
 
+	async function handleRoomChange(classId: number) {
+		await tick();
+
+		const form = document.getElementById(`room-form-${classId}`) as HTMLFormElement;
+		if (form) {
+			form.requestSubmit();
+		}
+	}
+
 	const dayColorMap: Record<string, string> = {
 		Monday: 'var(--chart-1)',
 		Tuesday: 'var(--chart-2)',
@@ -147,7 +173,16 @@
 			header: 'Instructor',
 			cell: ({ row }) => renderSnippet(instructorCell, { rowData: row.original }),
 			meta: {
-				class: 'w-[40%]'
+				class: 'w-[30%]'
+			}
+		},
+		{
+			id: 'room',
+			accessorFn: (d) => d.rooms?.room_name || '',
+			header: 'Preferred Room',
+			cell: ({ row }) => renderSnippet(roomCell, { rowData: row.original }),
+			meta: {
+				class: 'w-[20%]'
 			}
 		}
 	];
@@ -160,19 +195,23 @@
 				<span class="font-medium">{rowData.subjects?.subject_code}</span>
 				{#if rowData.split_lecture && rowData.lecture_days}
 					<div class="flex gap-1">
-						{#each rowData.lecture_days as day}
-							<Badge
-								variant="outline"
-								class="border font-mono"
-								style="background-color: oklch(from {dayColorMap[
-									day
-								]} l c h / 0.1); color: {dayColorMap[day]}; border-color: oklch(from {dayColorMap[
-									day
-								]} l c h / 0.2);"
-							>
-								{day.substring(0, 1)}
-							</Badge>
-						{/each}
+						{#if rowData.lecture_days.length > 0}
+							{#each rowData.lecture_days as day}
+								<Badge
+									variant="outline"
+									class="border font-mono"
+									style="background-color: oklch(from {dayColorMap[
+										day
+									]} l c h / 0.1); color: {dayColorMap[day]}; border-color: oklch(from {dayColorMap[
+										day
+									]} l c h / 0.2);"
+								>
+									{day.slice(0, 3)}
+								</Badge>
+							{/each}
+						{:else if rowData.split_lecture}
+							<Badge variant="secondary" class="border font-mono">/</Badge>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -344,6 +383,72 @@
 	</form>
 {/snippet}
 
+{#snippet roomCell({ rowData }: { rowData: ClassOffering })}
+	{@const collegeId = rowData.blocks?.programs?.college_id}
+	{@const relevantRooms = data.rooms?.filter(
+		(r) => r.is_general_use || (collegeId && r.owner_college_id === collegeId)
+	)}
+	{@const collegeRooms = relevantRooms?.filter((r) => r.owner_college_id === collegeId)}
+	{@const generalRooms = relevantRooms?.filter((r) => r.is_general_use && r.owner_college_id !== collegeId)}
+
+	<form
+		method="POST"
+		action="?/assignRoom"
+		id="room-form-{rowData.id}"
+		use:enhance={() => {
+			const toastId = toast.loading('Saving room preference...');
+			return async ({ update, result }) => {
+				if (result.type === 'success') {
+					toast.success(result.data?.message, { id: toastId });
+					await update({ reset: false });
+				} else if (result.type === 'failure') {
+					toast.error(result.data?.message, { id: toastId });
+					await invalidateAll();
+				}
+			};
+		}}
+	>
+		<input type="hidden" name="classId" value={rowData.id} />
+		<Select.Root
+			type="single"
+			name="roomId"
+			value={selectedRoomIds[rowData.id]}
+			onValueChange={(v) => {
+				selectedRoomIds[rowData.id] = v;
+				handleRoomChange(rowData.id);
+			}}
+		>
+			<Select.Trigger class="w-full">
+				{#if selectedRoomIds[rowData.id] && selectedRoomIds[rowData.id] !== '0'}
+					{data.rooms?.find((r) => r.id.toString() === selectedRoomIds[rowData.id])?.room_name ||
+						'Unknown Room'}
+				{:else}
+					<span class="text-muted-foreground">No Preference</span>
+				{/if}
+			</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="0">No Preference</Select.Item>
+				{#if collegeRooms && collegeRooms.length > 0}
+					<Select.Group>
+						<Select.Label>College Rooms</Select.Label>
+						{#each collegeRooms as room}
+							<Select.Item value={room.id.toString()}>{room.room_name}</Select.Item>
+						{/each}
+					</Select.Group>
+				{/if}
+				{#if generalRooms && generalRooms.length > 0}
+					<Select.Group>
+						<Select.Label>General Use Rooms</Select.Label>
+						{#each generalRooms as room}
+							<Select.Item value={room.id.toString()}>{room.room_name}</Select.Item>
+						{/each}
+					</Select.Group>
+				{/if}
+			</Select.Content>
+		</Select.Root>
+	</form>
+{/snippet}
+
 <svelte:head>
 	<title>Instructor Assignments | smart-sched</title>
 </svelte:head>
@@ -357,73 +462,95 @@
 	</header>
 
 	<DataTable data={filteredClasses} {columns}>
-		<div slot="filters" class="flex flex-wrap items-center gap-4">
-			<div class="flex items-center gap-2">
-				<Calendar class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={academicYear}
-					onValueChange={(v) => {
-						if (v) {
-							academicYear = v;
-							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-[150px]"><span>{academicYear}</span></Select.Trigger>
-					<Select.Content>
-						{#each generateAcademicYears() as year}
-							<Select.Item value={year}>{year}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
-			<div class="flex items-center gap-2">
-				<BookOpen class="h-4 w-4 text-muted-foreground" />
-				<Select.Root
-					type="single"
-					value={semester}
-					onValueChange={(v) => {
-						if (v) {
-							semester = v;
-							handleFilterChange();
-						}
-					}}
-				>
-					<Select.Trigger class="w-[150px]"><span>{semester}</span></Select.Trigger>
-					<Select.Content>
-						<Select.Item value="1st Semester">1st Semester</Select.Item>
-						<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-						<Select.Item value="Summer">Summer</Select.Item>
-					</Select.Content>
-				</Select.Root>
-			</div>
-			{#if data.profile?.role === 'Admin' && data.colleges?.length > 0}
-				<div class="flex items-center gap-2">
-					<Filter class="h-4 w-4 text-muted-foreground" />
-					<Select.Root
-						type="single"
-						value={collegeFilterId}
-						onValueChange={(v) => {
-							collegeFilterId = v;
-							handleFilterChange();
-						}}
-					>
-						<Select.Trigger class="w-[200px]">
-							<span class="truncate max-w-[200px]">
-								{data.colleges?.find((c) => c.id.toString() === collegeFilterId)?.college_name ||
-									'All Colleges'}
-							</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="">All Colleges</Select.Item>
-							{#each data.colleges as college}
-								<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-			{/if}
+		<div slot="filters" class="flex items-center gap-2">
+			<Popover.Root bind:open={filterOpen}>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button variant="outline" class="w-[200px] justify-between" {...props}>
+							Filter...
+							<Filter class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content class="w-[250px] p-0" align="start">
+					<Command.Root>
+						<Command.Input placeholder="Search filters..." />
+						<Command.List>
+							<Command.Empty>No filter found.</Command.Empty>
+							<Command.Group heading="Academic Year">
+								{#each generateAcademicYears() as year}
+									<Command.Item
+										value={`year:${year}`}
+										onSelect={() => {
+											academicYear = year;
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn(
+												'mr-2 h-4 w-4',
+												academicYear === year ? 'opacity-100' : 'opacity-0'
+											)}
+										/>
+										{year}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+							<Command.Group heading="Semester">
+								{#each ['1st Semester', '2nd Semester', 'Summer'] as sem}
+									<Command.Item
+										value={`sem:${sem}`}
+										onSelect={() => {
+											semester = sem;
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn('mr-2 h-4 w-4', semester === sem ? 'opacity-100' : 'opacity-0')}
+										/>
+										{sem}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+							<Command.Group heading="College">
+								<Command.Item
+									value="col:all"
+									onSelect={() => {
+										collegeFilterId = '';
+										handleFilterChange();
+										filterOpen = false;
+									}}
+								>
+									<Check
+										class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
+									/>
+									All Colleges
+								</Command.Item>
+								{#each data.colleges || [] as college}
+									<Command.Item
+										value={`col:${college.college_name}`}
+										onSelect={() => {
+											collegeFilterId = college.id.toString();
+											handleFilterChange();
+											filterOpen = false;
+										}}
+									>
+										<Check
+											class={cn(
+												'mr-2 h-4 w-4',
+												collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
+											)}
+										/>
+										{college.college_name}
+									</Command.Item>
+								{/each}
+							</Command.Group>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
 		</div>
 		<div slot="toolbar" class="flex items-center">
 			<ToggleGroup.Root type="single" variant="outline" bind:value={statusFilter}>
