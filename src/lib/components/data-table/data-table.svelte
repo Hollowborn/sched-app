@@ -292,7 +292,9 @@
 					{/each}
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={columns.length} class="h-24 text-center">No results.</Table.Cell>
+						<Table.Cell colspan={columns.length + 1} class="h-24 text-center"
+							>No results.</Table.Cell
+						>
 					</Table.Row>
 				{/if}
 			</Table.Body>
