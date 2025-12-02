@@ -19,6 +19,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -177,7 +178,7 @@
 			<Dialog.Description>Statistics and details from the last generation run.</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
-			{#if report.status === 'Generating'}
+			{#if report.status != 'Generating'}
 				<div class="flex flex-col items-center justify-center py-8 space-y-4">
 					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 					<p class="text-muted-foreground">Generation in progress...</p>
@@ -218,15 +219,68 @@
 						</div>
 					</div>
 				{:else}
-					<div class="p-4 border rounded-lg bg-green-50 border-green-200 text-green-800">
-						<p class="font-medium">All classes scheduled successfully! 🎉</p>
+					<Card.Root>
+						<Card.Content>
+							<p class="font-medium">All classes scheduled successfully! 🎉</p>
+						</Card.Content>
+					</Card.Root>
+				{/if}
+				<Separator />
+				<div class="text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1 mt-4 pt-4">
+					<p>
+						<span class="font-semibold">Algorithm:</span>
+						{report.generation_params?.algorithm.charAt(0).toUpperCase() +
+							report.generation_params?.algorithm.slice(1) ||
+							report.algorithm.charAt(0).toUpperCase() +
+								report.generation_params?.algorithm.slice(1) ||
+							'N/A'}
+					</p>
+					<p><span class="font-semibold">Rooms Used:</span> {report.roomsUsed}</p>
+					<p>
+						<span class="font-semibold">Academic Year:</span>
+						{report.generation_params?.academic_year || 'N/A'}
+					</p>
+					<p>
+						<span class="font-semibold">Semester:</span>
+						{report.generation_params?.semester || 'N/A'}
+					</p>
+					<p>
+						<span class="font-semibold">Time Range:</span>
+						{report.generation_params?.scheduleStartTime || 'N/A'} - {report.generation_params
+							?.scheduleEndTime || 'N/A'}
+					</p>
+					<p>
+						<span class="font-semibold">Break Time:</span>
+						{report.generation_params?.breakTime || 'None'}
+					</p>
+				</div>
+
+				{#if report.generation_params?.constraints}
+					<div class="mt-4 pt-4 border-t">
+						<h4 class="text-sm font-semibold mb-2">Constraints Applied</h4>
+						<div class="flex flex-wrap gap-2">
+							{#if report.generation_params.constraints.enforceCapacity}
+								<Badge variant="outline">Capacity Check</Badge>
+							{/if}
+							{#if report.generation_params.constraints.enforceInstructor}
+								<Badge variant="outline">Instructor Conflict</Badge>
+							{/if}
+							{#if report.generation_params.constraints.enforceBlock}
+								<Badge variant="outline">Block Conflict</Badge>
+							{/if}
+							{#if report.generation_params.constraints.roomTypeConstraint === 'strict'}
+								<Badge variant="outline">Strict Room Type</Badge>
+							{:else if report.generation_params.constraints.roomTypeConstraint === 'soft'}
+								<Badge variant="outline">Soft Room Type</Badge>
+							{/if}
+							{#if report.generation_params.constraints.excludedDays?.length > 0}
+								<Badge variant="destructive">
+									Excluded Days: {report.generation_params.constraints.excludedDays.join(', ')}
+								</Badge>
+							{/if}
+						</div>
 					</div>
 				{/if}
-
-				<div class="text-xs text-muted-foreground">
-					<p>Algorithm: {report.algorithm}</p>
-					<p>Rooms Used: {report.roomsUsed}</p>
-				</div>
 			{/if}
 		</div>
 		<Dialog.Footer>
