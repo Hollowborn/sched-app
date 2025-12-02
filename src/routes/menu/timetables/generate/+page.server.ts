@@ -204,179 +204,209 @@ export const actions: Actions = {
 			return fail(500, { message: 'Failed to create a new timetable entry.' });
 		}
 		const timetable_id = newTimetable.id;
-
+		console.log('Generating timetable with ID:', timetable_id);
 		// --- Start Solver Logic ---
-		// 4. Fetch all data needed for the solver
-		const [{ data: classesData, error: classesError }, { data: roomsData, error: roomsError }] =
-			await Promise.all([
-				locals.supabase
-					.from('classes')
-					.select(
-						'id, split_lecture, lecture_days, instructor_id, block_id, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
-					)
-					.eq('academic_year', academic_year)
-					.eq('semester', semester)
-					.eq('blocks.program_id', program_id),
-				locals.supabase.from('rooms').select('*').in('id', room_ids)
-			]);
+		try {
+			// 4. Fetch all data needed for the solver
+			const [{ data: classesData, error: classesError }, { data: roomsData, error: roomsError }] =
+				await Promise.all([
+					locals.supabase
+						.from('classes')
+						.select(
+							'id, split_lecture, lecture_days, instructor_id, block_id, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
+						)
+						.eq('academic_year', academic_year)
+						.eq('semester', semester)
+						.eq('blocks.program_id', program_id),
+					locals.supabase.from('rooms').select('*').in('id', room_ids)
+				]);
 
-		if (classesError) throw error(500, `Classes Error: ${JSON.stringify(classesError)}`);
-		if (roomsError) throw error(500, `Rooms Error: ${JSON.stringify(roomsError)}`);
+			if (classesError) throw error(500, `Classes Error: ${JSON.stringify(classesError)}`);
+			if (roomsError) throw error(500, `Rooms Error: ${JSON.stringify(roomsError)}`);
 
-		if (!classesData || classesData.length === 0) {
-			return fail(400, {
-				message:
-					'No class offerings found for the selected program and term. Cannot generate schedule.'
+			if (!classesData || classesData.length === 0) {
+				// Update metadata to failed
+				await locals.supabase
+					.from('timetables')
+					.update({
+						metadata: { ...initialMetadata, status: 'Failed', error: 'No class offerings found.' },
+						status: 'Draft'
+					})
+					.eq('id', timetable_id);
+
+				return fail(400, {
+					message:
+						'No class offerings found for the selected program and term. Cannot generate schedule.'
+				});
+			}
+
+			// 5. Define Domain (Playable Slots) based on new constraints
+			const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+			const SLOT_DURATION_MINUTES = 90;
+			const SLOT_DURATION_HOURS = 1.5;
+
+			function generateTimeslots(
+				start: string,
+				end: string,
+				durationMinutes: number,
+				breakT: string
+			) {
+				const slots = [];
+				let currentTime = new Date(`1970-01-01T${start}:00`);
+				const endTime = new Date(`1970-01-01T${end}:00`);
+				const breakStart =
+					breakT !== 'none' ? new Date(`1970-01-01T${breakT.split('-')[0]}:00`) : null;
+				const breakEnd =
+					breakT !== 'none' ? new Date(`1970-01-01T${breakT.split('-')[1]}:00`) : null;
+
+				while (currentTime < endTime) {
+					const slotStart = currentTime;
+					const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60000);
+
+					const isDuringBreak =
+						breakStart && breakEnd && slotStart < breakEnd && slotEnd > breakStart;
+
+					if (!isDuringBreak) {
+						slots.push(currentTime.toTimeString().substring(0, 5));
+					}
+					currentTime.setMinutes(currentTime.getMinutes() + 30); // Increment by 30 mins for more granular start times
+				}
+				return [...new Set(slots)]; // Remove duplicates
+			}
+
+			const TIMESLOTS = generateTimeslots(
+				scheduleStartTime,
+				scheduleEndTime,
+				SLOT_DURATION_MINUTES,
+				breakTime
+			);
+
+			// 6. Create the "Job List" (Needed for stats and consistent task counting)
+			const tasksToSchedule: any[] = [];
+			(classesData || []).forEach((cls) => {
+				// Handle split lectures
+				if (cls.split_lecture && cls.subjects.lecture_hours > 0) {
+					const splitHours = Number(cls.subjects.lecture_hours) / 2;
+					tasksToSchedule.push({
+						class: cls,
+						type: 'Lecture',
+						hours: splitHours,
+						slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
+						splitGroup: `split_${cls.id}_1`
+					});
+					tasksToSchedule.push({
+						class: cls,
+						type: 'Lecture',
+						hours: splitHours,
+						slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
+						splitGroup: `split_${cls.id}_2`
+					});
+				} else if (cls.subjects.lecture_hours > 0) {
+					tasksToSchedule.push({
+						class: cls,
+						type: 'Lecture',
+						hours: Number(cls.subjects.lecture_hours),
+						slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS)
+					});
+				}
+
+				if (cls.subjects.lab_hours > 0) {
+					tasksToSchedule.push({
+						class: cls,
+						type: 'Lab',
+						hours: Number(cls.subjects.lab_hours),
+						slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS)
+					});
+				}
+			});
+
+			// 7. Run the Solver
+			const startTime = performance.now();
+			let result: SolverResult;
+
+			if (algorithm === 'cp') {
+				result = solveCP(classesData, roomsData, TIMESLOTS, constraints);
+			} else {
+				result = solveMemetic(classesData, roomsData, TIMESLOTS, constraints);
+			}
+
+			const { scheduledEntries, failedClasses } = result;
+
+			// 7. Insert successful entries
+			if (scheduledEntries.length > 0) {
+				const entriesToInsert = scheduledEntries.map((entry) => ({
+					...entry,
+					timetable_id
+				}));
+
+				await locals.supabase.from('schedules').delete().eq('timetable_id', timetable_id);
+				const { error: insertError } = await locals.supabase
+					.from('schedules')
+					.insert(entriesToInsert);
+
+				if (insertError) {
+					throw new Error(`Failed to save schedule: ${insertError.message}`);
+				}
+			}
+
+			// 8. Construct Final Report & Update Metadata
+			const timeTaken = (performance.now() - startTime).toFixed(2) + 'ms';
+			const successRate = Math.round(
+				((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
+			);
+
+			const finalMetadata = {
+				...initialMetadata,
+				status: 'Complete',
+				timeTaken,
+				successRate,
+				totalClasses: tasksToSchedule.length,
+				scheduledCount: tasksToSchedule.length - failedClasses.length,
+				roomsUsed: new Set(scheduledEntries.map((e) => e.room_id)).size,
+				failedClasses,
+				algorithm
+			};
+
+			await locals.supabase
+				.from('timetables')
+				.update({
+					metadata: finalMetadata,
+					status: 'Draft' // Ensure it's Draft (or whatever status implies done)
+				})
+				.eq('id', timetable_id);
+			console.log('Timetable generation complete:', finalMetadata);
+			// 10. Return summary
+			const message =
+				failedClasses.length === 0
+					? 'All classes were successfully scheduled.'
+					: `Generation complete with some issues. ${failedClasses.length} classes failed to schedule.`;
+
+			return {
+				success: true,
+				message,
+				failedClasses,
+				generatedTimetableId: timetable_id,
+				report: finalMetadata // Return the full metadata as the report
+			};
+		} catch (e) {
+			console.error('Generation Error:', e);
+
+			// Attempt to update metadata with error
+			await locals.supabase
+				.from('timetables')
+				.update({
+					metadata: {
+						...initialMetadata,
+						status: 'Failed',
+						error: e instanceof Error ? e.message : 'Unknown error occurred during generation.'
+					},
+					status: 'Draft'
+				})
+				.eq('id', timetable_id);
+
+			return fail(500, {
+				message: `Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`
 			});
 		}
-
-		// 5. Define Domain (Playable Slots) based on new constraints
-		const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-		const SLOT_DURATION_MINUTES = 90;
-		const SLOT_DURATION_HOURS = 1.5;
-
-		function generateTimeslots(
-			start: string,
-			end: string,
-			durationMinutes: number,
-			breakT: string
-		) {
-			const slots = [];
-			let currentTime = new Date(`1970-01-01T${start}:00`);
-			const endTime = new Date(`1970-01-01T${end}:00`);
-			const breakStart =
-				breakT !== 'none' ? new Date(`1970-01-01T${breakT.split('-')[0]}:00`) : null;
-			const breakEnd = breakT !== 'none' ? new Date(`1970-01-01T${breakT.split('-')[1]}:00`) : null;
-
-			while (currentTime < endTime) {
-				const slotStart = currentTime;
-				const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60000);
-
-				const isDuringBreak =
-					breakStart && breakEnd && slotStart < breakEnd && slotEnd > breakStart;
-
-				if (!isDuringBreak) {
-					slots.push(currentTime.toTimeString().substring(0, 5));
-				}
-				currentTime.setMinutes(currentTime.getMinutes() + 30); // Increment by 30 mins for more granular start times
-			}
-			return [...new Set(slots)]; // Remove duplicates
-		}
-
-		const TIMESLOTS = generateTimeslots(
-			scheduleStartTime,
-			scheduleEndTime,
-			SLOT_DURATION_MINUTES,
-			breakTime
-		);
-
-		// 6. Create the "Job List" (Needed for stats and consistent task counting)
-		const tasksToSchedule: any[] = [];
-		(classesData || []).forEach((cls) => {
-			// Handle split lectures
-			if (cls.split_lecture && cls.subjects.lecture_hours > 0) {
-				const splitHours = Number(cls.subjects.lecture_hours) / 2;
-				tasksToSchedule.push({
-					class: cls,
-					type: 'Lecture',
-					hours: splitHours,
-					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					splitGroup: `split_${cls.id}_1`
-				});
-				tasksToSchedule.push({
-					class: cls,
-					type: 'Lecture',
-					hours: splitHours,
-					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					splitGroup: `split_${cls.id}_2`
-				});
-			} else if (cls.subjects.lecture_hours > 0) {
-				tasksToSchedule.push({
-					class: cls,
-					type: 'Lecture',
-					hours: Number(cls.subjects.lecture_hours),
-					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS)
-				});
-			}
-
-			if (cls.subjects.lab_hours > 0) {
-				tasksToSchedule.push({
-					class: cls,
-					type: 'Lab',
-					hours: Number(cls.subjects.lab_hours),
-					slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS)
-				});
-			}
-		});
-
-		// 7. Run the Solver
-		const startTime = performance.now();
-		let result: SolverResult;
-
-		if (algorithm === 'cp') {
-			result = solveCP(classesData, roomsData, TIMESLOTS, constraints);
-		} else {
-			result = solveMemetic(classesData, roomsData, TIMESLOTS, constraints);
-		}
-		const endTime = performance.now();
-
-		const { scheduledEntries, failedClasses } = result;
-
-		// 7. Insert successful entries
-		if (scheduledEntries.length > 0) {
-			const entriesToInsert = scheduledEntries.map((entry) => ({
-				...entry,
-				timetable_id
-			}));
-
-			await locals.supabase.from('schedules').delete().eq('timetable_id', timetable_id);
-			const { error: insertError } = await locals.supabase
-				.from('schedules')
-				.insert(entriesToInsert);
-
-			if (insertError) {
-				return fail(500, { message: `Failed to save schedule: ${insertError.message}` });
-			}
-		}
-
-		// 8. Construct Final Report & Update Metadata
-		const timeTaken = (performance.now() - startTime).toFixed(2) + 'ms';
-		const successRate = Math.round(
-			((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
-		);
-
-		const finalMetadata = {
-			...initialMetadata,
-			status: 'Complete',
-			timeTaken,
-			successRate,
-			totalClasses: tasksToSchedule.length,
-			scheduledCount: tasksToSchedule.length - failedClasses.length,
-			roomsUsed: new Set(scheduledEntries.map((e) => e.room_id)).size,
-			failedClasses,
-			algorithm
-		};
-
-		await locals.supabase
-			.from('timetables')
-			.update({
-				metadata: finalMetadata,
-				status: 'Draft' // Ensure it's Draft (or whatever status implies done)
-			})
-			.eq('id', timetable_id);
-
-		// 10. Return summary
-		const message =
-			failedClasses.length === 0
-				? 'All classes were successfully scheduled.'
-				: `Generation complete with some issues. ${failedClasses.length} classes failed to schedule.`;
-
-		return {
-			success: true,
-			message,
-			failedClasses,
-			generatedTimetableId: timetable_id,
-			report: finalMetadata // Return the full metadata as the report
-		};
 	}
 };
