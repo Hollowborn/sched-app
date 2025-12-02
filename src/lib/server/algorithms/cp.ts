@@ -226,7 +226,18 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 		return true;
 	}
 
+	// Track best partial solution
+	let bestAssignments: Record<string, ScheduleEntry[]> = {};
+	let maxAssignedCount = 0;
+
 	function backtrack(taskIndex: number): boolean {
+		// Update best solution found so far
+		if (taskIndex > maxAssignedCount) {
+			maxAssignedCount = taskIndex;
+			// Deep copy assignments
+			bestAssignments = JSON.parse(JSON.stringify(assignments));
+		}
+
 		if (taskIndex === tasks.length) {
 			return true; // All tasks assigned
 		}
@@ -238,16 +249,8 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			// Try all valid days
 			for (const day of task.possibleDays) {
 				// Try all valid time slots
-				// Ensure we have enough contiguous slots
 				for (let i = 0; i <= timeSlots.length - task.slotsNeeded; i++) {
-					// Check if the sequence of slots is valid (e.g. not crossing breaks if breaks were gaps in timeSlots)
-					// For now, assuming timeSlots are just start times.
-					// We need to verify if the computed end time is valid, but isConsistent handles overlap.
-					// A stricter check would be to ensure all intermediate slots exist in timeSlots, but let's trust the input for now.
-
 					if (isConsistent(task, room, day, i)) {
-						// Create the entry
-						// Create a single entry for the entire duration
 						const start = timeSlots[i];
 						const end = calculateEndTime(start, task.hours);
 
@@ -260,17 +263,11 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							course_type: task.type
 						}];
 
-						// We used to loop here, but now we just push one entry.
-						// The backtracking logic expects assignments[task.id] to hold the entries.
-						// We can just use this single entry array.
-
-						if (newEntries.length === 1) {
-							assignments[task.id] = newEntries;
-							if (backtrack(taskIndex + 1)) {
-								return true;
-							}
-							delete assignments[task.id]; // Backtrack
+						assignments[task.id] = newEntries;
+						if (backtrack(taskIndex + 1)) {
+							return true;
 						}
+						delete assignments[task.id]; // Backtrack
 					}
 				}
 			}
@@ -292,16 +289,22 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			failedClasses: []
 		};
 	} else {
-		// If complete failure, we might want to return partial results or just fail.
-		// CP is usually all-or-nothing.
-		// Let's try to identify which ones failed?
-		// In a pure backtracking, if it returns false, it means NO solution exists for the whole set.
-		// We could try to schedule as many as possible?
-		// For now, return failure.
+		// Return best partial solution
+		const allEntries = Object.values(bestAssignments).flat();
+		
+		// Identify failed classes
+		const scheduledTaskIds = new Set(Object.keys(bestAssignments));
+		const failed = tasks
+			.filter(t => !scheduledTaskIds.has(t.id))
+			.map(t => ({
+				class: `${t.classData.subjects.subject_code} (${t.type})`,
+				reason: 'Could not find a valid slot during backtracking.'
+			}));
+
 		return {
 			success: false,
-			scheduledEntries: [],
-			failedClasses: [{ class: 'ALL', reason: 'Could not find a solution that satisfies all constraints.' }]
+			scheduledEntries: allEntries,
+			failedClasses: failed
 		};
 	}
 };
