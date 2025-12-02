@@ -99,7 +99,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
 					possibleRooms: rooms.filter(
 						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
+							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
 							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
 					),
 					possibleDays: possibleDays
@@ -112,7 +112,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
 					possibleRooms: rooms.filter(
 						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
+							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
 							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
 					),
 					possibleDays: possibleDays
@@ -126,7 +126,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
 					possibleRooms: rooms.filter(
 						(r) =>
-							(!constraints.enforceRoomType || r.type === 'Lecture') &&
+							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
 							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
 					),
 					possibleDays: possibleDays
@@ -145,7 +145,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
 					return capOk && typeOk;
 				}),
-				possibleDays: DAYS
+				possibleDays: possibleDays
 			});
 		}
 	});
