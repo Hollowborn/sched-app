@@ -161,10 +161,12 @@
 				<Card.Description>Navigate to commonly used sections.</Card.Description>
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-2">
-				<Button variant="outline" href="/menu/resources/subjects">Add Subjects</Button>
-				<Button variant="outline" href="/menu/resources/instructors">Add Instructors</Button>
-				<Button variant="outline" href="/menu/resources/rooms">Add Rooms</Button>
-				<Button variant="outline" href="/menu/resources/blocks">Add Blocks</Button>
+				<Button variant="outline" href="/menu/resources/subjects?action=create">Add Subjects</Button
+				>
+				<Button variant="outline" href="/menu/timetables/generate">Create Timetable</Button>
+				<Button variant="outline" href="/menu/timetables/view">View Timetables</Button>
+				<Button variant="outline" href="/menu/academics/offerings?action=create">Add Classes</Button
+				>
 			</Card.Content>
 		</Card.Root>
 

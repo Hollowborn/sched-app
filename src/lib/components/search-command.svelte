@@ -69,7 +69,8 @@
 				href: '/menu/settings?tab=security',
 				roles: ['Admin', 'Dean', 'Chairperson']
 			}, // Example for a settings tab
-			{ label: 'Logout', href: '/logout', roles: ['Admin', 'Dean', 'Chairperson'] }
+			{ label: 'Logout', href: '/logout', roles: ['Admin', 'Dean', 'Chairperson'] },
+			{ label: 'Prototypes', href: '/prototypes', roles: ['Admin'] }
 		];
 
 		if (!role) {
@@ -148,7 +149,7 @@
 </script>
 
 <Dialog.Root bind:open={$isSearchOpen}>
-	<Dialog.Content showCloseButton={false} class="overflow-hidden p-0 shadow-lg sm:max-w-2xl ">
+	<Dialog.Content showCloseButton={false} class="overflow-hidden p-0 shadow-lg  ">
 		<Command.Root
 			class="max-h-[min(calc(100vh-8rem),500px)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md transition-all [--cmdk-shadow:0_2px_10px_rgb(0_0_0_/_0.06)]"
 		>
@@ -195,13 +196,14 @@
 						</Command.Group>
 					{/if}
 				{/if}
+
 				{#if filteredStaticActions.length > 0}
 					<Command.Group heading="Actions & Pages">
 						{#each filteredStaticActions as action}
 							<Command.Item
 								value={action.label}
 								onclick={() => handleSelect(action.href)}
-								class="text-base py-3 mb-1 rounded-md flex items-center justify-between"
+								class=" py-3 mb-1 rounded-md flex items-center justify-between"
 							>
 								{action.label}
 								<ChevronRight />

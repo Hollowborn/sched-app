@@ -2,6 +2,7 @@
 	import type { ActionData, PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { page } from '$app/stores';
 	import { invalidateAll, goto } from '$app/navigation';
 	import {
 		PlusCircle,
@@ -90,6 +91,14 @@
 
 	// --- Create Modal Derived Logic ---
 	let availableBlocks = $state<Block[]>([]);
+
+	// Quick Action, Create
+	$effect(() => {
+		if ($page.url.searchParams.get('action') === 'create') {
+			createOpen = true;
+		}
+	});
+
 	$effect(() => {
 		const collegeIdToFilter =
 			createSubject?.colleges.length === 1
@@ -406,16 +415,25 @@
 		</div>
 	</DataTable>
 
-	<div class="flex justify-end items-center text-sm text-muted-foreground">
-		<div>
-			Showing results for <span class="font-bold">{semester}</span> of Academic Year:
-			<span class="font-bold">{academicYear}</span>
-		</div>
+	<div class="text-center text-sm text-muted-foreground">
+		Showing results for <span class="font-bold">{semester}</span> of Academic Year:
+		<span class="font-bold">{academicYear}</span>
 	</div>
 </div>
 
 <!-- === MODALS === -->
-<Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && resetCreateForm()}>
+<Dialog.Root
+	bind:open={createOpen}
+	onOpenChange={(open) => {
+		!open && resetCreateForm();
+
+		if ($page.url.searchParams.get('action') === 'create') {
+			const newUrl = new URL($page.url);
+			newUrl.searchParams.delete('action');
+			window.history.replaceState({}, '', newUrl);
+		}
+	}}
+>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Create New Class Offering</Dialog.Title>

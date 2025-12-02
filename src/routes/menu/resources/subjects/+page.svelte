@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { PlusCircle, Trash2, Pencil, LoaderCircle } from '@lucide/svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
@@ -68,6 +69,13 @@
 	});
 
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
+
+	// --- Effects ---
+	$effect(() => {
+		if ($page.url.searchParams.get('action') === 'create') {
+			createOpen = true;
+		}
+	});
 
 	// --- Event Handlers ---
 	function openEditModal(subject: Subject) {
@@ -227,7 +235,20 @@
 <!-- === DIALOGS / MODALS === -->
 
 <!-- Create Subject Dialog -->
-<Dialog.Root bind:open={createOpen} onOpenChange={(open) => !open && handleCreateFormReset()}>
+<Dialog.Root
+	bind:open={createOpen}
+	onOpenChange={(open) => {
+		if (!open) {
+			handleCreateFormReset();
+			// Clean up URL if it was opened via param
+			if ($page.url.searchParams.get('action') === 'create') {
+				const newUrl = new URL($page.url);
+				newUrl.searchParams.delete('action');
+				window.history.replaceState({}, '', newUrl);
+			}
+		}
+	}}
+>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Add New Subject</Dialog.Title>

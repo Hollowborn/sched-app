@@ -62,7 +62,7 @@
 				<main class="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 md:px-10">
 					{#if $navigating}
 						<!-- ... your skeleton loading state ... -->
-						<div class="space-y-6 page-enter page-enter-active">
+						<div class="space-y-6 page-enter page-enter-active md:m-12">
 							<header>
 								<div class="md:hidden">
 									<Skeleton class="h-8 w-3/4 rounded-md" />

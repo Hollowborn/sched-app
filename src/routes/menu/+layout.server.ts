@@ -57,10 +57,11 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			},
 			{
-				title: 'Instructor Assignments',
+				title: 'Resource Assignments',
 				url: '/menu/academics/assignments',
 				icon: 'Users',
-				description: 'Assign faculty to classes and manage teaching loads.',
+				description:
+					'Assign faculty, rooms, and lecture splitting to classes and manage teaching loads.',
 				roles: ['Admin', 'Dean', 'Chairperson']
 			},
 			{
@@ -80,13 +81,13 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 		description: 'Generate and manage class schedules.',
 		roles: ['Admin', 'Dean', 'Registrar', 'Chairperson'],
 		items: [
-			{
-				title: 'Master Scheduler',
-				url: '/menu/timetables/scheduler',
-				icon: 'Calendar',
-				description: 'Interactive drag-and-drop interface for manual scheduling.',
-				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
-			},
+			// {
+			// 	title: 'Master Scheduler',
+			// 	url: '/menu/timetables/scheduler',
+			// 	icon: 'Calendar',
+			// 	description: 'Interactive drag-and-drop interface for manual scheduling.',
+			// 	roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
+			// },
 			{
 				title: 'Generate Schedules',
 				url: '/menu/timetables/generate',

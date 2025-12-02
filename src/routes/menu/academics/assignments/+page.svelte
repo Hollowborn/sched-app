@@ -389,7 +389,9 @@
 		(r) => r.is_general_use || (collegeId && r.owner_college_id === collegeId)
 	)}
 	{@const collegeRooms = relevantRooms?.filter((r) => r.owner_college_id === collegeId)}
-	{@const generalRooms = relevantRooms?.filter((r) => r.is_general_use && r.owner_college_id !== collegeId)}
+	{@const generalRooms = relevantRooms?.filter(
+		(r) => r.is_general_use && r.owner_college_id !== collegeId
+	)}
 
 	<form
 		method="POST"

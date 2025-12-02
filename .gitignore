@@ -30,3 +30,8 @@ add_metadata_column.sql
 src/routes/supabase-test/+page.svelte
 src/routes/prototypes/
 
+
+# for research papers
+RAD_METHODOLOGY_GUIDE.md
+GANTT_CHART_DETAILS.md
+FULL_METHODOLOGY_GUIDE.md
