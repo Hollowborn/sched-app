@@ -62,7 +62,7 @@
 	);
 	let constraints = $state({
 		enforceCapacity: true,
-		roomTypeConstraint: 'strict',
+		roomTypeConstraint: 'soft',
 		enforceInstructor: true,
 		enforceBlock: true
 	});
@@ -666,7 +666,7 @@
 							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
 								>Time</span
 							>
-							<span class="text-2xl font-bold">{reportData.report.timeTaken}</span>
+							<span class="text-2xl font-bold">{reportData.report.timeTakenSec}</span>
 						</div>
 						<div
 							class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border"

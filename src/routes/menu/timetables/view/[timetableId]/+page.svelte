@@ -178,7 +178,7 @@
 			<Dialog.Description>Statistics and details from the last generation run.</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
-			{#if report.status != 'Generating'}
+			{#if report.status == 'Generating'}
 				<div class="flex flex-col items-center justify-center py-8 space-y-4">
 					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 					<p class="text-muted-foreground">Generation in progress...</p>
@@ -200,7 +200,7 @@
 					</div>
 					<div class="p-4 border rounded-lg bg-muted/50">
 						<p class="text-sm text-muted-foreground">Execution Time</p>
-						<p class="text-2xl font-bold">{report.timeTaken}</p>
+						<p class="text-2xl font-bold">{report.timeTakenSec}</p>
 					</div>
 				</div>
 
