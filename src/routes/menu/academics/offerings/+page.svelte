@@ -766,42 +766,48 @@
 					<input type="hidden" name="pref_room_id" value={createPrefRoomId} />
 				</div>
 
-				<div class="flex items-center space-x-2 rounded-md border p-4">
-					<Switch id="split-lecture-switch" bind:checked={createSplitLecture} />
-					<input type="hidden" name="split_lecture" value={createSplitLecture} />
-					<Label for="split-lecture-switch" class="ml-2">Split Lecture into two sessions</Label>
-				</div>
-
-				{#if createSplitLecture}
-					<div class="space-y-2 pt-2">
-						<Label>Lecture Days</Label>
-						<div class="flex flex-wrap gap-4">
-							{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
-								<div class="flex items-center space-x-2">
-									<Checkbox
-										id={day}
-										checked={createLectureDays.includes(day)}
-										disabled={atLectureDaysLimit && !createLectureDays.includes(day)}
-										onCheckedChange={(checked) => {
-											if (checked) {
-												createLectureDays = [...createLectureDays, day];
-											} else {
-												createLectureDays = createLectureDays.filter((d) => d !== day);
-											}
-										}}
-									/>
-									<Label
-										for={day}
-										class={atLectureDaysLimit && !createLectureDays.includes(day)
-											? 'text-muted-foreground'
-											: ''}>{day}</Label
-									>
-								</div>
-							{/each}
-						</div>
-						<p class="text-sm text-muted-foreground">Select up to 2 days.</p>
-						<input type="hidden" name="lecture_days" value={JSON.stringify(createLectureDays)} />
+				{#if createSubject?.lecture_hours > 0}
+					<div class="flex items-center space-x-2 rounded-md border p-4">
+						<Switch id="split-lecture-switch" bind:checked={createSplitLecture} />
+						<input type="hidden" name="split_lecture" value={createSplitLecture} />
+						<Label for="split-lecture-switch" class="ml-2">Split Lecture into two sessions</Label>
 					</div>
+
+					{#if createSplitLecture}
+						<div class="space-y-2 pt-2">
+							<Label>Lecture Days</Label>
+							<div class="flex flex-wrap gap-4">
+								{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
+									<div class="flex items-center space-x-2">
+										<Checkbox
+											id={day}
+											checked={createLectureDays.includes(day)}
+											disabled={atLectureDaysLimit && !createLectureDays.includes(day)}
+											onCheckedChange={(checked) => {
+												if (checked) {
+													createLectureDays = [...createLectureDays, day];
+												} else {
+													createLectureDays = createLectureDays.filter((d) => d !== day);
+												}
+											}}
+										/>
+										<Label
+											for={day}
+											class={atLectureDaysLimit && !createLectureDays.includes(day)
+												? 'text-muted-foreground'
+												: ''}>{day}</Label
+										>
+									</div>
+								{/each}
+							</div>
+							<p class="text-sm text-muted-foreground">Select up to 2 days.</p>
+							<input
+								type="hidden"
+								name="lecture_days"
+								value={JSON.stringify(createLectureDays)}
+							/>
+						</div>
+					{/if}
 				{/if}
 			</div>
 			<Dialog.Footer>

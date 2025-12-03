@@ -216,91 +216,98 @@
 				{/if}
 			</div>
 
-			<Popover.Root>
-				<Popover.Trigger
-					class="text-muted-foreground hover:text-foreground"
-					onclick={() => {
-						editingClassId = rowData.id;
-						editSplitLecture = rowData.split_lecture ?? false;
-						editLectureDays = rowData.lecture_days ?? [];
-					}}
-				>
-					<Pencil class="h-4 w-4" />
-				</Popover.Trigger>
-				<Popover.Content class="w-80">
-					<form
-						method="POST"
-						action="?/updateLectureSplit"
-						use:enhance={() => {
-							const toastId = toast.loading('Updating settings...');
-							return async ({ update, result }) => {
-								if (result.type === 'success') {
-									toast.success(result.data?.message, { id: toastId });
-									await invalidateAll();
-								} else {
-									toast.error(result.data?.message, { id: toastId });
-								}
-								// Close popover on completion
-								document
-									.querySelector('[data-radix-popover-content-wrapper]')
-									?.parentElement?.click();
-								editingClassId = null;
-							};
+			{#if rowData.subjects?.lecture_hours > 0}
+				<Popover.Root>
+					<Popover.Trigger
+						class="text-muted-foreground hover:text-foreground"
+						onclick={() => {
+							editingClassId = rowData.id;
+							editSplitLecture = rowData.split_lecture ?? false;
+							editLectureDays = rowData.lecture_days ?? [];
 						}}
 					>
-						<div class="grid gap-4">
-							<div class="space-y-2">
-								<h4 class="font-medium leading-none">Lecture Split Settings</h4>
-								<p class="text-sm text-muted-foreground">
-									Configure how this lecture is scheduled.
-								</p>
-							</div>
-							<input type="hidden" name="classId" value={editingClassId} />
-							<div class="flex items-center space-x-2 rounded-md border p-4">
-								<Switch id="edit-split-lecture" bind:checked={editSplitLecture} />
-								<input type="hidden" name="split_lecture" value={editSplitLecture} />
-								<Label for="edit-split-lecture" class="ml-2">Split Lecture into two sessions</Label>
-							</div>
-							{#if editSplitLecture}
-								<div class="space-y-2 pt-2">
-									<Label>Lecture Days</Label>
-									<div class="flex flex-wrap gap-4">
-										{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
-											<div class="flex items-center space-x-2">
-												<Checkbox
-													id="edit-{day}"
-													checked={editLectureDays.includes(day)}
-													disabled={atEditLectureDaysLimit && !editLectureDays.includes(day)}
-													onCheckedChange={(checked) => {
-														if (checked) {
-															editLectureDays = [...editLectureDays, day];
-														} else {
-															editLectureDays = editLectureDays.filter((d) => d !== day);
-														}
-													}}
-												/>
-												<Label
-													for="edit-{day}"
-													class={atEditLectureDaysLimit && !editLectureDays.includes(day)
-														? 'text-muted-foreground'
-														: ''}>{day}</Label
-												>
-											</div>
-										{/each}
-									</div>
-									<p class="text-sm text-muted-foreground">Select up to 2 days.</p>
-									<input
-										type="hidden"
-										name="lecture_days"
-										value={JSON.stringify(editLectureDays)}
-									/>
+						<Pencil class="h-4 w-4" />
+					</Popover.Trigger>
+					<Popover.Content class="w-80">
+						<form
+							method="POST"
+							action="?/updateLectureSplit"
+							use:enhance={() => {
+								const toastId = toast.loading('Updating settings...');
+								return async ({ update, result }) => {
+									if (result.type === 'success') {
+										toast.success(result.data?.message, { id: toastId });
+										await invalidateAll();
+									} else {
+										toast.error(result.data?.message, { id: toastId });
+									}
+									// Close popover on completion
+									document
+										.querySelector('[data-radix-popover-content-wrapper]')
+										?.parentElement?.click();
+									editingClassId = null;
+								};
+							}}
+						>
+							<div class="grid gap-4">
+								<div class="space-y-2">
+									<h4 class="font-medium leading-none">Lecture Split Settings</h4>
+									<p class="text-sm text-muted-foreground">
+										Configure how this lecture is scheduled.
+									</p>
 								</div>
-							{/if}
-							<Button type="submit">Save changes</Button>
-						</div>
-					</form>
-				</Popover.Content>
-			</Popover.Root>
+								<input type="hidden" name="classId" value={editingClassId} />
+								<div class="flex items-center space-x-2 rounded-md border p-4">
+									<Switch id="edit-split-lecture" bind:checked={editSplitLecture} />
+									<input type="hidden" name="split_lecture" value={editSplitLecture} />
+									<Label for="edit-split-lecture" class="ml-2"
+										>Split Lecture into two sessions</Label
+									>
+								</div>
+								{#if editSplitLecture}
+									<div class="space-y-2 pt-2">
+										<Label>Lecture Days</Label>
+										<div class="flex flex-wrap gap-4">
+											{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
+												<div class="flex items-center space-x-2">
+													<Checkbox
+														id="edit-{day}"
+														checked={editLectureDays.includes(day)}
+														disabled={atEditLectureDaysLimit &&
+															!editLectureDays.includes(day)}
+														onCheckedChange={(checked) => {
+															if (checked) {
+																editLectureDays = [...editLectureDays, day];
+															} else {
+																editLectureDays = editLectureDays.filter(
+																	(d) => d !== day
+																);
+															}
+														}}
+													/>
+													<Label
+														for="edit-{day}"
+														class={atEditLectureDaysLimit && !editLectureDays.includes(day)
+															? 'text-muted-foreground'
+															: ''}>{day}</Label
+													>
+												</div>
+											{/each}
+										</div>
+										<p class="text-sm text-muted-foreground">Select up to 2 days.</p>
+										<input
+											type="hidden"
+											name="lecture_days"
+											value={JSON.stringify(editLectureDays)}
+										/>
+									</div>
+								{/if}
+								<Button type="submit">Save changes</Button>
+							</div>
+						</form>
+					</Popover.Content>
+				</Popover.Root>
+			{/if}
 		</div>
 		<div class="text-sm text-muted-foreground">{rowData.subjects?.subject_name}</div>
 	</div>
