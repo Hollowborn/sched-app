@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             id,
             split_lecture,
             lecture_days,
-            subjects!inner (id, subject_code, subject_name),
+            subjects!inner (id, subject_code, subject_name, lecture_hours),
             instructors (id, name),
             blocks!inner (
                 id,
