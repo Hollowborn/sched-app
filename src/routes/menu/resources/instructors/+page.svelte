@@ -653,8 +653,6 @@
 									<div class="flex items-center gap-2">
 										<Checkbox
 											id="qual-subj-{subject.id}"
-											name="subject_ids"
-											value={subject.id}
 											checked={formQualificationIds.includes(subject.id)}
 											onCheckedChange={(checked) => {
 												if (checked) {
@@ -671,6 +669,9 @@
 											<Badge variant="secondary" class="ml-2">{subject.subject_code}</Badge>
 										</Label>
 									</div>
+								{/each}
+								{#each formQualificationIds as id}
+									<input type="hidden" name="subject_ids" value={id} />
 								{/each}
 							{:else}
 								<p class="text-sm text-muted-foreground text-center p-4">
