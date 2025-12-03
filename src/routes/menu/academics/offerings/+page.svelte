@@ -12,7 +12,8 @@
 		BookOpen,
 		Filter,
 		Check,
-		ChevronsUpDown
+		ChevronsUpDown,
+		CopyPlus
 	} from '@lucide/svelte';
 	import type { ColumnDef, RowSelectionState } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
@@ -30,6 +31,8 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import { Input } from '$lib/components/ui/input';
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
@@ -49,6 +52,7 @@
 	let isSubmitting = $state(false);
 	let rowSelection = $state<RowSelectionState>({});
 	let selectedClasses = $state<ClassOffering[]>([]);
+	let bulkCreateOpen = $state(false);
 
 	// Filters
 	let academicYear = $state(data.filters.academic_year);
@@ -64,6 +68,13 @@
 	let createSplitLecture = $state(false);
 	let createLectureDays = $state<string[]>([]);
 
+	// --- Bulk Form State ---
+	let bulkCollegeId = $state('');
+	let bulkBlockId = $state('');
+	let bulkSubjectIds = $state<number[]>([]);
+	let bulkSubjectSearch = $state('');
+	let bulkSplitLecture = $state(false);
+
 	// --- Combobox Open States ---
 	let subjectOpen = $state(false);
 	let collegeOpen = $state(false);
@@ -71,6 +82,8 @@
 	let instructorOpen = $state(false);
 	let roomOpen = $state(false);
 	let filterOpen = $state(false);
+	let bulkCollegeOpen = $state(false);
+	let bulkBlockOpen = $state(false);
 
 	// --- Derived State ---
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
@@ -87,6 +100,56 @@
 			data.classes?.filter((c) => c.blocks?.programs?.college_id.toString() === collegeFilterId) ||
 			[]
 		);
+	});
+
+	// --- Bulk Create Modal Derived Logic ---
+	const bulkAvailableBlocks = $derived(
+		data.blocks.filter((b) => b.programs?.college_id.toString() === bulkCollegeId)
+	);
+	const bulkBlockName = $derived(
+		data.blocks.find((b) => b.id.toString() === bulkBlockId)?.block_name
+	);
+
+	const bulkAvailableSubjects = $derived.by(() => {
+		if (!bulkCollegeId) return [];
+		const collegeIdNum = Number(bulkCollegeId);
+
+		let subjects = data.subjects.filter((s) => s.colleges.some((c) => c.id === collegeIdNum));
+
+		if (bulkSubjectSearch) {
+			const lowerQuery = bulkSubjectSearch.toLowerCase();
+			subjects = subjects.filter(
+				(subject) =>
+					subject.subject_name.toLowerCase().includes(lowerQuery) ||
+					subject.subject_code.toLowerCase().includes(lowerQuery)
+			);
+		}
+
+		return subjects.sort((a, b) => {
+			const a_selected = bulkSubjectIds.includes(a.id);
+			const b_selected = bulkSubjectIds.includes(b.id);
+
+			if (a_selected === b_selected) {
+				return a.subject_name.localeCompare(b.subject_name);
+			}
+			return a_selected ? -1 : 1;
+		});
+	});
+
+	// Auto-select college for non-admins or if filter is set
+	$effect(() => {
+		if (data.profile?.role === 'Dean' || data.profile?.role === 'Chairperson') {
+			bulkCollegeId = data.profile.college_id?.toString() ?? '';
+		} else if (collegeFilterId) {
+			bulkCollegeId = collegeFilterId;
+		}
+	});
+
+	$effect(() => {
+		if (bulkCollegeId) {
+			bulkBlockId = '';
+			bulkSubjectIds = [];
+		}
 	});
 
 	// --- Create Modal Derived Logic ---
@@ -168,6 +231,18 @@
 		createOfferingCollegeId = '';
 		createSplitLecture = false;
 		createLectureDays = [];
+	}
+
+	function resetBulkCreateForm() {
+		if (data.profile?.role !== 'Admin' && !collegeFilterId) {
+			bulkCollegeId = data.profile?.college_id?.toString() ?? '';
+		} else if (!collegeFilterId) {
+			bulkCollegeId = '';
+		}
+		bulkBlockId = '';
+		bulkSubjectIds = [];
+		bulkSubjectSearch = '';
+		bulkSplitLecture = false;
 	}
 
 	$effect(() => {
@@ -264,7 +339,7 @@
 {/snippet}
 
 {#snippet collegeBadge({ rowData }: { rowData: ClassOffering })}
-	<Badge variant="secondary">
+	<Badge variant="outline">
 		{data.colleges?.find((c) => c.id === rowData.blocks?.programs?.college_id)?.college_name ||
 			'N/A'}
 	</Badge>
@@ -406,6 +481,11 @@
 			>
 				<Trash2 class="mr-2 h-4 w-4" />
 				Delete ({selectedRowsCount})
+			</Button>
+
+			<Button onclick={() => (bulkCreateOpen = true)} variant="outline" disabled={isSubmitting}>
+				<CopyPlus class="mr-2 h-4 w-4" />
+				Bulk Create
 			</Button>
 
 			<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
@@ -810,6 +890,231 @@
 				<Button type="submit" disabled={isSubmitting}>
 					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
 					Create Offering
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- === BULK CREATE MODAL === -->
+<Dialog.Root
+	bind:open={bulkCreateOpen}
+	onOpenChange={(open) => {
+		!open && resetBulkCreateForm();
+	}}
+>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Bulk Create Class Offerings</Dialog.Title>
+			<Dialog.Description>
+				Quickly create multiple class offerings for a single block for {academicYear}, {semester}.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/createBulkClasses"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Creating offerings...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						bulkCreateOpen = false;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="academic_year" value={academicYear} />
+			<input type="hidden" name="semester" value={semester} />
+			<input type="hidden" name="subject_ids" value={bulkSubjectIds.join(',')} />
+			<div class="grid gap-4 py-4">
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2 flex flex-col">
+						<Label>College</Label>
+						<Popover.Root bind:open={bulkCollegeOpen}>
+							<Popover.Trigger disabled={data.profile?.role !== 'Admin' || !!collegeFilterId}>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={bulkCollegeOpen}
+										disabled={data.profile?.role !== 'Admin' || !!collegeFilterId}
+									>
+										<span class="truncate">
+											{data.colleges.find((c) => c.id.toString() === bulkCollegeId)?.college_name ||
+												'Select a college'}
+										</span>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[300px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search college..." />
+									<Command.List>
+										<Command.Empty>No college found.</Command.Empty>
+										<Command.Group>
+											{#each data.colleges as college}
+												<Command.Item
+													value={college.college_name}
+													onSelect={() => {
+														bulkCollegeId = college.id.toString();
+														bulkCollegeOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															bulkCollegeId === college.id.toString() ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{college.college_name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+					</div>
+
+					<div class="space-y-2 flex flex-col">
+						<Label>Block Section</Label>
+						<Popover.Root bind:open={bulkBlockOpen}>
+							<Popover.Trigger disabled={!bulkCollegeId}>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={bulkBlockOpen}
+										disabled={!bulkCollegeId}
+									>
+										<span class="truncate">{bulkBlockName || 'Select a block'}</span>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[300px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search block..." />
+									<Command.List>
+										<Command.Empty>No block found.</Command.Empty>
+										<Command.Group>
+											{#if bulkAvailableBlocks.length === 0}
+												<div class="p-2 text-sm text-muted-foreground text-center">
+													No blocks for this college.
+												</div>
+											{:else}
+												{#each bulkAvailableBlocks as block}
+													<Command.Item
+														value={block.block_name}
+														onSelect={() => {
+															bulkBlockId = block.id.toString();
+															bulkBlockOpen = false;
+														}}
+													>
+														<Check
+															class={cn(
+																'mr-2 h-4 w-4',
+																bulkBlockId === block.id.toString() ? 'opacity-100' : 'opacity-0'
+															)}
+														/>
+														{block.block_name}
+													</Command.Item>
+												{/each}
+											{/if}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input type="hidden" name="block_id" value={bulkBlockId} />
+					</div>
+				</div>
+
+				<div class="flex items-center space-x-2 rounded-md border p-4 mb-4">
+					<Switch id="bulk-split-lecture" bind:checked={bulkSplitLecture} />
+					<input type="hidden" name="split_lecture" value={bulkSplitLecture} />
+					<Label for="bulk-split-lecture" class="ml-2 space-y-1">
+						<span class="font-medium">Split lectures for all applicable subjects</span>
+						<p class="text-xs text-muted-foreground">
+							Only applies to selected subjects with lecture units. The scheduler will auto-assign
+							days.
+						</p>
+					</Label>
+				</div>
+
+				<div class="space-y-2">
+					<Label>Subjects</Label>
+					<div class="rounded-md border">
+						<div class="p-2">
+							<Input
+								placeholder="Search subjects..."
+								bind:value={bulkSubjectSearch}
+								disabled={!bulkCollegeId}
+							/>
+						</div>
+						<div class="border-t">
+							<ScrollArea class="h-64">
+								<div class="p-4 space-y-2">
+									{#if bulkAvailableSubjects.length > 0}
+										{#each bulkAvailableSubjects as subject (subject.id)}
+											<div class="flex items-center gap-2">
+												<Checkbox
+													id="bulk-subj-{subject.id}"
+													checked={bulkSubjectIds.includes(subject.id)}
+													onCheckedChange={(checked) => {
+														if (checked) {
+															bulkSubjectIds = [...bulkSubjectIds, subject.id];
+														} else {
+															bulkSubjectIds = bulkSubjectIds.filter((id) => id !== subject.id);
+														}
+													}}
+												/>
+												<Label for="bulk-subj-{subject.id}" class="font-normal w-full">
+													{subject.subject_name}
+													<Badge variant="secondary" class="ml-2">
+														{subject.subject_code}
+													</Badge>
+												</Label>
+											</div>
+										{/each}
+									{:else}
+										<p class="text-sm text-muted-foreground text-center p-4">
+											{#if !bulkCollegeId}
+												Select a college to see available subjects.
+											{:else if bulkSubjectSearch}
+												No subjects match your search.
+											{:else}
+												No subjects found for this college.
+											{/if}
+										</p>
+									{/if}
+								</div>
+							</ScrollArea>
+						</div>
+					</div>
+					<p class="text-sm text-muted-foreground">
+						Selected {bulkSubjectIds.length} subject(s).
+					</p>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button
+					type="submit"
+					disabled={isSubmitting || !bulkBlockId || bulkSubjectIds.length === 0}
+				>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+					Create {bulkSubjectIds.length} Offering(s)
 				</Button>
 			</Dialog.Footer>
 		</form>

@@ -157,6 +157,89 @@ export const actions: Actions = {
 		return { status: 201, message: 'Class offering created successfully.' };
 	},
 
+	createBulkClasses: async ({ request, locals }) => {
+		const userRole = locals.profile?.role;
+		if (!userRole || !['Admin', 'Dean', 'Registrar'].includes(userRole)) {
+			return fail(403, { message: 'Forbidden: You do not have permission to create classes.' });
+		}
+
+		const formData = await request.formData();
+		const block_id = Number(formData.get('block_id'));
+		const subject_ids_str = formData.get('subject_ids')?.toString();
+		const subject_ids = subject_ids_str ? subject_ids_str.split(',').map(Number) : [];
+		const academic_year = formData.get('academic_year')?.toString();
+		const semester = formData.get('semester')?.toString();
+		const split_lecture_flag = formData.get('split_lecture') === 'true';
+
+		if (!block_id || subject_ids.length === 0 || !academic_year || !semester) {
+			return fail(400, {
+				message: 'Block, at least one Subject, Academic Year, and Semester are required.'
+			});
+		}
+
+		// 1. Find which of these subjects are ALREADY offered for this block/term
+		const { data: existingClasses, error: fetchError } = await locals.supabase
+			.from('classes')
+			.select('subject_id')
+			.eq('block_id', block_id)
+			.eq('academic_year', academic_year)
+			.eq('semester', semester)
+			.in('subject_id', subject_ids);
+
+		if (fetchError) {
+			console.error('Error checking for existing classes:', fetchError);
+			return fail(500, { message: 'Could not verify existing offerings.' });
+		}
+
+		const existingSubjectIds = new Set(existingClasses.map((c) => c.subject_id));
+		const newSubjectIds = subject_ids.filter((id) => !existingSubjectIds.has(id));
+
+		if (newSubjectIds.length === 0) {
+			return fail(409, { message: 'All selected subjects are already offered for this block.' });
+		}
+
+		// Fetch subject details to apply split_lecture only where applicable
+		const { data: subjectsDetails } = await locals.supabase
+			.from('subjects')
+			.select('id, lecture_hours')
+			.in('id', newSubjectIds);
+
+		const subjectsWithLectureHours = new Set(
+			(subjectsDetails || [])
+				.filter((s) => s.lecture_hours && s.lecture_hours > 0)
+				.map((s) => s.id)
+		);
+
+		// 2. Insert only the new offerings
+		const offeringsToInsert = newSubjectIds.map((subject_id) => ({
+			subject_id,
+			block_id,
+			academic_year,
+			semester,
+			split_lecture: split_lecture_flag && subjectsWithLectureHours.has(subject_id),
+			lecture_days: [] // Explicitly set lecture_days to empty array
+		}));
+
+		const { data: insertedData, error: insertError } = await locals.supabase
+			.from('classes')
+			.insert(offeringsToInsert)
+			.select('id');
+
+		if (insertError) {
+			console.error('Error bulk creating class offerings:', insertError);
+			return fail(500, { message: 'An error occurred while creating new offerings.' });
+		}
+
+		const createdCount = insertedData?.length || 0;
+		const skippedCount = subject_ids.length - createdCount;
+		let message = `Successfully created ${createdCount} class offering(s).`;
+		if (skippedCount > 0) {
+			message += ` ${skippedCount} offering(s) already existed and were skipped.`;
+		}
+
+		return { status: 201, message };
+	},
+
 	deleteClass: async ({ request, locals }) => {
 		const userRole = locals.profile?.role;
 		if (userRole !== 'Admin') {
