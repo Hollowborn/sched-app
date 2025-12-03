@@ -208,7 +208,7 @@
 </script>
 
 <div class={`space-y-4 ${className}`}>
-	<div class="flex items-center justify-between">
+	<div class="flex items-center flex-wrap justify-between gap-4">
 		<div class="flex flex-1 items-center gap-4">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
