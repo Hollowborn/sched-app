@@ -273,15 +273,12 @@
 													<Checkbox
 														id="edit-{day}"
 														checked={editLectureDays.includes(day)}
-														disabled={atEditLectureDaysLimit &&
-															!editLectureDays.includes(day)}
+														disabled={atEditLectureDaysLimit && !editLectureDays.includes(day)}
 														onCheckedChange={(checked) => {
 															if (checked) {
 																editLectureDays = [...editLectureDays, day];
 															} else {
-																editLectureDays = editLectureDays.filter(
-																	(d) => d !== day
-																);
+																editLectureDays = editLectureDays.filter((d) => d !== day);
 															}
 														}}
 													/>
@@ -314,7 +311,7 @@
 {/snippet}
 
 {#snippet collegeCell({ rowData }: { rowData: ClassOffering })}
-	<Badge variant="secondary">{rowData.blocks?.programs?.colleges?.college_name || 'N/A'}</Badge>
+	<Badge variant="outline">{rowData.blocks?.programs?.colleges?.college_name || 'N/A'}</Badge>
 {/snippet}
 
 {#snippet instructorCell({ rowData }: { rowData: ClassOffering })}
