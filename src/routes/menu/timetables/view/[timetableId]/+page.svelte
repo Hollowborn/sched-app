@@ -20,6 +20,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import * as ButtonGroup from '$lib/components/ui/button-group/';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -445,11 +446,12 @@
 						bind:value={listSearch}
 					/>
 				{/if}
-
-				<Button variant="outline" class="ml-auto"
-					><Printer class="mr-2 h-4 w-4" />Print / PDF</Button
-				>
-				<Button variant="outline"><FileDown class="mr-2 h-4 w-4" />Export</Button>
+				<ButtonGroup.Root>
+					<Button variant="outline" class="ml-auto"
+						><Printer class="mr-2 h-4 w-4" />Print / PDF</Button
+					>
+					<Button variant="outline"><FileDown class="mr-2 h-4 w-4" />Export</Button>
+				</ButtonGroup.Root>
 			</div>
 		</header>
 	</div>

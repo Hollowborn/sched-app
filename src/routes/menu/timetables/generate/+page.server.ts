@@ -81,15 +81,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			const totalClasses = classIdsData?.length || 0;
 			const unassignedClasses = (classIdsData || []).filter((c) => c.instructor_id === null).length;
 
-			const { count: assignedBlockCount } = await locals.supabase
+			const { data: assignedBlocksData, error: assignedBlocksError } = await locals.supabase
 				.from('classes')
-				.select('block_id', { count: 'exact', head: true })
+				.select('block_id')
 				.in('block_id', blockIds)
 				.eq('academic_year', academic_year)
 				.eq('semester', semester);
 
+			if (assignedBlocksError) throw error(500, 'Could not fetch assigned blocks data.');
+
+			// Get the count of unique block_ids
+			const assignedBlockCount = new Set((assignedBlocksData || []).map((c) => c.block_id)).size;
+
 			const totalBlocks = blockIds.length;
-			const emptyBlocks = totalBlocks - (assignedBlockCount || 0);
+			const emptyBlocks = totalBlocks - assignedBlockCount;
 
 			healthStats = { totalClasses, unassignedClasses, totalBlocks, emptyBlocks };
 		}

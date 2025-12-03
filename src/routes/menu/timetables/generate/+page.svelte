@@ -41,6 +41,7 @@
 
 	// --- Page State ---
 	let isSubmitting = $state(false);
+	let showConstraintSteps = $state(false); // New state to control visibility of steps 2-4
 
 	let failedClassesModalOpen = $state(false);
 	let reportData = $state<any>(null);
@@ -288,24 +289,36 @@
 
 				<!-- Load Details Button -->
 				<div class="md:col-span-3 pt-2">
-					<Button type="button" class="w-full" onclick={loadProgramDetails} disabled={!programId}>
-						Load Program Details
-					</Button>
+					{#if !programId}
+						<Button
+							variant="ghost"
+							class="w-full"
+							onclick={loadProgramDetails}
+							disabled={!programId}
+						>
+							Load Program Details
+						</Button>
+					{:else}
+						<Button variant="outline" class="w-full" onclick={loadProgramDetails}>
+							Load Program Details
+						</Button>
+					{/if}
 				</div>
 			</Card.Content>
 
 			{#if selectedProgram && data.healthStats}
 				<Card.Footer class="grid gap-4 grid-cols-2 md:grid-cols-4 p-4 border-t">
-					<div class="p-4 border rounded-lg bg-background">
+					<div class="flex flex-col p-4 border rounded-lg bg-background">
 						<div class="flex items-center justify-between">
 							<h3 class="text-sm font-medium text-muted-foreground">Total Classes</h3>
 							<BookCheck class="h-4 w-4 text-muted-foreground" />
 						</div>
 						<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
+						<p class="text-xs text-muted-foreground mt-1">offerings for this program</p>
 					</div>
 					<div
 						class={cn(
-							'p-4 border rounded-lg',
+							'flex flex-col p-4 border rounded-lg',
 							data.healthStats.unassignedClasses > 0 && 'border-destructive'
 						)}
 					>
@@ -328,10 +341,11 @@
 						>
 							{data.healthStats.unassignedClasses}
 						</p>
+						<p class="text-xs text-muted-foreground mt-1">classes have no instructor</p>
 					</div>
 					<div
 						class={cn(
-							'p-4 border rounded-lg',
+							'flex flex-col p-4 border rounded-lg',
 							data.healthStats.emptyBlocks > 0 && 'border-amber-500'
 						)}
 					>
@@ -349,13 +363,15 @@
 						>
 							{data.healthStats.emptyBlocks}
 						</p>
+						<p class="text-xs text-muted-foreground mt-1">blocks have no classes</p>
 					</div>
-					<div class="p-4 border rounded-lg bg-background">
+					<div class="flex flex-col p-4 border rounded-lg bg-background">
 						<div class="flex items-center justify-between">
 							<h3 class="text-sm font-medium text-muted-foreground">Total Blocks</h3>
 							<PackageOpen class="h-4 w-4 text-muted-foreground" />
 						</div>
 						<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
+						<p class="text-xs text-muted-foreground mt-1">in the selected program</p>
 					</div>
 				</Card.Footer>
 			{/if}
