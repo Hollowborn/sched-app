@@ -232,8 +232,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			for (const entry of assignedEntries) {
 				// Same Room Conflict
 				if (entry.room_id === room.id && entry.day_of_week === day) {
-					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
-						return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
 				}
 
 				const assignedTask = tasks.find((t) => t.id === assignedTaskId);
@@ -255,8 +254,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					assignedTask.classData.instructor_id === task.classData.instructor_id &&
 					entry.day_of_week === day
 				) {
-					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
-						return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
 				}
 
 				// Same Block Conflict
@@ -265,8 +263,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					assignedTask.classData.block_id === task.classData.block_id &&
 					entry.day_of_week === day
 				) {
-					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
-						return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
 				}
 			}
 		}
@@ -332,7 +329,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 	}
 
 	// Start the solver
-	const TIMEOUT_MS = 30000; // 30 seconds
+	const TIMEOUT_MS = 10000; // 10 seconds
 	const startTime = performance.now();
 	const success = backtrack(0);
 
