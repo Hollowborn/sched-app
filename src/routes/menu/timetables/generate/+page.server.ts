@@ -231,7 +231,7 @@ export const actions: Actions = {
 					.from('timetables')
 					.update({
 						metadata: { ...initialMetadata, status: 'Failed', error: 'No class offerings found.' },
-						status: 'Draft'
+						status: 'draft'
 					})
 					.eq('id', timetable_id);
 
@@ -336,7 +336,8 @@ export const actions: Actions = {
 			}
 
 			// 8. Construct Final Report & Update Metadata
-			const timeTaken = (performance.now() - startTime).toFixed(2) + 'ms';
+			const timeTaken = (performance.now() - startTime).toFixed(2);
+			const timeTakenSec: string = (+timeTaken / 1000).toFixed(2) + 's';
 			const successRate = Math.round(
 				((tasksToSchedule.length - failedClasses.length) / tasksToSchedule.length) * 100
 			);
@@ -344,7 +345,7 @@ export const actions: Actions = {
 			const finalMetadata = {
 				...initialMetadata,
 				status: 'Complete',
-				timeTaken,
+				timeTakenSec,
 				successRate,
 				totalClasses: tasksToSchedule.length,
 				scheduledCount: tasksToSchedule.length - failedClasses.length,
@@ -357,7 +358,7 @@ export const actions: Actions = {
 				.from('timetables')
 				.update({
 					metadata: finalMetadata,
-					status: 'Draft' // Ensure it's Draft (or whatever status implies done)
+					status: 'draft' // Ensure it's Draft (or whatever status implies done)
 				})
 				.eq('id', timetable_id);
 			console.log('Timetable generation complete:', finalMetadata);
@@ -386,7 +387,7 @@ export const actions: Actions = {
 						status: 'Failed',
 						error: e instanceof Error ? e.message : 'Unknown error occurred during generation.'
 					},
-					status: 'Draft'
+					status: 'draft'
 				})
 				.eq('id', timetable_id);
 
