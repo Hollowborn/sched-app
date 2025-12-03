@@ -801,11 +801,7 @@
 								{/each}
 							</div>
 							<p class="text-sm text-muted-foreground">Select up to 2 days.</p>
-							<input
-								type="hidden"
-								name="lecture_days"
-								value={JSON.stringify(createLectureDays)}
-							/>
+							<input type="hidden" name="lecture_days" value={JSON.stringify(createLectureDays)} />
 						</div>
 					{/if}
 				{/if}
@@ -850,6 +846,10 @@
 						await invalidateAll();
 					} else if (result.type === 'failure') {
 						toast.error(result.data?.message, { id: toastId });
+					}
+
+					if (selectedRowsCount > 0) {
+						rowSelection = {};
 					}
 					await update();
 				};
