@@ -90,20 +90,29 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		blocksQuery = blocksQuery.eq('programs.college_id', timetable.college_id);
 	}
 
-	const [{ data: uniqueRoomsData }, { data: uniqueInstructorsData }, { data: uniqueBlocksData }] =
-		await Promise.all([
-			locals.supabase
-				.from('rooms')
-				.select('id, room_name, building, type')
-				.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`)
-				.order('room_name'),
-			locals.supabase
-				.from('instructors')
-				.select('id, name, max_load, colleges(college_name)')
-				.eq('college_id', timetable.college_id)
-				.order('name'),
-			blocksQuery
-		]);
+	// Extract unique instructors from the schedules to ensure we see everyone actually assigned
+	// regardless of their college affiliation.
+	const uniqueInstructorsMap = new Map();
+	if (schedules) {
+		for (const s of schedules) {
+			const inst = s.classes?.instructors;
+			if (inst) {
+				uniqueInstructorsMap.set(inst.id, inst);
+			}
+		}
+	}
+	const uniqueInstructorsData = Array.from(uniqueInstructorsMap.values()).sort((a: any, b: any) =>
+		a.name.localeCompare(b.name)
+	);
+
+	const [{ data: uniqueRoomsData }, { data: uniqueBlocksData }] = await Promise.all([
+		locals.supabase
+			.from('rooms')
+			.select('id, room_name, building, type')
+			.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`)
+			.order('room_name'),
+		blocksQuery
+	]);
 
 	return {
 		timetable,

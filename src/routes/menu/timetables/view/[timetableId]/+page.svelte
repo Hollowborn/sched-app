@@ -104,23 +104,40 @@
 	});
 
 	const itemClassCounts = $derived.by(() => {
-		const counts: Record<string, number> = {};
+		const counts: Record<string, Set<number>> = {};
+		
+		// Initialize sets for all known entities to ensure 0 counts are handled if needed, 
+		// though the current logic handles missing keys gracefully.
+		
 		data.schedules.forEach((s) => {
+			const classId = s.classes.id;
+
 			// Count for rooms
 			if (s.room_id) {
-				counts[s.room_id.toString()] = (counts[s.room_id.toString()] || 0) + 1;
+				const key = s.room_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
 			}
 			// Count for instructors
 			if (s.classes.instructor_id) {
-				counts[s.classes.instructor_id.toString()] =
-					(counts[s.classes.instructor_id.toString()] || 0) + 1;
+				const key = s.classes.instructor_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
 			}
 			// Count for blocks
 			if (s.classes.block_id) {
-				counts[s.classes.block_id.toString()] = (counts[s.classes.block_id.toString()] || 0) + 1;
+				const key = s.classes.block_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
 			}
 		});
-		return counts;
+
+		// Convert Sets to counts
+		const result: Record<string, number> = {};
+		for (const [key, set] of Object.entries(counts)) {
+			result[key] = set.size;
+		}
+		return result;
 	});
 
 	// --- Navigation ---
