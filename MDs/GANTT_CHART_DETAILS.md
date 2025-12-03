@@ -1,0 +1,20 @@
+# Gantt Chart Details (Derived from Git Commits)
+
+This document provides a breakdown of the development phases and key features/fixes implemented for the `sched-app`, with approximate start and end dates derived from the project's git commit history. This data can be used to generate a visual Gantt chart.
+
+| Task / Feature Phase | Start Date | End Date | Key Activities & Notes |
+| :--- | :--- | :--- | :--- |
+| **1. Project Initialization & Setup** | 2025-09-02 | 2025-10-02 | Initial commit, README creation, and setup of core dependencies like SvelteKit, Supabase, Zod, and initial UI component libraries (`shadcn-svelte`, `sonner`). |
+| **2. Core Authentication & UI Foundation**| 2025-10-04 | 2025-10-07 | Implemented user login/logout, Supabase SSR authentication, error pages, and established the main application layout (sidebar, header). |
+| **3. Resource Management (CRUD)** | 2025-10-07 | 2025-10-18 | Built the core CRUD pages for managing academic resources: `Subjects`, `Blocks/Programs`, and `Rooms`. Implemented tables, forms, and modals. |
+| **4. Instructor & User Management** | 2025-10-14 | 2025-10-18 | Developed the `Instructor Management` and `Admin User Management` pages, including features for adding users, changing status, and assigning roles. |
+| **5. Academic Planning Features** | 2025-10-15 | 2025-10-20 | Created the `Class Offerings` and `Instructor Assignments` pages. This phase focused on linking subjects, instructors, and blocks together. |
+| **6. Timetable Scheduler (Manual)** | 2025-10-19 | 2025-10-28 | Initial work on the master timetable/scheduler page, including barebones UI, exploring drag-and-drop (`svelte-dnd-action`), and resizable panes. |
+| **7. UI/UX & Styling Overhaul** | 2025-10-28 | 2025-11-08 | Major focus on improving the look and feel. Changed themes, improved layouts, added hover effects, glassmorphism, and background patterns. |
+| **8. Advanced Table Features** | 2025-11-05 | 2025-11-20 | Implemented multi-select/multi-delete on tables, switched to a more robust `data-table` component, added column customization, and improved overall table UX. |
+| **9. Schema & Database Refactoring** | 2025-11-11 | 2025-11-15 | Significant database changes, including handling many-to-many relationships (subjects-to-colleges) and adding instructor qualifications. Updated all related pages. |
+| **10. Dashboard & Analytics** | 2025-11-15 | 2025-11-29 | Created the main dashboard, added chart libraries (`layerchart`), and implemented visualizations for instructor workload and other statistics. |
+| **11. Global Search Implementation** | 2025-11-25 | 2025-11-25 | Built the `Cmd+K` global search command, including the frontend component and the secure backend API endpoint. |
+| **12. Timetable Generation & Algorithms**| 2025-11-09 | 2025-11-29 | The core of the thesis: built the "Generate Timetable" UI, implemented the **Constraint Programming** and **Memetic Algorithms**, added constraints (break time), and fixed scheduling logic. |
+| **13. Timetable Viewer & Reporting** | 2025-11-10 | 2025-11-30 | Developed the "View Timetable" page, added grid/list views, implemented filters, and created the modal to display the generation performance report. |
+| **14. Final Polish & Chairperson Role** | 2025-11-17 | 2025-11-30 | Added support for the `Chairperson` role throughout the app, fixed UI bugs, improved component layouts, and performed general cleanup. |
