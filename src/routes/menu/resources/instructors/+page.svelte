@@ -33,6 +33,7 @@
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
+	import * as Avatar from '$lib/components/ui/avatar';
 
 	type Instructor = {
 		id: number;
@@ -164,7 +165,8 @@
 	const columns: ColumnDef<Instructor>[] = [
 		{
 			accessorKey: 'name',
-			header: 'Name'
+			header: 'Name',
+			cell: ({ row }) => renderSnippet(nameCell, { instructor: row.original })
 		},
 		{
 			accessorKey: 'colleges',
@@ -186,6 +188,27 @@
 		}
 	];
 </script>
+
+{#snippet nameCell({ instructor }: { instructor: Instructor })}
+	<div class="flex items-center gap-3">
+		<Avatar.Root>
+			{@const initials =
+				instructor.name
+					.split(' ')
+					.map((n) => n[0])
+					.join('')
+					.toUpperCase()
+					.slice(0, 2) || '??'}
+			<Avatar.Fallback>{initials}</Avatar.Fallback>
+		</Avatar.Root>
+		<div class="flex flex-col">
+			<span class="font-medium">{instructor.name}</span>
+			{#if instructor.email}
+				<span class="text-sm text-muted-foreground">{instructor.email}</span>
+			{/if}
+		</div>
+	</div>
+{/snippet}
 
 {#snippet collegesCell({ instructor }: { instructor: Instructor })}
 	<div class="flex flex-wrap gap-1">
