@@ -55,7 +55,7 @@
 	--secondary: var(--secondary-600);
 	--secondary-foreground: var(--color-white);
 	--muted: var(--base-100);
-	--muted-foreground: var(--base-600);
+	--muted-foreground: var(--base-500);
 	--accent: var(--base-100);
 	--accent-foreground: var(--base-800);
 	--destructive: oklch(0.577 0.245 27.325);
@@ -117,7 +117,7 @@
 	--secondary: var(--secondary-600);
 	--secondary-foreground: var(--color-white);
 	--muted: var(--base-800);
-	--muted-foreground: var(--base-300);
+	--muted-foreground: var(--base-500);
 	--accent: var(--base-800);
 	--accent-foreground: var(--base-200);
 	--destructive: oklch(0.704 0.191 22.216);
