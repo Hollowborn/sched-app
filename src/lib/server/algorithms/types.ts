@@ -43,6 +43,7 @@ export interface SolverConstraints {
 	enforceInstructor: boolean;
 	enforceBlock: boolean;
 	excludedDays: string[];
+	breakTime?: string;
 }
 
 export type Solver = (

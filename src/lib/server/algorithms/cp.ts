@@ -10,12 +10,7 @@ function calculateEndTime(startTime: string, durationHours: number): string {
 }
 
 // Helper to check if two time ranges overlap
-function isOverlap(
-	start1: string,
-	end1: string,
-	start2: string,
-	end2: string
-): boolean {
+function isOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
 	return start1 < end2 && start2 < end1;
 }
 
@@ -64,7 +59,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 				lectureDays = [];
 			}
 		}
-		
+
 		// Ensure it is an array
 		if (!Array.isArray(lectureDays)) {
 			lectureDays = [];
@@ -92,8 +87,10 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
 					possibleRooms: rooms
 						.filter((r) => {
-							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							const capOk =
+								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk =
+								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
@@ -113,8 +110,10 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
 					possibleRooms: rooms
 						.filter((r) => {
-							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							const capOk =
+								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk =
+								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
@@ -124,7 +123,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							}
 							return 0;
 						}),
-					possibleDays: cls.lecture_days && cls.lecture_days.length > 0 ? cls.lecture_days : DAYS
+					possibleDays: possibleDays
 				});
 			} else {
 				tasks.push({
@@ -135,8 +134,10 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
 					possibleRooms: rooms
 						.filter((r) => {
-							const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
+							const capOk =
+								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+							const typeOk =
+								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
@@ -146,7 +147,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							}
 							return 0;
 						}),
-					possibleDays: cls.lecture_days && cls.lecture_days.length > 0 ? cls.lecture_days : DAYS
+					possibleDays: possibleDays
 				});
 			}
 		}
@@ -160,7 +161,8 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
 				possibleRooms: rooms
 					.filter((r) => {
-						const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+						const capOk =
+							!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
 						const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
 						return capOk && typeOk;
 					})
@@ -171,7 +173,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 						}
 						return 0;
 					}),
-				possibleDays: DAYS // Labs usually don't have specific day constraints in this system yet, or default to all
+				possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d)) // Labs respect excluded days
 			});
 		}
 	});
@@ -189,7 +191,40 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 
 	function isConsistent(task: Task, room: Room, day: string, startTimeIndex: number): boolean {
 		const start = timeSlots[startTimeIndex];
-		const end = calculateEndTime(start, task.hours); // Use actual hours for end time calculation
+		const end = calculateEndTime(start, task.hours);
+
+		// --- NEW: Break Time Constraint ---
+		if (constraints.breakTime && constraints.breakTime !== 'none') {
+			const breakStart = constraints.breakTime.split('-')[0] + ':00';
+			const breakEnd = constraints.breakTime.split('-')[1] + ':00';
+			if (isOverlap(start + ':00', end + ':00', breakStart, breakEnd)) {
+				return false;
+			}
+		}
+
+		// --- NEW: Split Lecture Day Constraint ---
+		// This ensures the two halves of a split lecture are on different days.
+		if (task.id.includes('_Lecture_')) {
+			const parts = task.id.split('_');
+			const classId = parts[0];
+			const splitPart = parts[2]; // '1' or '2'
+
+			if (splitPart === '1' || splitPart === '2') {
+				// Determine the sibling task ID
+				const siblingSplitPart = splitPart === '1' ? '2' : '1';
+				const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
+				const siblingAssignment = assignments[siblingTaskId];
+
+				// If the sibling task is already placed...
+				if (siblingAssignment && siblingAssignment.length > 0) {
+					const siblingDay = siblingAssignment[0].day_of_week;
+					// ...it cannot be on the same day as the current task.
+					if (day === siblingDay) {
+						return false; // CONFLICT: Split lectures on same day.
+					}
+				}
+			}
+		}
 
 		// Check against all currently assigned tasks
 		for (const assignedTaskId in assignments) {
@@ -197,11 +232,21 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			for (const entry of assignedEntries) {
 				// Same Room Conflict
 				if (entry.room_id === room.id && entry.day_of_week === day) {
-					if (isOverlap(start, end, entry.start_time, entry.end_time)) return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
+						return false;
 				}
 
 				const assignedTask = tasks.find((t) => t.id === assignedTaskId);
 				if (!assignedTask) continue;
+
+				// --- NEW: Prevent Lecture/Lab on same day for the same class ---
+				if (
+					task.classData.id === assignedTask.classData.id &&
+					task.type !== assignedTask.type &&
+					day === entry.day_of_week
+				) {
+					return false;
+				}
 
 				// Same Instructor Conflict
 				if (
@@ -210,7 +255,8 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					assignedTask.classData.instructor_id === task.classData.instructor_id &&
 					entry.day_of_week === day
 				) {
-					if (isOverlap(start, end, entry.start_time, entry.end_time)) return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
+						return false;
 				}
 
 				// Same Block Conflict
@@ -219,7 +265,8 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					assignedTask.classData.block_id === task.classData.block_id &&
 					entry.day_of_week === day
 				) {
-					if (isOverlap(start, end, entry.start_time, entry.end_time)) return false;
+					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
+						return false;
 				}
 			}
 		}
@@ -231,6 +278,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 	let maxAssignedCount = 0;
 
 	function backtrack(taskIndex: number): boolean {
+		// Check for timeout
+		if (performance.now() - startTime > TIMEOUT_MS) {
+			console.warn('CP solver timed out after', TIMEOUT_MS / 1000, 'seconds.');
+			return false; // Force termination, will return best partial solution found
+		}
+
 		// Update best solution found so far
 		if (taskIndex > maxAssignedCount) {
 			maxAssignedCount = taskIndex;
@@ -254,14 +307,16 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 						const start = timeSlots[i];
 						const end = calculateEndTime(start, task.hours);
 
-						const newEntries: ScheduleEntry[] = [{
-							class_id: task.classData.id,
-							room_id: room.id,
-							day_of_week: day,
-							start_time: start + ':00',
-							end_time: end + ':00',
-							course_type: task.type
-						}];
+						const newEntries: ScheduleEntry[] = [
+							{
+								class_id: task.classData.id,
+								room_id: room.id,
+								day_of_week: day,
+								start_time: start + ':00',
+								end_time: end + ':00',
+								course_type: task.type
+							}
+						];
 
 						assignments[task.id] = newEntries;
 						if (backtrack(taskIndex + 1)) {
@@ -277,8 +332,8 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 	}
 
 	// Start the solver
-	// To prevent infinite hanging on impossible problems, we might want a timeout or iteration limit.
-	// For this synchronous implementation, we'll just let it run.
+	const TIMEOUT_MS = 30000; // 30 seconds
+	const startTime = performance.now();
 	const success = backtrack(0);
 
 	if (success) {
@@ -291,12 +346,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 	} else {
 		// Return best partial solution
 		const allEntries = Object.values(bestAssignments).flat();
-		
+
 		// Identify failed classes
 		const scheduledTaskIds = new Set(Object.keys(bestAssignments));
 		const failed = tasks
-			.filter(t => !scheduledTaskIds.has(t.id))
-			.map(t => ({
+			.filter((t) => !scheduledTaskIds.has(t.id))
+			.map((t) => ({
 				class: `${t.classData.subjects.subject_code} (${t.type})`,
 				reason: 'Could not find a valid slot during backtracking.'
 			}));
