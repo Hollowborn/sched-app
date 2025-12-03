@@ -12,7 +12,9 @@
 		BookCheck,
 		Users,
 		PackageOpen,
-		Info
+		Info,
+		Rocket,
+		Cpu
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -31,6 +33,7 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as Field from '$lib/components/ui/field';
+	import Badge from '$lib/components/ui/badge/badge.svelte';
 
 	type Program = PageData['programs'][number];
 
@@ -43,14 +46,16 @@
 	let reportData = $state<any>(null);
 
 	// --- Form State ---
+	const urlParams = $page.url.searchParams;
 	const currentYear = new Date().getFullYear();
-	let academicYear = $state(`${currentYear}-${currentYear + 1}`);
-	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>('1st Semester');
+	let academicYear = $state(urlParams.get('academic_year') || `${currentYear}-${currentYear + 1}`);
+	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>(
+		(urlParams.get('semester') as '1st Semester' | '2nd Semester' | 'Summer') || '1st Semester'
+	);
+	let programId = $state(urlParams.get('program_id'));
 
 	// --- Derived State ---
-	const programIdFromUrl = $derived($page.url.searchParams.get('program_id'));
-
-	const selectedProgram = $derived(data.programs.find((p) => p.id.toString() === programIdFromUrl));
+	const selectedProgram = $derived(data.programs.find((p) => p.id.toString() === programId));
 
 	let selectedRoomIds = $state(
 		Object.fromEntries((data.allRooms || []).map((room) => [room.id, false]))
@@ -91,18 +96,14 @@
 		return years;
 	}
 
-	function handleProgramChange(programId: string | undefined) {
-		const params = new URLSearchParams($page.url.searchParams);
-		if (programId) {
-			params.set('program_id', programId);
-		} else {
-			params.delete('program_id');
-		}
-		// Pass academic term to load health stats
+	function loadProgramDetails() {
+		if (!programId) return;
+		const params = new URLSearchParams();
+		params.set('program_id', programId);
 		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 
-		goto(`?${params.toString()}`, { noScroll: true, keepData: true });
+		goto(`?${params.toString()}`, { noScroll: true, keepData: true, invalidateAll: true });
 	}
 
 	// Group rooms by building
@@ -212,12 +213,7 @@
 				<div class="space-y-2">
 					<Label for="program">Program</Label>
 					{#if data.profile?.role === 'Admin'}
-						<Select.Root
-							type="single"
-							name="program_id"
-							onValueChange={(v) => handleProgramChange(v)}
-							value={programIdFromUrl}
-						>
+						<Select.Root type="single" name="program_id" bind:value={programId}>
 							<Select.Trigger id="program" class="w-full">
 								<span>{selectedProgram?.program_name || 'Select a program'}</span>
 							</Select.Trigger>
@@ -238,12 +234,7 @@
 							</Select.Content>
 						</Select.Root>
 					{:else if data.programs.length > 1}
-						<Select.Root
-							type="single"
-							name="program_id"
-							onValueChange={(v) => handleProgramChange(v)}
-							value={programIdFromUrl}
-						>
+						<Select.Root type="single" name="program_id" bind:value={programId}>
 							<Select.Trigger id="program" class="w-full">
 								<span>{selectedProgram?.program_name || 'Select a program'}</span>
 							</Select.Trigger>
@@ -293,6 +284,13 @@
 							<Select.Item value="Summer">Summer</Select.Item>
 						</Select.Content>
 					</Select.Root>
+				</div>
+
+				<!-- Load Details Button -->
+				<div class="md:col-span-3 pt-2">
+					<Button type="button" class="w-full" onclick={loadProgramDetails} disabled={!programId}>
+						Load Program Details
+					</Button>
 				</div>
 			</Card.Content>
 
@@ -363,7 +361,7 @@
 			{/if}
 
 			<!-- All other steps will be added here -->
-			<fieldset class="contents" disabled={!selectedProgram}>
+			<fieldset class="contents" disabled={!data.healthStats}>
 				<!-- Step 2: Room Selection -->
 				<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
 					<Card.Header class="pt-4">
@@ -376,7 +374,7 @@
 					<Card.Content>
 						<Collapsible.Root class="space-y-2">
 							<Collapsible.Trigger class="w-full">
-								<div class="flex items-center justify-between rounded-lg border p-4">
+								<div class="flex items-center justify-between rounded-lg border p-4 mt-2">
 									<span class="font-semibold">
 										{Object.values(selectedRoomIds).filter(Boolean).length} /
 										{data.allRooms.length} rooms selected
@@ -448,13 +446,13 @@
 							Set the rules and time boundaries for the schedule generation.
 						</Card.Description>
 					</Card.Header>
-					<Card.Content class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<Card.Content class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
 						<!-- Day Rules -->
 						<div class="space-y-4 rounded-md border p-4">
 							<h4 class="font-semibold">Day Rules</h4>
-							<div class="space-y-2 ">
+							<div class="space-y-2">
 								<Label class="text-sm text-muted-foreground">Exclude Days</Label>
-								<div class="flex flex-wrap gap-2 ">
+								<div class="flex flex-wrap gap-2">
 									{#each ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as day}
 										<div class="flex items-center gap-2">
 											<Checkbox id="exclude-{day}" name="excluded_days" value={day} />
@@ -528,14 +526,21 @@
 								</div>
 								<div class="space-y-2 pt-2">
 									<Label class="text-sm font-medium">Room Type Rules</Label>
-									<RadioGroup.Root bind:value={constraints.roomTypeConstraint} name="roomTypeConstraint">
+									<RadioGroup.Root
+										bind:value={constraints.roomTypeConstraint}
+										name="roomTypeConstraint"
+									>
 										<div class="flex items-center space-x-2">
 											<RadioGroup.Item value="strict" id="rt-strict" />
-											<Label for="rt-strict" class="font-normal">Strictly Enforce (Lec → Lec Room)</Label>
+											<Label for="rt-strict" class="font-normal"
+												>Strictly Enforce (Lec → Lec Room)</Label
+											>
 										</div>
 										<div class="flex items-center space-x-2">
 											<RadioGroup.Item value="soft" id="rt-soft" />
-											<Label for="rt-soft" class="font-normal">Allow Overflow (Prefer correct type)</Label>
+											<Label for="rt-soft" class="font-normal"
+												>Allow Overflow (Prefer correct type)</Label
+											>
 										</div>
 									</RadioGroup.Root>
 								</div>
@@ -571,9 +576,11 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content>
-					<fieldset class="contents" disabled={!selectedProgram}>
+					<fieldset class="contents" disabled={!data.healthStats}>
 						<div class="space-y-2 mb-4">
-							<Label for="custom_name">Timetable Name (Optional)</Label>
+							<Label for="custom_name" class="mt-2 ml-2 text-muted-foreground"
+								>Timetable Name (Optional)</Label
+							>
 							<input
 								type="text"
 								name="custom_name"
@@ -581,7 +588,7 @@
 								placeholder="e.g., Draft Schedule v1"
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 							/>
-							<p class="text-sm text-muted-foreground">
+							<p class="text-sm text-muted-foreground ml-2">
 								Leave blank to auto-generate a name (e.g., TT-Program-Year-Sem).
 							</p>
 						</div>
@@ -595,7 +602,10 @@
 								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
 							>
 								<RadioGroup.Item value="memetic" id="memetic" class="sr-only" />
-								<span class="text-lg font-semibold">Memetic Algorithm</span>
+								<Label class="text-lg font-semibold"
+									>Memetic Algorithm <Badge variant="secondary"><Cpu />slow</Badge></Label
+								>
+								<Separator />
 								<p class="text-sm text-muted-foreground mt-2 text-center">
 									A hybrid approach combining a genetic algorithm with local search. Good for
 									finding high-quality solutions, but can be slower.
@@ -606,7 +616,10 @@
 								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
 							>
 								<RadioGroup.Item value="cp" id="cp" class="sr-only" />
-								<span class="text-lg font-semibold">Constraint Programming</span>
+								<Label class="text-lg font-semibold"
+									>Constraint Programming <Badge variant="secondary"><Rocket /> fast</Badge></Label
+								>
+								<Separator />
 								<p class="text-sm text-muted-foreground mt-2 text-center">
 									A solver that finds a feasible solution by systematically exploring possibilities.
 									Faster, but may not be the most optimal solution.
@@ -639,26 +652,25 @@
 <Dialog.Root bind:open={failedClassesModalOpen}>
 	<Dialog.Content class="sm:max-w-[600px]">
 		<Dialog.Header>
-			<Dialog.Title class="flex items-center gap-2">
-				Generation Statistics
-			</Dialog.Title>
-			<Dialog.Description>
-				Performance metrics for this generation run.
-			</Dialog.Description>
+			<Dialog.Title class="flex items-center gap-2">Generation Statistics</Dialog.Title>
+			<Dialog.Description>Performance metrics for this generation run.</Dialog.Description>
 		</Dialog.Header>
 
 		{#if reportData?.report}
 			<Field.Group class="py-4">
 				<Field.Set>
-					
 					<div class="grid grid-cols-3 gap-4 pt-2">
-						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+						<div
+							class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border"
+						>
 							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
 								>Time</span
 							>
 							<span class="text-2xl font-bold">{reportData.report.timeTaken}</span>
 						</div>
-						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+						<div
+							class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border"
+						>
 							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
 								>Success Rate</span
 							>
@@ -674,21 +686,24 @@
 								>{reportData.report.scheduledCount}/{reportData.report.totalClasses}</span
 							>
 						</div>
-						<div class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border">
+						<div
+							class="flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg border"
+						>
 							<span class="text-xs font-medium text-muted-foreground uppercase tracking-wider"
 								>Rooms</span
 							>
 							<span class="text-2xl font-bold">{reportData.report.roomsUsed}</span>
 						</div>
 					</div>
-					<Field.Description class="text-muted-foreground flex items-center gap-2 "> {#if reportData?.report?.successRate === 100}
-					<BookCheck class="h-4 w-4 text-green-600" />
-					<span class="text-green-600">Generation Complete!</span>
-				{:else}
-					<Info class="h-4 w-4 text-amber-600" />
-					<span class="text-amber-600">Generation Complete with Issues</span>
-				{/if}
-						</Field.Description>
+					<Field.Description class="text-muted-foreground flex items-center gap-2 ">
+						{#if reportData?.report?.successRate === 100}
+							<BookCheck class="h-4 w-4 text-green-600" />
+							<span class="text-green-600">Generation Complete!</span>
+						{:else}
+							<Info class="h-4 w-4 text-amber-600" />
+							<span class="text-amber-600">Generation Complete with Issues</span>
+						{/if}
+					</Field.Description>
 				</Field.Set>
 
 				<Field.Separator />
@@ -697,7 +712,9 @@
 					<Field.Legend class="flex items-center gap-2">
 						{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
 							<ClipboardX class="h-4 w-4 text-destructive" />
-							<span class="text-destructive">Failed Classes ({reportData.failedClasses.length})</span>
+							<span class="text-destructive"
+								>Failed Classes ({reportData.failedClasses.length})</span
+							>
 						{:else}
 							<BookCheck class="h-4 w-4 text-green-600" />
 							<span class="text-green-600">Status</span>
@@ -710,7 +727,7 @@
 							All classes were scheduled successfully.
 						{/if}
 					</Field.Description>
-					
+
 					{#if reportData?.failedClasses && reportData.failedClasses.length > 0}
 						<div class="max-h-60 overflow-y-auto space-y-2 pr-2 pt-2">
 							{#each reportData.failedClasses as failed}

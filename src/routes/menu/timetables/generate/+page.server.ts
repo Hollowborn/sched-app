@@ -144,7 +144,8 @@ export const actions: Actions = {
 				| 'none',
 			enforceInstructor: !!formData.get('enforceInstructor'),
 			enforceBlock: !!formData.get('enforceBlock'),
-			excludedDays: excluded_days
+			excludedDays: excluded_days,
+			breakTime: breakTime
 		};
 
 		if (!academic_year || !semester || !program_id || room_ids.length === 0) {
@@ -242,15 +243,9 @@ export const actions: Actions = {
 
 			// 5. Define Domain (Playable Slots) based on new constraints
 			const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-			const SLOT_DURATION_MINUTES = 90;
-			const SLOT_DURATION_HOURS = 1.5;
+			const SLOT_DURATION_HOURS = 0.5;
 
-			function generateTimeslots(
-				start: string,
-				end: string,
-				durationMinutes: number,
-				breakT: string
-			) {
+			function generateTimeslots(start: string, end: string, breakT: string) {
 				const slots = [];
 				let currentTime = new Date(`1970-01-01T${start}:00`);
 				const endTime = new Date(`1970-01-01T${end}:00`);
@@ -260,26 +255,17 @@ export const actions: Actions = {
 					breakT !== 'none' ? new Date(`1970-01-01T${breakT.split('-')[1]}:00`) : null;
 
 				while (currentTime < endTime) {
-					const slotStart = currentTime;
-					const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60000);
-
 					const isDuringBreak =
-						breakStart && breakEnd && slotStart < breakEnd && slotEnd > breakStart;
-
+						breakStart && breakEnd && currentTime >= breakStart && currentTime < breakEnd;
 					if (!isDuringBreak) {
 						slots.push(currentTime.toTimeString().substring(0, 5));
 					}
 					currentTime.setMinutes(currentTime.getMinutes() + 30); // Increment by 30 mins for more granular start times
 				}
-				return [...new Set(slots)]; // Remove duplicates
+				return slots;
 			}
 
-			const TIMESLOTS = generateTimeslots(
-				scheduleStartTime,
-				scheduleEndTime,
-				SLOT_DURATION_MINUTES,
-				breakTime
-			);
+			const TIMESLOTS = generateTimeslots(scheduleStartTime, scheduleEndTime, breakTime);
 
 			// 6. Create the "Job List" (Needed for stats and consistent task counting)
 			const tasksToSchedule: any[] = [];
