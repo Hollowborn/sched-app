@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const academic_year = url.searchParams.get('academic_year');
 	const semester = url.searchParams.get('semester');
 	const program_id_param = url.searchParams.get('program_id');
+	const chairperson_program_id = profile.role === 'Chairperson' ? profile.program_id : null;
 
 	// --- Role-based Program Fetching ---
 	let programsQuery = locals.supabase.from('programs').select(`

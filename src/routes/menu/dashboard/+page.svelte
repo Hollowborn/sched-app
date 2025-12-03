@@ -1,15 +1,19 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
-	import * as Card from '$lib/components/ui/card';
+
 	import { Users, Building, BookCopy, GraduationCap, Calendar, BookOpen } from 'lucide-svelte';
 	import ChartBarDefault from '$lib/components/charts/chart-bar-default.svelte';
 	import PieChartInteractive from '$lib/components/charts/pie-chart-interactive.svelte';
 	import ActionItemsTable from '$lib/components/dashboard/action-items-table.svelte';
+
+	// shadcn-svelte components
+	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import Label from '$lib/components/ui/label/label.svelte';
 
 	let { data } = $props<{ data: PageData }>();
 	const { profile, stats, workloadData, scheduleStatusData, actionItems, academic_year, semester } =
@@ -125,6 +129,7 @@
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.instructorCount}</div>
 					</Card.Content>
+					<Card.Footer><Label class="text-muted-foreground">What emptiness</Label></Card.Footer>
 				</Card.Root>
 				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -172,7 +177,7 @@
 
 		<!-- Charts -->
 		<Card.Root class="col-span-12 lg:col-span-4">
-			<Card.Content>
+			<Card.Content class="p-4 hover-lift transition-base">
 				<PieChartInteractive data={scheduleStatusData} />
 			</Card.Content>
 		</Card.Root>
@@ -185,7 +190,7 @@
 					{selectedAcademicYear}.</Card.Description
 				>
 			</Card.Header>
-			<Card.Content class="pl-2">
+			<Card.Content class="p-4 hover-lift transition-base">
 				<ChartBarDefault data={workloadData} />
 			</Card.Content>
 		</Card.Root>
