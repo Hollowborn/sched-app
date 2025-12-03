@@ -52,7 +52,7 @@
 	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>(
 		(urlParams.get('semester') as '1st Semester' | '2nd Semester' | 'Summer') || '1st Semester'
 	);
-	let programId = $state(urlParams.get('program_id'));
+	let programId = $state(urlParams.get('program_id') || data.profile?.program_id?.toString());
 
 	// --- Derived State ---
 	const selectedProgram = $derived(data.programs.find((p) => p.id.toString() === programId));
