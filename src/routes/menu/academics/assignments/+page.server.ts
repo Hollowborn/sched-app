@@ -1,8 +1,8 @@
 import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-// This page is primarily for Deans, but Admins can oversee it.
-const ALLOWED_ROLES = ['Admin', 'Dean'];
+// This page is for Admins, Deans, and Chairpersons.
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -11,43 +11,50 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(403, 'Forbidden: You do not have permission to assign instructors.');
 	}
 
+	const { role, college_id: user_college_id, program_id: user_program_id } = profile;
+
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
-	const college_filter_id = url.searchParams.get('college');
+	const college_filter_id_param = url.searchParams.get('college');
 
-	// --- 1. Fetch Class Offerings for the selected term ---
+	let effective_college_id: string | number | null = null;
+	// Determine the effective college ID based on role
+	if (role === 'Admin') {
+		effective_college_id = college_filter_id_param; // Admin can use filter or see all relevant to their college filter
+	} else if (role === 'Dean') {
+		if (!user_college_id) throw error(403, 'Dean is not assigned to a college.');
+		effective_college_id = user_college_id;
+	} else if (role === 'Chairperson') {
+		if (!user_program_id) throw error(403, 'Chairperson is not assigned to a program.');
+		const { data: programData } = await locals.supabase
+			.from('programs')
+			.select('college_id')
+			.eq('id', user_program_id)
+			.single();
+		const chairperson_college_id = programData?.college_id;
+		if (!chairperson_college_id) throw error(500, 'Could not determine chairperson college.');
+		effective_college_id = chairperson_college_id;
+	}
+
+	// --- 1. Fetch Class Offerings for the selected term (scoped) ---
 	let classQuery = locals.supabase
 		.from('classes')
 		.select(
 			`
-            id,
-            split_lecture,
-            lecture_days,
-            subjects!inner (id, subject_code, subject_name, lecture_hours),
+            id, split_lecture, lecture_days, subjects!inner (id, subject_code, subject_name, lecture_hours),
             instructors (id, name),
-            blocks!inner (
-                id,
-                block_name,
-                programs!inner (
-                    college_id,
-                    colleges (college_name)
-                )
-            ),
-            pref_room_id,
-            rooms (room_name)
+            blocks!inner (id, block_name, programs!inner (id, college_id, program_name)),
+            pref_room_id, rooms (room_name)
         `
 		)
 		.eq('academic_year', academic_year)
 		.eq('semester', semester);
 
-	// Handle college filtering based on role and URL params
-	if (profile.role === 'Dean' && profile.college_id) {
-		// Deans should only see classes relevant to their college (via the block's program's college)
-		classQuery = classQuery.eq('blocks.programs.college_id', profile.college_id);
-	} else if (college_filter_id && profile.role === 'Admin') {
-		// Admins can filter by any college (via the block's program's college)
-		classQuery = classQuery.eq('blocks.programs.college_id', college_filter_id);
+	if (role === 'Chairperson') {
+		classQuery = classQuery.eq('blocks.programs.id', user_program_id);
+	} else if (effective_college_id) {
+		classQuery = classQuery.eq('blocks.programs.college_id', effective_college_id);
 	}
 
 	const { data: classes, error: classesError } = await classQuery;
@@ -58,7 +65,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Post-process the data to ensure lecture_days is always an array
-	const processedClasses = classes.map((c) => {
+	const processedClasses = (classes || []).map((c) => {
 		if (c.lecture_days && typeof c.lecture_days === 'string') {
 			try {
 				return { ...c, lecture_days: JSON.parse(c.lecture_days) };
@@ -70,16 +77,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		return c;
 	});
 
-	// --- 2. Fetch Instructors and Calculate Their Current Workload ---
+	// --- 2. Fetch Instructors and Calculate Their Current Workload (scoped) ---
 	let instructorQuery = locals.supabase
 		.from('instructors')
 		.select(
 			'id, name, max_load, instructor_colleges!inner(college_id), instructor_subjects(subject_id)'
 		);
 
-	// Deans should only be able to assign instructors from their own college
-	if (profile.role === 'Dean' && profile.college_id) {
-		instructorQuery = instructorQuery.eq('instructor_colleges.college_id', profile.college_id);
+	if (effective_college_id) {
+		instructorQuery = instructorQuery.eq('instructor_colleges.college_id', effective_college_id);
 	}
 
 	const { data: instructors, error: instructorsError } = await instructorQuery;
@@ -112,7 +118,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Fetch colleges for the filter dropdown (only for Admin role)
 	const { data: colleges } =
-		profile.role === 'Admin'
+		role === 'Admin'
 			? await locals.supabase.from('colleges').select('id, college_name')
 			: { data: [] };
 
@@ -127,8 +133,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		instructors: instructorsWithLoad || [],
 		rooms: rooms || [],
 		colleges: colleges || [],
-		profile: locals.profile,
-		filters: { academic_year, semester, college: college_filter_id }
+		profile: profile,
+		userCollegeId: effective_college_id, // Pass to frontend for consistency
+		filters: { academic_year, semester, college: college_filter_id_param }
 	};
 };
 

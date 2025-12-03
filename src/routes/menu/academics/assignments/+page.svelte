@@ -456,14 +456,15 @@
 {/snippet}
 
 <svelte:head>
-	<title>Instructor Assignments | smart-sched</title>
+	<title>Resource Assignments | smart-sched</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<header>
-		<h1 class="text-3xl font-bold tracking-tight">Instructor Assignments</h1>
+		<h1 class="text-3xl font-bold tracking-tight">Resource Assignments</h1>
 		<p class="text-muted-foreground mt-1">
-			Assign instructors to class offerings for the selected academic term.
+			Manage instructor, lecture splitting, and room preferences of class offerings for the selected
+			academic term.
 		</p>
 	</header>
 
@@ -520,39 +521,41 @@
 									</Command.Item>
 								{/each}
 							</Command.Group>
-							<Command.Group heading="College">
-								<Command.Item
-									value="col:all"
-									onSelect={() => {
-										collegeFilterId = '';
-										handleFilterChange();
-										filterOpen = false;
-									}}
-								>
-									<Check
-										class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
-									/>
-									All Colleges
-								</Command.Item>
-								{#each data.colleges || [] as college}
+							{#if data.profile?.role === 'Admin'}
+								<Command.Group heading="College">
 									<Command.Item
-										value={`col:${college.college_name}`}
+										value="col:all"
 										onSelect={() => {
-											collegeFilterId = college.id.toString();
+											collegeFilterId = '';
 											handleFilterChange();
 											filterOpen = false;
 										}}
 									>
 										<Check
-											class={cn(
-												'mr-2 h-4 w-4',
-												collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
-											)}
+											class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
 										/>
-										{college.college_name}
+										All Colleges
 									</Command.Item>
-								{/each}
-							</Command.Group>
+									{#each data.colleges || [] as college}
+										<Command.Item
+											value={`col:${college.college_name}`}
+											onSelect={() => {
+												collegeFilterId = college.id.toString();
+												handleFilterChange();
+												filterOpen = false;
+											}}
+										>
+											<Check
+												class={cn(
+													'mr-2 h-4 w-4',
+													collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
+												)}
+											/>
+											{college.college_name}
+										</Command.Item>
+									{/each}
+								</Command.Group>
+							{/if}
 						</Command.List>
 					</Command.Root>
 				</Popover.Content>
