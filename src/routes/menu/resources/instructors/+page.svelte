@@ -70,16 +70,39 @@
 	let formMaxLoad = $state(18);
 	let formMinLoad = $state(12);
 	let formQualificationIds = $state<number[]>([]);
+	let qualificationSearch = $state('');
 
-	// --- Event Handlers ---
-	const availableSubjects = $derived.by(() => {
+	const filteredAvailableSubjects = $derived.by(() => {
 		if (!selectedInstructor) return [];
 		const instructorCollegeIds = new Set(selectedInstructor.colleges.map((c) => c.id));
-		return (
+		const subjectsForInstructor =
 			data.subjects?.filter((subject) =>
 				subject.colleges.some((college) => instructorCollegeIds.has(college.id))
-			) || []
-		);
+			) || [];
+
+		let filtered = subjectsForInstructor;
+		if (qualificationSearch) {
+			const lowerQuery = qualificationSearch.toLowerCase();
+			filtered = subjectsForInstructor.filter(
+				(subject) =>
+					subject.subject_name.toLowerCase().includes(lowerQuery) ||
+					subject.subject_code.toLowerCase().includes(lowerQuery)
+			);
+		}
+
+		// Apply sorting: selected subjects first, then alphabetical by name
+		return filtered.sort((a, b) => {
+			const a_selected = formQualificationIds.includes(a.id);
+			const b_selected = formQualificationIds.includes(b.id);
+
+			if (a_selected === b_selected) {
+				// Secondary sort: alphabetical by subject name
+				return a.subject_name.localeCompare(b.subject_name);
+			}
+
+			// Primary sort: selected items come first (-1 means a comes before b)
+			return a_selected ? -1 : 1;
+		});
 	});
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
@@ -595,10 +618,15 @@
 			>
 				<input type="hidden" name="instructor_id" value={selectedInstructor.id} />
 				<div class="py-4">
+					<Input
+						placeholder="Search subjects by name or code..."
+						bind:value={qualificationSearch}
+						class="mb-4"
+					/>
 					<ScrollArea class="h-64 rounded-md border">
 						<div class="p-4 space-y-2">
-							{#if availableSubjects.length > 0}
-								{#each availableSubjects as subject (subject.id)}
+							{#if filteredAvailableSubjects.length > 0}
+								{#each filteredAvailableSubjects as subject (subject.id)}
 									<div class="flex items-center gap-2">
 										<Checkbox
 											id="qual-subj-{subject.id}"
@@ -615,15 +643,19 @@
 												}
 											}}
 										/>
-										<Label for="qual-subj-{subject.id}" class="font-normal"
-											>{subject.subject_name}
-											<Badge variant="secondary">{subject.subject_code}</Badge></Label
-										>
+										<Label for="qual-subj-{subject.id}" class="font-normal w-full">
+											{subject.subject_name}
+											<Badge variant="secondary" class="ml-2">{subject.subject_code}</Badge>
+										</Label>
 									</div>
 								{/each}
 							{:else}
 								<p class="text-sm text-muted-foreground text-center p-4">
-									No subjects found for the instructor's assigned college(s).
+									{#if availableSubjects.length === 0}
+										No subjects found for the instructor's assigned college(s).
+									{:else}
+										No subjects match your search.
+									{/if}
 								</p>
 							{/if}
 						</div>
