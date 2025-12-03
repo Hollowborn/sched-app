@@ -12,7 +12,8 @@
 		UserX,
 		Filter,
 		Pencil,
-		Check
+		Check,
+		Sparkles
 	} from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
@@ -561,7 +562,30 @@
 				</Popover.Content>
 			</Popover.Root>
 		</div>
-		<div slot="toolbar" class="flex items-center">
+		<div slot="toolbar" class="flex items-center gap-2">
+			<form
+				method="POST"
+				action="?/autoAssign"
+				use:enhance={() => {
+					const toastId = toast.loading('Auto-assigning instructors...');
+					return async ({ update, result }) => {
+						if (result.type === 'success') {
+							toast.success(result.data?.message, { id: toastId });
+							await update();
+						} else if (result.type === 'failure') {
+							toast.error(result.data?.message, { id: toastId });
+						}
+					};
+				}}
+			>
+				<input type="hidden" name="academic_year" value={academicYear} />
+				<input type="hidden" name="semester" value={semester} />
+				<input type="hidden" name="college" value={collegeFilterId || ''} />
+				<Button type="submit" variant="secondary">
+					<Sparkles class="mr-2 h-4 w-4" />
+					Auto Assign
+				</Button>
+			</form>
 			<ToggleGroup.Root type="single" variant="outline" bind:value={statusFilter}>
 				<ToggleGroup.Item value="all"><List /></ToggleGroup.Item>
 				<ToggleGroup.Item value="assigned"><UserCheck /></ToggleGroup.Item>

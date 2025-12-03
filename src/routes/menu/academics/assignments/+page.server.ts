@@ -235,5 +235,129 @@ export const actions: Actions = {
 		}
 
 		return { message: 'Lecture split settings updated.' };
+	},
+
+	autoAssign: async ({ request, locals }) => {
+		const profile = locals.profile;
+		if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
+			return fail(403, { message: 'Forbidden: You do not have permission to auto-assign.' });
+		}
+
+		const formData = await request.formData();
+		const academic_year =
+			formData.get('academic_year')?.toString() ||
+			`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+		const semester = formData.get('semester')?.toString() || '1st Semester';
+		const college_filter_id_param = formData.get('college')?.toString();
+
+		// --- 1. Determine Scope (Same logic as load function) ---
+		let effective_college_id: string | number | null = null;
+		let effective_program_id: number | null = null;
+
+		if (profile.role === 'Admin') {
+			effective_college_id = college_filter_id_param || null;
+		} else if (profile.role === 'Dean') {
+			effective_college_id = profile.college_id;
+		} else if (profile.role === 'Chairperson') {
+			effective_program_id = profile.program_id;
+		}
+
+		// --- 2. Fetch Unassigned Classes ---
+		let classQuery = locals.supabase
+			.from('classes')
+			.select(
+				`
+				id, subject_id,
+				blocks!inner (id, programs!inner (id, college_id))
+			`
+			)
+			.eq('academic_year', academic_year)
+			.eq('semester', semester)
+			.is('instructor_id', null); // Only unassigned
+
+		if (effective_program_id) {
+			classQuery = classQuery.eq('blocks.programs.id', effective_program_id);
+		} else if (effective_college_id) {
+			classQuery = classQuery.eq('blocks.programs.college_id', effective_college_id);
+		}
+
+		const { data: unassignedClasses, error: classError } = await classQuery;
+		if (classError) {
+			console.error('Auto-assign fetch classes error:', classError);
+			return fail(500, { message: 'Failed to fetch unassigned classes.' });
+		}
+
+		if (!unassignedClasses || unassignedClasses.length === 0) {
+			return { message: 'No unassigned classes found to process.' };
+		}
+
+		// --- 3. Fetch Instructors with Qualifications ---
+		let instructorQuery = locals.supabase
+			.from('instructors')
+			.select(
+				'id, instructor_colleges!inner(college_id), instructor_subjects(subject_id)'
+			);
+
+		if (effective_college_id) {
+			instructorQuery = instructorQuery.eq(
+				'instructor_colleges.college_id',
+				effective_college_id
+			);
+		}
+
+		const { data: instructors, error: instructorError } = await instructorQuery;
+		if (instructorError) {
+			console.error('Auto-assign fetch instructors error:', instructorError);
+			return fail(500, { message: 'Failed to fetch instructors.' });
+		}
+
+		// --- 4. Process Auto-Assignment ---
+		let assignedCount = 0;
+		const updates = [];
+
+		for (const cls of unassignedClasses) {
+			// Find qualified instructors for this class's subject
+			const qualifiedInstructors = instructors.filter((inst) =>
+				inst.instructor_subjects.some((sub) => sub.subject_id === cls.subject_id)
+			);
+
+			// If EXACTLY ONE qualified instructor, assign them
+			if (qualifiedInstructors.length === 1) {
+				updates.push({
+					id: cls.id,
+					instructor_id: qualifiedInstructors[0].id
+				});
+				assignedCount++;
+			}
+		}
+
+		// --- 5. Batch Update ---
+		if (updates.length > 0) {
+			// Supabase doesn't have a direct "update many with different values" in one query easily without RPC or complex upsert.
+			// For simplicity and safety, we'll loop updates. For larger datasets, an RPC would be better.
+			// Given the likely scale (dozens to hundreds), parallel promises are acceptable.
+			const updatePromises = updates.map((update) =>
+				locals.supabase
+					.from('classes')
+					.update({ instructor_id: update.instructor_id })
+					.eq('id', update.id)
+			);
+
+			const results = await Promise.all(updatePromises);
+			const errors = results.filter((r) => r.error);
+			if (errors.length > 0) {
+				console.error('Some auto-assignments failed:', errors);
+				return fail(500, {
+					message: `Attempted to assign ${assignedCount} classes, but some failed.`
+				});
+			}
+		}
+
+		return {
+			message:
+				assignedCount > 0
+					? `Successfully auto-assigned ${assignedCount} classes.`
+					: 'No classes matched the single-candidate criteria.'
+		};
 	}
 };
