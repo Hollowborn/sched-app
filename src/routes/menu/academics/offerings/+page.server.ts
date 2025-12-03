@@ -1,71 +1,95 @@
 import { fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar'];
+const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const userRole = locals.profile?.role;
-	if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
+	const profile = locals.profile;
+	if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
 		throw error(403, 'Forbidden: You do not have permission to access this page.');
 	}
+
+	const { role, college_id: user_college_id, program_id: user_program_id } = profile;
 
 	const currentYear = new Date().getFullYear();
 	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
 	const semester = url.searchParams.get('semester') || '1st Semester';
-	const college_id = url.searchParams.get('college');
+	const college_id_param = url.searchParams.get('college');
 
-	// Fetch class offerings, filtering by the college associated with the block/program
-	let query = locals.supabase
+	// Determine the effective college ID to filter by, based on role and URL parameters.
+	let effective_college_id = role === 'Admin' ? college_id_param : user_college_id;
+
+	// --- 1. Fetch Class Offerings (scoped) ---
+	let classesQuery = locals.supabase
 		.from('classes')
 		.select(
 			`
-            id,
-            semester,
-            academic_year,
-            pref_room_id,
-            split_lecture,
-            lecture_days,
-            subjects!inner (id, subject_code, subject_name),
-            instructors (id, name),
-            blocks!inner (
-                id,
-                block_name,
-                programs!inner (
-                    college_id
-                )
-            )
-        `
+			id, semester, academic_year, pref_room_id, split_lecture, lecture_days,
+			subjects!inner (id, subject_code, subject_name, lecture_hours),
+			instructors (id, name),
+			blocks!inner (id, block_name, programs!inner (id, college_id))
+		`
 		)
 		.eq('academic_year', academic_year)
 		.eq('semester', semester);
 
-	if (college_id) {
-		query = query.eq('blocks.programs.college_id', college_id);
+	if (role === 'Chairperson') {
+		if (!user_program_id) throw error(403, 'Chairperson is not assigned to a program.');
+		classesQuery = classesQuery.eq('blocks.programs.id', user_program_id);
+	} else if (effective_college_id) {
+		classesQuery = classesQuery.eq('blocks.programs.college_id', effective_college_id);
 	}
 
-	const { data: classes, error: classesError } = await query;
+	// --- 2. Fetch Modal/Form Data (scoped) ---
+	let subjectsQuery = locals.supabase
+		.from('subjects')
+		.select('*, subject_colleges!inner(college_id), colleges(id, college_name)')
+		.order('subject_code');
 
-	if (classesError) {
-		console.error('Error fetching class offerings:', classesError);
-		throw error(500, 'Failed to load class offerings.');
+	let instructorsQuery = locals.supabase
+		.from('instructors')
+		.select('id, name, instructor_subjects(subject_id), instructor_colleges!inner(college_id)')
+		.order('name');
+
+	let blocksQuery = locals.supabase
+		.from('blocks')
+		.select('id, block_name, year_level, programs!inner(id, college_id)')
+		.order('block_name');
+
+	if (role === 'Chairperson') {
+		if (!user_program_id) throw error(403, 'Chairperson is not assigned to a program.');
+		// A chairperson's college_id is derived from their program's college.
+		const { data: programData } = await locals.supabase
+			.from('programs')
+			.select('college_id')
+			.eq('id', user_program_id)
+			.single();
+		const chairperson_college_id = programData?.college_id;
+
+		if (!chairperson_college_id) throw error(500, 'Could not determine chairperson college.');
+
+		effective_college_id = chairperson_college_id;
+		blocksQuery = blocksQuery.eq('program_id', user_program_id);
+		subjectsQuery = subjectsQuery.eq('subject_colleges.college_id', effective_college_id);
+		instructorsQuery = instructorsQuery.eq('instructor_colleges.college_id', effective_college_id);
+	} else if (role === 'Dean') {
+		if (!user_college_id) throw error(403, 'Dean is not assigned to a college.');
+		blocksQuery = blocksQuery.eq('programs.college_id', user_college_id);
+		subjectsQuery = subjectsQuery.eq('subject_colleges.college_id', user_college_id);
+		instructorsQuery = instructorsQuery.eq('instructor_colleges.college_id', user_college_id);
 	}
 
-	// Post-process the data to ensure lecture_days is always an array
-	const processedClasses = classes.map((c) => {
-		if (c.lecture_days && typeof c.lecture_days === 'string') {
-			try {
-				return { ...c, lecture_days: JSON.parse(c.lecture_days) };
-			} catch (e) {
-				// Fallback for malformed JSON or other string formats
-				return { ...c, lecture_days: [] };
-			}
-		}
-		return c;
-	});
+	// For Admins, no extra filters are needed unless they use the college filter dropdown
+	if (role === 'Admin' && college_id_param) {
+		blocksQuery = blocksQuery.eq('programs.college_id', college_id_param);
+		subjectsQuery = subjectsQuery.eq('subject_colleges.college_id', college_id_param);
+		instructorsQuery = instructorsQuery.eq('instructor_colleges.college_id', college_id_param);
+	}
 
-	// Fetch all necessary data for the "Create" modal dropdowns
+	// --- 3. Execute all queries in parallel ---
 	const [
+		{ data: classes, error: classesError },
 		{ data: subjects, error: subjectsError },
 		{ data: instructors },
 		{ data: blocks },
@@ -73,49 +97,68 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		{ data: programs },
 		{ data: rooms }
 	] = await Promise.all([
-		locals.supabase.from('subjects').select('*, colleges(id, college_name)').order('subject_code'),
-		locals.supabase
-			.from('instructors')
-			.select('id, name, instructor_subjects(subject_id)')
-			.order('name'),
-		locals.supabase
-			.from('blocks')
-			.select('id, block_name, year_level, programs!inner(college_id)')
-			.order('block_name'),
+		classesQuery,
+		subjectsQuery,
+		instructorsQuery,
+		blocksQuery,
 		locals.supabase.from('colleges').select('id, college_name').order('college_name'),
 		locals.supabase.from('programs').select('id, program_name, college_id').order('program_name'),
 		locals.supabase.from('rooms').select('id, room_name, building').order('room_name')
 	]);
 
-	if (subjectsError) {
-		console.error('Error fetching subjects:', subjectsError);
-		throw error(500, 'Failed to load subjects.');
-	}
+	if (classesError) throw error(500, 'Failed to load class offerings.');
+	if (subjectsError) throw error(500, 'Failed to load subjects for modal.');
+
+	// Post-process classes to handle JSON parsing for lecture_days
+	const processedClasses = (classes || []).map((c) => ({
+		...c,
+		lecture_days:
+			c.lecture_days && typeof c.lecture_days === 'string' ? JSON.parse(c.lecture_days) : []
+	}));
 
 	return {
-		classes: processedClasses || [],
+		classes: processedClasses,
 		subjects: subjects || [],
 		instructors: instructors || [],
 		blocks: blocks || [],
 		colleges: colleges || [],
 		programs: programs || [],
 		rooms: rooms || [],
-		profile: locals.profile,
-		filters: { academic_year, semester, college: college_id }
+		profile: profile,
+		userCollegeId: effective_college_id, // Pass the determined college ID to the frontend
+		filters: { academic_year, semester, college: college_id_param }
 	};
 };
 
 // --- ACTIONS ---
 export const actions: Actions = {
 	createClass: async ({ request, locals }) => {
-		const userRole = locals.profile?.role;
-		if (!userRole || !['Admin', 'Dean', 'Registrar'].includes(userRole)) {
+		const profile = locals.profile;
+		if (!profile || !['Admin', 'Dean', 'Registrar', 'Chairperson'].includes(profile.role)) {
 			return fail(403, { message: 'Forbidden: You do not have permission to create classes.' });
 		}
 
 		const formData = await request.formData();
 		const subject_id = Number(formData.get('subject_id'));
 		const block_id = Number(formData.get('block_id'));
+
+		// --- Authorization for Chairperson ---
+		if (profile.role === 'Chairperson') {
+			if (!profile.program_id) {
+				return fail(403, { message: 'Your account is not assigned to a program.' });
+			}
+			const { data: blockProgram } = await locals.supabase
+				.from('blocks')
+				.select('program_id')
+				.eq('id', block_id)
+				.single();
+
+			if (!blockProgram || blockProgram.program_id !== profile.program_id) {
+				return fail(403, {
+					message: 'Forbidden: You can only create offerings for blocks within your own program.'
+				});
+			}
+		}
 		const instructor_id_val = formData.get('instructor_id');
 		const instructor_id =
 			instructor_id_val && Number(instructor_id_val) > 0 ? Number(instructor_id_val) : null;
@@ -158,13 +201,31 @@ export const actions: Actions = {
 	},
 
 	createBulkClasses: async ({ request, locals }) => {
-		const userRole = locals.profile?.role;
-		if (!userRole || !['Admin', 'Dean', 'Registrar'].includes(userRole)) {
+		const profile = locals.profile;
+		if (!profile || !['Admin', 'Dean', 'Registrar', 'Chairperson'].includes(profile.role)) {
 			return fail(403, { message: 'Forbidden: You do not have permission to create classes.' });
 		}
 
 		const formData = await request.formData();
 		const block_id = Number(formData.get('block_id'));
+
+		// --- Authorization for Chairperson ---
+		if (profile.role === 'Chairperson') {
+			if (!profile.program_id) {
+				return fail(403, { message: 'Your account is not assigned to a program.' });
+			}
+			const { data: blockProgram } = await locals.supabase
+				.from('blocks')
+				.select('program_id')
+				.eq('id', block_id)
+				.single();
+
+			if (!blockProgram || blockProgram.program_id !== profile.program_id) {
+				return fail(403, {
+					message: 'Forbidden: You can only create offerings for blocks within your own program.'
+				});
+			}
+		}
 		const subject_ids_str = formData.get('subject_ids')?.toString();
 		const subject_ids = subject_ids_str ? subject_ids_str.split(',').map(Number) : [];
 		const academic_year = formData.get('academic_year')?.toString();
@@ -205,9 +266,7 @@ export const actions: Actions = {
 			.in('id', newSubjectIds);
 
 		const subjectsWithLectureHours = new Set(
-			(subjectsDetails || [])
-				.filter((s) => s.lecture_hours && s.lecture_hours > 0)
-				.map((s) => s.id)
+			(subjectsDetails || []).filter((s) => s.lecture_hours && s.lecture_hours > 0).map((s) => s.id)
 		);
 
 		// 2. Insert only the new offerings
@@ -242,8 +301,8 @@ export const actions: Actions = {
 
 	deleteClass: async ({ request, locals }) => {
 		const userRole = locals.profile?.role;
-		if (userRole !== 'Admin') {
-			return fail(403, { message: 'Forbidden: Only Admins can delete class offerings.' });
+		if (userRole === 'Registrar') {
+			return fail(403, { message: 'Forbidden: Registrars can`t delete class offerings.' });
 		}
 
 		const formData = await request.formData();

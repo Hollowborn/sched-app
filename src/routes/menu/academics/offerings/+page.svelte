@@ -33,6 +33,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Input } from '$lib/components/ui/input';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
@@ -136,12 +137,14 @@
 		});
 	});
 
-	// Auto-select college for non-admins or if filter is set
+	// Auto-select college for non-admins or if a filter is set
 	$effect(() => {
 		if (data.profile?.role === 'Dean' || data.profile?.role === 'Chairperson') {
-			bulkCollegeId = data.profile.college_id?.toString() ?? '';
+			bulkCollegeId = data.userCollegeId?.toString() ?? '';
 		} else if (collegeFilterId) {
 			bulkCollegeId = collegeFilterId;
+		} else {
+			bulkCollegeId = ''; // Reset for admin if no filter is applied
 		}
 	});
 
@@ -235,7 +238,7 @@
 
 	function resetBulkCreateForm() {
 		if (data.profile?.role !== 'Admin' && !collegeFilterId) {
-			bulkCollegeId = data.profile?.college_id?.toString() ?? '';
+			bulkCollegeId = data.userCollegeId?.toString() ?? '';
 		} else if (!collegeFilterId) {
 			bulkCollegeId = '';
 		}
@@ -430,39 +433,41 @@
 									</Command.Item>
 								{/each}
 							</Command.Group>
-							<Command.Group heading="College">
-								<Command.Item
-									value="col:all"
-									onSelect={() => {
-										collegeFilterId = '';
-										handleFilterChange();
-										filterOpen = false;
-									}}
-								>
-									<Check
-										class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
-									/>
-									All Colleges
-								</Command.Item>
-								{#each data.colleges || [] as college}
+							{#if data.profile?.role === 'Admin'}
+								<Command.Group heading="College">
 									<Command.Item
-										value={`col:${college.college_name}`}
+										value="col:all"
 										onSelect={() => {
-											collegeFilterId = college.id.toString();
+											collegeFilterId = '';
 											handleFilterChange();
 											filterOpen = false;
 										}}
 									>
 										<Check
-											class={cn(
-												'mr-2 h-4 w-4',
-												collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
-											)}
+											class={cn('mr-2 h-4 w-4', !collegeFilterId ? 'opacity-100' : 'opacity-0')}
 										/>
-										{college.college_name}
+										All Colleges
 									</Command.Item>
-								{/each}
-							</Command.Group>
+									{#each data.colleges || [] as college}
+										<Command.Item
+											value={`col:${college.college_name}`}
+											onSelect={() => {
+												collegeFilterId = college.id.toString();
+												handleFilterChange();
+												filterOpen = false;
+											}}
+										>
+											<Check
+												class={cn(
+													'mr-2 h-4 w-4',
+													collegeFilterId === college.id.toString() ? 'opacity-100' : 'opacity-0'
+												)}
+											/>
+											{college.college_name}
+										</Command.Item>
+									{/each}
+								</Command.Group>
+							{/if}
 						</Command.List>
 					</Command.Root>
 				</Popover.Content>
@@ -482,16 +487,16 @@
 				<Trash2 class="mr-2 h-4 w-4" />
 				Delete ({selectedRowsCount})
 			</Button>
-
-			<Button onclick={() => (bulkCreateOpen = true)} variant="outline" disabled={isSubmitting}>
-				<CopyPlus class="mr-2 h-4 w-4" />
-				Bulk Create
-			</Button>
-
-			<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
-				<PlusCircle class="mr-2 h-4 w-4" />
-				Create Offering
-			</Button>
+			<ButtonGroup.Root>
+				<Button variant="outline" onclick={() => (createOpen = true)} disabled={isSubmitting}>
+					<PlusCircle class="mr-2 h-4 w-4" />
+					Create
+				</Button>
+				<Button onclick={() => (bulkCreateOpen = true)} variant="outline" disabled={isSubmitting}>
+					<CopyPlus class="mr-2 h-4 w-4" />
+					Bulk Create
+				</Button>
+			</ButtonGroup.Root>
 		</div>
 	</DataTable>
 
