@@ -14,7 +14,7 @@ This document provides the key topics, terminology, and project-specific evidenc
 
 ## 2. Justification for Selecting the RAD Model
 
-Explain *why* RAD was the most appropriate choice for this academic research project.
+Explain _why_ RAD was the most appropriate choice for this academic research project.
 
 - **Iterative and Flexible:** The nature of research involves discovery and changing requirements. RAD's iterative cycles allowed for flexibility in refining the scheduling algorithms and user interface as the research progressed.
 - **Reduces Development Risk:** By building and testing prototypes early and often, potential design flaws were identified and corrected early, ensuring the final application was robust. (Mention the `src/routes/prototypes` directory as evidence of this practice).
@@ -28,15 +28,18 @@ Explain *why* RAD was the most appropriate choice for this academic research pro
 Describe how the standard RAD phases were implemented.
 
 ### 3.1. Requirements Planning
+
 - A high-level phase involving collaboration between developers and stakeholders (e.g., thesis advisor) to define the essential features.
 - Key requirements identified: user roles (Admin, Dean, etc.), resource management (instructors, rooms, subjects), class offering creation, and an automated timetable generation engine.
 
 ### 3.2. User Design (Prototyping)
+
 - This is a critical phase in RAD. Development heavily involved creating, testing, and refining prototypes.
 - **Evidence:** The project contains a dedicated `src/routes/prototypes` directory where different UI concepts for timetables, dashboards, and controls were built and evaluated.
 - **Tools for Rapid Prototyping:** The use of **`shadcn-svelte`** was instrumental in this phase, allowing for the rapid assembly of high-fidelity UI prototypes from a library of pre-built components (buttons, tables, dialogs, etc.).
 
 ### 3.3. Construction
+
 - The "build" phase, where the prototypes and components were integrated into a working application.
 - Characterized by the use of a modern, efficient technology stack to accelerate development.
 - **Component-Based Architecture:** The application was built using **SvelteKit**, a framework that encourages breaking the UI into small, reusable components. This modularity is a core tenet of RAD.
@@ -44,6 +47,7 @@ Describe how the standard RAD phases were implemented.
 - **Utility-First Styling:** **Tailwind CSS** was used to style the application, enabling rapid UI implementation directly in the component markup.
 
 ### 3.4. Cutover (Implementation)
+
 - The final phase, involving testing the complete system, and preparing for deployment.
 - This phase includes final data population, system evaluation, and the preparation of the software for use in the actual research (i.e., running the scheduling experiments).
 
