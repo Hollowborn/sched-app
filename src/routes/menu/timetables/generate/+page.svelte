@@ -70,7 +70,7 @@
 	let startTime = $state('07:30');
 	let endTime = $state('17:30');
 	let breakTime = $state('12:00-13:00');
-	let algorithm = $state<'memetic' | 'cp'>('memetic');
+	let algorithm = $state<'memetic' | 'cp' | 'smart_cp'>('smart_cp');
 
 	const programsByCollege = $derived.by(() => {
 		if (data.profile?.role !== 'Admin') return null;
@@ -603,7 +603,7 @@
 							</p>
 						</div>
 						<RadioGroup.Root
-							class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4"
+							class="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4"
 							name="algorithm"
 							bind:value={algorithm}
 						>
@@ -633,6 +633,20 @@
 								<p class="text-sm text-muted-foreground mt-2 text-center">
 									A solver that finds a feasible solution by systematically exploring possibilities.
 									Faster, but may not be the most optimal solution.
+								</p>
+							</Label>
+							<Label
+								for="smart_cp"
+								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+							>
+								<RadioGroup.Item value="smart_cp" id="smart_cp" class="sr-only" />
+								<Label class="text-lg font-semibold"
+									>Smart CP <Badge variant="default"><Wand2 class="w-3 h-3 mr-1" /> Smart</Badge></Label
+								>
+								<Separator />
+								<p class="text-sm text-muted-foreground mt-2 text-center">
+									An enhanced CP solver that optimizes for preferred rooms and minimizes gaps.
+									Best balance of speed and quality.
 								</p>
 							</Label>
 						</RadioGroup.Root>

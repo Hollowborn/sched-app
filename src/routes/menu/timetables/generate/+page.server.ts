@@ -2,6 +2,7 @@ import { fail, error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { solveMemetic } from '$lib/server/algorithms/memetic';
 import { solveCP } from '$lib/server/algorithms/cp';
+import { solveSmartCP } from '$lib/server/algorithms/smart_cp';
 import type { SolverResult } from '$lib/server/algorithms/types';
 
 const ALLOWED_ROLES = ['Admin', 'Dean', 'Registrar', 'Chairperson'];
@@ -220,7 +221,7 @@ export const actions: Actions = {
 					locals.supabase
 						.from('classes')
 						.select(
-							'id, split_lecture, lecture_days, instructor_id, block_id, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
+							'id, split_lecture, lecture_days, instructor_id, block_id, pref_room_id, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
 						)
 						.eq('academic_year', academic_year)
 						.eq('semester', semester)
@@ -318,6 +319,8 @@ export const actions: Actions = {
 
 			if (algorithm === 'cp') {
 				result = solveCP(classesData, roomsData, TIMESLOTS, constraints);
+			} else if (algorithm === 'smart_cp') {
+				result = solveSmartCP(classesData, roomsData, TIMESLOTS, constraints);
 			} else {
 				result = solveMemetic(classesData, roomsData, TIMESLOTS, constraints);
 			}
