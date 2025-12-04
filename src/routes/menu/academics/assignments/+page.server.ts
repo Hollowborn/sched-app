@@ -294,15 +294,10 @@ export const actions: Actions = {
 		// --- 3. Fetch Instructors with Qualifications ---
 		let instructorQuery = locals.supabase
 			.from('instructors')
-			.select(
-				'id, instructor_colleges!inner(college_id), instructor_subjects(subject_id)'
-			);
+			.select('id, instructor_colleges!inner(college_id), instructor_subjects(subject_id)');
 
 		if (effective_college_id) {
-			instructorQuery = instructorQuery.eq(
-				'instructor_colleges.college_id',
-				effective_college_id
-			);
+			instructorQuery = instructorQuery.eq('instructor_colleges.college_id', effective_college_id);
 		}
 
 		const { data: instructors, error: instructorError } = await instructorQuery;
