@@ -289,20 +289,14 @@
 
 				<!-- Load Details Button -->
 				<div class="md:col-span-3 pt-2">
-					{#if !programId}
-						<Button
-							variant="ghost"
-							class="w-full"
-							onclick={loadProgramDetails}
-							disabled={!programId}
-						>
-							Load Program Details
-						</Button>
-					{:else}
-						<Button variant="outline" class="w-full" onclick={loadProgramDetails}>
-							Load Program Details
-						</Button>
-					{/if}
+					<Button
+						variant="secondary"
+						class="w-full"
+						onclick={loadProgramDetails}
+						disabled={!programId}
+					>
+						Load Program Details
+					</Button>
 				</div>
 			</Card.Content>
 
