@@ -166,125 +166,123 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 		};
 	}
 
-		// --- Fitness Function ---
-		function calculateFitness(genes: Gene[]): number {
-			let hardConflictCount = 0;
-			let softConflictCount = 0;
-	
-			// Build lookup for classes and their types (Lecture, Lab, split parts)
-			// This helps efficiently check Lecture/Lab same-day constraint.
-			const classToGenesMap = new Map<number, { gene: Gene; task: Task }[]>();
-			for (const gene of genes) {
-				const task = tasks.find((t) => t.id === gene.taskId)!;
-				if (!classToGenesMap.has(task.classData.id)) {
-					classToGenesMap.set(task.classData.id, []);
-				}
-				classToGenesMap.get(task.classData.id)?.push({ gene, task });
+	// --- Fitness Function ---
+	function calculateFitness(genes: Gene[]): number {
+		let hardConflictCount = 0;
+		let softConflictCount = 0;
+
+		// Build lookup for classes and their types (Lecture, Lab, split parts)
+		// This helps efficiently check Lecture/Lab same-day constraint.
+		const classToGenesMap = new Map<number, { gene: Gene; task: Task }[]>();
+		for (const gene of genes) {
+			const task = tasks.find((t) => t.id === gene.taskId)!;
+			if (!classToGenesMap.has(task.classData.id)) {
+				classToGenesMap.set(task.classData.id, []);
 			}
-	
-			// First pass: Check single-gene constraints (Break Time, Split Lecture, Lec/Lab)
-			for (const gene of genes) {
-				const task = tasks.find((t) => t.id === gene.taskId)!;
-				const start = timeSlots[gene.startTimeIndex];
-				const end = calculateEndTime(start, task.hours);
-	
-				// --- Hard Constraint: Break Time Overlap ---
-				if (constraints.breakTime && constraints.breakTime !== 'none') {
-					const breakStart = constraints.breakTime.split('-')[0] + ':00';
-					const breakEnd = constraints.breakTime.split('-')[1] + ':00';
-					if (isOverlap(start + ':00', end + ':00', breakStart, breakEnd)) {
+			classToGenesMap.get(task.classData.id)?.push({ gene, task });
+		}
+
+		// First pass: Check single-gene constraints (Break Time, Split Lecture, Lec/Lab)
+		for (const gene of genes) {
+			const task = tasks.find((t) => t.id === gene.taskId)!;
+			const start = timeSlots[gene.startTimeIndex];
+			const end = calculateEndTime(start, task.hours);
+
+			// --- Hard Constraint: Break Time Overlap ---
+			if (constraints.breakTime && constraints.breakTime !== 'none') {
+				const breakStart = constraints.breakTime.split('-')[0] + ':00';
+				const breakEnd = constraints.breakTime.split('-')[1] + ':00';
+				if (isOverlap(start + ':00', end + ':00', breakStart, breakEnd)) {
+					hardConflictCount++;
+				}
+			}
+
+			// --- Hard Constraint: Split Lecture Same Day ---
+			if (task.id.includes('_Lecture_')) {
+				const parts = task.id.split('_');
+				const classId = Number(parts[0]);
+				const splitPart = parts[2];
+
+				if (splitPart === '1' || splitPart === '2') {
+					const siblingSplitPart = splitPart === '1' ? '2' : '1';
+					const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
+					const siblingGene = genes.find((g) => g.taskId === siblingTaskId);
+
+					if (siblingGene && gene.day === siblingGene.day) {
 						hardConflictCount++;
 					}
 				}
-	
-				// --- Hard Constraint: Split Lecture Same Day ---
-				if (task.id.includes('_Lecture_')) {
-					const parts = task.id.split('_');
-					const classId = Number(parts[0]);
-					const splitPart = parts[2];
-	
-					if (splitPart === '1' || splitPart === '2') {
-						const siblingSplitPart = splitPart === '1' ? '2' : '1';
-						const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-						const siblingGene = genes.find((g) => g.taskId === siblingTaskId);
-	
-						if (siblingGene && gene.day === siblingGene.day) {
-							hardConflictCount++;
-						}
-					}
-				}
-	
-				// --- Hard Constraint: Lecture/Lab Same Day ---
-				// Check if this gene's class has a sibling (Lecture/Lab) on the same day
-				const siblingsOfSameClass = classToGenesMap.get(task.classData.id) || [];
-				for (const sibling of siblingsOfSameClass) {
-					if (
-						sibling.gene.taskId !== gene.taskId && // Not the same gene
-						sibling.task.type !== task.type && // Must be different types (Lecture vs Lab)
-						sibling.gene.day === gene.day && // Must be on the same day
-						// Ensure we only count this conflict once (e.g., from Lecture side, not also from Lab side)
-						(task.type === 'Lecture' && sibling.task.type === 'Lab')
-					) {
-						hardConflictCount++;
-					}
-				}
-	
-				// Soft Constraint: Room Type
-				if (constraints.roomTypeConstraint === 'soft') {
-					const roomA = rooms.find((r) => r.id === gene.roomId);
-					if (roomA && roomA.type !== task.type) {
-						softConflictCount++;
-					}
+			}
+
+			// --- Hard Constraint: Lecture/Lab Same Day ---
+			// Check if this gene's class has a sibling (Lecture/Lab) on the same day
+			const siblingsOfSameClass = classToGenesMap.get(task.classData.id) || [];
+			for (const sibling of siblingsOfSameClass) {
+				if (
+					sibling.gene.taskId !== gene.taskId && // Not the same gene
+					sibling.task.type !== task.type && // Must be different types (Lecture vs Lab)
+					sibling.gene.day === gene.day && // Must be on the same day
+					// Ensure we only count this conflict once (e.g., from Lecture side, not also from Lab side)
+					task.type === 'Lecture' &&
+					sibling.task.type === 'Lab'
+				) {
+					hardConflictCount++;
 				}
 			}
-	
-			// Second pass: Check inter-gene hard conflicts (Room, Instructor, Block)
-			for (let i = 0; i < genes.length; i++) {
-				const geneA = genes[i];
-				const taskA = tasks.find((t) => t.id === geneA.taskId)!;
-				const startA = timeSlots[geneA.startTimeIndex];
-				const endA = calculateEndTime(startA, taskA.hours);
-	
-				for (let j = i + 1; j < genes.length; j++) {
-					const geneB = genes[j];
-					const taskB = tasks.find((t) => t.id === geneB.taskId)!;
-					const startB = timeSlots[geneB.startTimeIndex];
-					const endB = calculateEndTime(startB, taskB.hours);
-	
-					if (
-						geneA.day === geneB.day &&
-						isOverlap(startA + ':00', endA + ':00', startB + ':00', endB + ':00')
-					) {
-						// Room Conflict
-						if (geneA.roomId === geneB.roomId) hardConflictCount++;
-						// Instructor Conflict
-						if (
-							constraints.enforceInstructor &&
-							taskA.classData.instructor_id &&
-							taskA.classData.instructor_id === taskB.classData.instructor_id
-						) {
-							hardConflictCount++;
-						}
-						// Block Conflict
-						if (
-							constraints.enforceBlock &&
-							taskA.classData.block_id === taskB.classData.block_id
-						) {
-							hardConflictCount++;
-						}
-					}
+
+			// Soft Constraint: Room Type
+			if (constraints.roomTypeConstraint === 'soft') {
+				const roomA = rooms.find((r) => r.id === gene.roomId);
+				if (roomA && roomA.type !== task.type) {
+					softConflictCount++;
 				}
-			}
-	
-			// Fitness function: Prioritize no hard conflicts.
-			// A higher score is better. If hard conflicts exist, score is very negative.
-			// If no hard conflicts, score is higher for fewer soft conflicts.
-			if (hardConflictCount > 0) {
-				return -hardConflictCount * 1_000_000;
-			} else {
-				return genes.length * 100 - softConflictCount * 10; // Reward for scheduled classes, penalize soft conflicts
 			}
 		}
+
+		// Second pass: Check inter-gene hard conflicts (Room, Instructor, Block)
+		for (let i = 0; i < genes.length; i++) {
+			const geneA = genes[i];
+			const taskA = tasks.find((t) => t.id === geneA.taskId)!;
+			const startA = timeSlots[geneA.startTimeIndex];
+			const endA = calculateEndTime(startA, taskA.hours);
+
+			for (let j = i + 1; j < genes.length; j++) {
+				const geneB = genes[j];
+				const taskB = tasks.find((t) => t.id === geneB.taskId)!;
+				const startB = timeSlots[geneB.startTimeIndex];
+				const endB = calculateEndTime(startB, taskB.hours);
+
+				if (
+					geneA.day === geneB.day &&
+					isOverlap(startA + ':00', endA + ':00', startB + ':00', endB + ':00')
+				) {
+					// Room Conflict
+					if (geneA.roomId === geneB.roomId) hardConflictCount++;
+					// Instructor Conflict
+					if (
+						constraints.enforceInstructor &&
+						taskA.classData.instructor_id &&
+						taskA.classData.instructor_id === taskB.classData.instructor_id
+					) {
+						hardConflictCount++;
+					}
+					// Block Conflict
+					if (constraints.enforceBlock && taskA.classData.block_id === taskB.classData.block_id) {
+						hardConflictCount++;
+					}
+				}
+			}
+		}
+
+		// Fitness function: Prioritize no hard conflicts.
+		// A higher score is better. If hard conflicts exist, score is very negative.
+		// If no hard conflicts, score is higher for fewer soft conflicts.
+		if (hardConflictCount > 0) {
+			return -hardConflictCount * 1_000_000;
+		} else {
+			return genes.length * 100 - softConflictCount * 10; // Reward for scheduled classes, penalize soft conflicts
+		}
+	}
 	// --- Initialization ---
 	let population: Individual[] = [];
 	for (let i = 0; i < POPULATION_SIZE; i++) {
@@ -329,21 +327,22 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 		}
 
 		population = newPopulation;
-		
+
 		// Local Search (Memetic part) - Apply to top individuals
 		// Simple Hill Climbing: Try to move a random gene to a better spot
-		for(let i=0; i<5; i++) { // Top 5
+		for (let i = 0; i < 5; i++) {
+			// Top 5
 			const individual = population[i];
 			const originalFitness = individual.fitness;
-			
+
 			// Try mutating one gene to see if it improves
 			const indexToMutate = Math.floor(Math.random() * tasks.length);
 			const originalGene = individual.genes[indexToMutate];
 			const newGene = createRandomGene(tasks[indexToMutate]);
-			
+
 			individual.genes[indexToMutate] = newGene;
 			const newFitness = calculateFitness(individual.genes);
-			
+
 			if (newFitness > originalFitness) {
 				individual.fitness = newFitness;
 			} else {
@@ -361,12 +360,12 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 	const failedClasses: { class: string; reason: string }[] = [];
 
 	const acceptedGenes: Gene[] = [];
-	
+
 	for (const gene of bestSolution.genes) {
 		const task = tasks.find((t) => t.id === gene.taskId)!;
 		const start = timeSlots[gene.startTimeIndex];
 		const end = calculateEndTime(start, task.hours);
-		
+
 		let isHardConflict = false; // Flag for conflicts that should cause gene to be rejected
 
 		// --- Post-processing Hard Conflict Checks (Must match calculateFitness) ---
@@ -389,7 +388,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			if (splitPart === '1' || splitPart === '2') {
 				const siblingSplitPart = splitPart === '1' ? '2' : '1';
 				const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-				const siblingGene = acceptedGenes.find(g => g.taskId === siblingTaskId); // Check accepted
+				const siblingGene = acceptedGenes.find((g) => g.taskId === siblingTaskId); // Check accepted
 
 				if (siblingGene && gene.day === siblingGene.day) {
 					isHardConflict = true;
@@ -401,16 +400,17 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 		if (!isHardConflict && (task.type === 'Lecture' || task.type === 'Lab')) {
 			const taskClassId = task.classData.id;
 			const siblingType = task.type === 'Lecture' ? 'Lab' : 'Lecture';
-			const siblingGene = acceptedGenes.find(g => 
+			const siblingGene = acceptedGenes.find((g) =>
 				g.taskId.startsWith(`${taskClassId}_${siblingType}`)
 			);
 			if (siblingGene && gene.day === siblingGene.day) {
 				isHardConflict = true;
 			}
 		}
-		
+
 		// 4. Overlap with previously accepted genes (Room, Instructor, Block)
-		if (!isHardConflict) { // Only if not already in conflict
+		if (!isHardConflict) {
+			// Only if not already in conflict
 			for (const accepted of acceptedGenes) {
 				const acceptedTask = tasks.find((t) => t.id === accepted.taskId)!;
 				const acceptedStart = timeSlots[accepted.startTimeIndex];
@@ -437,7 +437,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 						}
 					}
 				}
-				if(isHardConflict) break; // Break from acceptedGenes loop if conflict found
+				if (isHardConflict) break; // Break from acceptedGenes loop if conflict found
 			}
 		}
 
