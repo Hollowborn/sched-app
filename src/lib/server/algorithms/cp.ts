@@ -94,6 +94,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
+							// 1. Preferred Room
+							if (cls.pref_room_id) {
+								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
+								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							}
+							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
 								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
 								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
@@ -117,6 +123,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
+							// 1. Preferred Room
+							if (cls.pref_room_id) {
+								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
+								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							}
+							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
 								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
 								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
@@ -141,6 +153,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
+							// 1. Preferred Room
+							if (cls.pref_room_id) {
+								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
+								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							}
+							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
 								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
 								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
@@ -167,6 +185,12 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 						return capOk && typeOk;
 					})
 					.sort((a, b) => {
+						// 1. Preferred Room
+						if (cls.pref_room_id) {
+							if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
+							if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+						}
+						// 2. Soft Room Type
 						if (constraints.roomTypeConstraint === 'soft') {
 							if (a.type === 'Lab' && b.type !== 'Lab') return -1;
 							if (a.type !== 'Lab' && b.type === 'Lab') return 1;
