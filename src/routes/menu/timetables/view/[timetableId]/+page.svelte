@@ -459,7 +459,7 @@
 							Failed Classes ({report.failedClasses.length})
 						</h3>
 						<div class="max-h-[200px] overflow-y-auto space-y-2">
-							{#each report.failedClasses as fail (fail.class)}
+							{#each report.failedClasses as fail}
 								<div class="text-sm border-b last:border-0 pb-2 last:pb-0 border-destructive/10">
 									<span class="font-medium">{fail.class}</span>:
 									<span class="text-muted-foreground">{fail.reason}</span>
@@ -478,10 +478,8 @@
 				<div class="text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1 mt-4 pt-4">
 					<p>
 						<span class="font-semibold">Algorithm:</span>
-						{report.generation_params?.algorithm.charAt(0).toUpperCase() +
-							report.generation_params?.algorithm.slice(1) ||
-							report.algorithm.charAt(0).toUpperCase() + report.algorithm.slice(1) ||
-							'N/A'}
+
+						{report.algorithm.charAt(0).toUpperCase() + report.algorithm.slice(1) || 'N/A'}
 					</p>
 					<p><span class="font-semibold">Rooms Used:</span> {report.roomsUsed}</p>
 					<p>
