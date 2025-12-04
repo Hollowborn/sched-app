@@ -9,6 +9,9 @@
 	import autoTable from 'jspdf-autotable';
 	import html2canvas from 'html2canvas';
 	import * as XLSX from 'xlsx';
+	import DataTable from '$lib/components/data-table/data-table.svelte';
+	import type { ColumnDef } from '@tanstack/table-core';
+	import { renderSnippet } from '$lib/components/ui/data-table';
 
 	import {
 		ChevronLeft,
@@ -356,7 +359,61 @@
 
 	// --- Report Data ---
 	const report = $derived(data.timetable.metadata as GenerationMetadata | null);
+
+	// --- DataTable Columns ---
+	const columns: ColumnDef<any>[] = [
+		{
+			accessorKey: 'classes.subjects.subject_code',
+			header: 'Subject',
+			cell: ({ row }) => renderSnippet(subjectCell, { row: row.original })
+		},
+		{
+			accessorKey: 'course_type',
+			header: 'Type',
+			cell: ({ row }) => renderSnippet(typeCell, { type: row.original.course_type })
+		},
+		{
+			accessorKey: 'classes.blocks.block_name',
+			header: 'Block'
+		},
+		{
+			accessorKey: 'classes.instructors.name',
+			header: 'Instructor',
+			cell: ({ row }) => row.original.classes.instructors?.name || 'Unassigned'
+		},
+		{
+			accessorKey: 'rooms.room_name',
+			header: 'Room'
+		},
+		{
+			accessorKey: 'day_of_week',
+			header: 'Day'
+		},
+		{
+			id: 'time',
+			header: 'Time',
+			accessorFn: (row) => `${row.start_time} - ${row.end_time}`,
+			cell: ({ row }) =>
+				`${row.original.start_time.substring(0, 5)} - ${row.original.end_time.substring(0, 5)}`,
+			meta: {
+				class: 'text-right'
+			}
+		}
+	];
 </script>
+
+{#snippet subjectCell({ row }: { row: any })}
+	<div class="flex flex-col">
+		<span class="font-medium">{row.classes.subjects.subject_name}</span>
+		<span class="text-xs text-muted-foreground">{row.classes.subjects.subject_code}</span>
+	</div>
+{/snippet}
+
+{#snippet typeCell({ type }: { type: string })}
+	<Badge variant={type === 'Lecture' ? 'default' : 'destructive'} class="w-fit">
+		{type}
+	</Badge>
+{/snippet}
 
 <!-- Report Dialog -->
 <Dialog.Root bind:open={reportOpen}>
@@ -484,42 +541,65 @@
 		class="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2 border-b"
 	>
 		<!-- Header & Controls -->
-		<header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-			<div class="flex items-center gap-4">
-				<Button variant="outline" size="icon" class="shrink-0" href="/menu/timetables/view">
-					<ChevronLeft class="h-4 w-4" />
-				</Button>
-				<div>
-					<h1 class="text-xl font-bold tracking-tight">{data.timetable.name}</h1>
-					<p class="text-xs text-muted-foreground mt-0.5">
-						{data.timetable.academic_year}, {data.timetable.semester}
-					</p>
+		<header class="flex flex-col gap-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-4">
+					<Button variant="outline" size="icon" class="shrink-0" href="/menu/timetables/view">
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+					<div>
+						<h1 class="text-xl font-bold tracking-tight">{data.timetable.name}</h1>
+						<p class="text-xs text-muted-foreground mt-0.5">
+							{data.timetable.academic_year}, {data.timetable.semester}
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<!-- Report Button -->
+					{#if data.timetable.metadata}
+						<Button
+							variant="outline"
+							size="sm"
+							class={report?.failedClasses?.length > 0
+								? 'text-amber-600 border-amber-200 hover:bg-amber-50'
+								: ''}
+							onclick={() => (reportOpen = true)}
+						>
+							{#if report?.failedClasses?.length > 0}
+								<span class="mr-2">⚠️</span>
+							{/if}
+							Report
+						</Button>
+					{/if}
+
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger asChild>
+							<Button variant="outline" size="sm" disabled={isExporting}>
+								{#if isExporting}
+									<Spinner class="mr-2 h-4 w-4" />
+									Exporting...
+								{:else}
+									<FileDown class="mr-2 h-4 w-4" />
+									Export
+								{/if}
+							</Button>
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end">
+							<DropdownMenu.Item onclick={exportAsPDF}>As PDF</DropdownMenu.Item>
+							<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 				</div>
 			</div>
-			<div class="flex items-center gap-2">
-				<!-- Report Button -->
-				{#if data.timetable.metadata}
-					<Button
-						variant="outline"
-						size="sm"
-						class={report?.failedClasses?.length > 0
-							? 'text-amber-600 border-amber-200 hover:bg-amber-50'
-							: ''}
-						onclick={() => (reportOpen = true)}
-					>
-						{#if report?.failedClasses?.length > 0}
-							<span class="mr-2">⚠️</span>
-						{/if}
-						Report
-					</Button>
-				{/if}
 
-				<!-- View Mode Toggle -->
-				<div class="flex items-center border rounded-md p-1 mr-2">
+			<!-- Toolbar -->
+			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<!-- View Mode Switcher -->
+				<div class="flex items-center bg-muted/50 p-1 rounded-lg border w-fit">
 					<Button
 						variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
 						size="sm"
-						class="h-8 px-2"
+						class="h-8 px-3 rounded-md transition-all"
 						onclick={() => (viewMode = 'grid')}
 					>
 						Grid
@@ -527,7 +607,7 @@
 					<Button
 						variant={viewMode === 'transposed' ? 'secondary' : 'ghost'}
 						size="sm"
-						class="h-8 px-2"
+						class="h-8 px-3 rounded-md transition-all"
 						onclick={() => (viewMode = 'transposed')}
 					>
 						Timeline
@@ -535,7 +615,7 @@
 					<Button
 						variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
 						size="sm"
-						class="h-8 px-2"
+						class="h-8 px-3 rounded-md transition-all"
 						onclick={() => (viewMode = 'agenda')}
 					>
 						Agenda
@@ -543,107 +623,97 @@
 					<Button
 						variant={viewMode === 'list' ? 'secondary' : 'ghost'}
 						size="sm"
-						class="h-8 px-2"
+						class="h-8 px-3 rounded-md transition-all"
 						onclick={() => (viewMode = 'list')}
 					>
 						List
 					</Button>
 				</div>
 
-				{#if viewMode === 'grid' || viewMode === 'transposed'}
-					<Select.Root type="single" bind:value={viewBy}>
-						<Select.Trigger class="w-[180px]">
-							<span> {'View by ' + viewBy.charAt(0).toUpperCase() + viewBy.slice(1)}</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="room"><DoorOpen class="mr-2 h-4 w-4" />View by Room</Select.Item>
-							<Select.Item value="instructor"
-								><UserIcon class="mr-2 h-4 w-4" />View by Instructor</Select.Item
-							>
-							<Select.Item value="block"><Users class="mr-2 h-4 w-4" />View by Block</Select.Item>
-						</Select.Content>
-					</Select.Root>
+				<!-- Filters (Only for non-list views) -->
+				{#if viewMode !== 'list'}
+					<div class="flex items-center gap-2 flex-1 md:justify-end">
+						{#if viewMode === 'grid' || viewMode === 'transposed'}
+							<Select.Root type="single" bind:value={viewBy}>
+								<Select.Trigger class="w-[160px] h-9">
+									<span> {'View by ' + viewBy.charAt(0).toUpperCase() + viewBy.slice(1)}</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="room"><DoorOpen class="mr-2 h-4 w-4" />Room</Select.Item>
+									<Select.Item value="instructor"
+										><UserIcon class="mr-2 h-4 w-4" />Instructor</Select.Item
+									>
+									<Select.Item value="block"><Users class="mr-2 h-4 w-4" />Block</Select.Item>
+								</Select.Content>
+							</Select.Root>
 
-					<!-- Dynamic "Jump To" Filter -->
-					<Select.Root
-						type="single"
-						value={currentItem?.id.toString()}
-						onValueChange={(v) => {
-							if (!v) return;
-							const newIndex = listSource.findIndex((item) => item.id.toString() === v);
-							if (newIndex !== -1) {
-								currentItemIndex = newIndex;
-							}
-						}}
-					>
-						<Select.Trigger class="w-[250px]">
-							<span class="truncate">{gridHeader.title || 'Select an item'}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#if listSource.length === 0}
-								<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
-							{:else if viewBy === 'room'}
-								{#each listSource as room (room.id)}
-									<Select.Item value={room.id.toString()} class="flex items-center justify-between">
-										<span>{room.room_name}</span>
-										<Badge variant="secondary"
-											>{itemClassCounts[room.id.toString()] || 0} Classes</Badge
-										>
-									</Select.Item>
-								{/each}
-							{:else if viewBy === 'instructor'}
-								{#each listSource as instructor (instructor.id)}
-									<Select.Item
-										value={instructor.id.toString()}
-										class="flex items-center justify-between"
-									>
-										<span>{instructor.name}</span>
-										<Badge variant="secondary"
-											>{itemClassCounts[instructor.id.toString()] || 0} Classes</Badge
-										>
-									</Select.Item>
-								{/each}
-							{:else if viewBy === 'block'}
-								{#each listSource as block (block.id)}
-									<Select.Item
-										value={block.id.toString()}
-										class="flex items-center justify-between"
-									>
-										<span>{block.block_name}</span>
-										<Badge variant="secondary"
-											>{itemClassCounts[block.id.toString()] || 0} Classes</Badge
-										>
-									</Select.Item>
-								{/each}
-							{/if}
-						</Select.Content>
-					</Select.Root>
-				{:else}
-					<!-- List View Search -->
-					<input
-						type="text"
-						placeholder="Search..."
-						class="flex h-10 w-[250px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-						bind:value={listSearch}
-					/>
+							<!-- Dynamic "Jump To" Filter -->
+							<Select.Root
+								type="single"
+								value={currentItem?.id.toString()}
+								onValueChange={(v) => {
+									if (!v) return;
+									const newIndex = listSource.findIndex((item) => item.id.toString() === v);
+									if (newIndex !== -1) {
+										currentItemIndex = newIndex;
+									}
+								}}
+							>
+								<Select.Trigger class="w-[200px] h-9">
+									<span class="truncate">{gridHeader.title || 'Select an item'}</span>
+								</Select.Trigger>
+								<Select.Content>
+									{#if listSource.length === 0}
+										<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
+									{:else if viewBy === 'room'}
+										{#each listSource as room (room.id)}
+											<Select.Item
+												value={room.id.toString()}
+												class="flex items-center justify-between"
+											>
+												<span>{room.room_name}</span>
+												<Badge variant="outline">{itemClassCounts[room.id.toString()] || 0}</Badge>
+											</Select.Item>
+										{/each}
+									{:else if viewBy === 'instructor'}
+										{#each listSource as instructor (instructor.id)}
+											<Select.Item
+												value={instructor.id.toString()}
+												class="flex items-center justify-between"
+											>
+												<span>{instructor.name}</span>
+												<Badge variant="outline"
+													>{itemClassCounts[instructor.id.toString()] || 0}</Badge
+												>
+											</Select.Item>
+										{/each}
+									{:else if viewBy === 'block'}
+										{#each listSource as block (block.id)}
+											<Select.Item
+												value={block.id.toString()}
+												class="flex items-center justify-between"
+											>
+												<span>{block.block_name}</span>
+												<Badge variant="outline">{itemClassCounts[block.id.toString()] || 0}</Badge>
+											</Select.Item>
+										{/each}
+									{/if}
+								</Select.Content>
+							</Select.Root>
+						{:else}
+							<!-- Agenda View Search -->
+							<div class="relative w-[250px]">
+								<ClockFading class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+								<input
+									type="text"
+									placeholder="Search agenda..."
+									class="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+									bind:value={listSearch}
+								/>
+							</div>
+						{/if}
+					</div>
 				{/if}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger asChild>
-						<Button variant="outline" class="ml-auto w-[120px]" disabled={isExporting}>
-							{#if isExporting}
-								<Spinner class="mr-2 h-4 w-4" />
-								Exporting...
-							{:else}
-								<FileDown class="mr-2 h-4 w-4" />
-								Export
-							{/if}
-						</Button>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content>
-						<DropdownMenu.Item onclick={exportAsPDF}>As PDF</DropdownMenu.Item>
-						<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
 			</div>
 		</header>
 	</div>
@@ -726,7 +796,7 @@
 									>
 										<!-- Horizontal lines for 1-hour intervals -->
 										{#each timeSlots as _, i (i)}
-											<div class="h-[{rowHeight}px] border-t border-border/20"></div>
+											<div style="height: {rowHeight}px" class="border-t border-border/50"></div>
 										{/each}
 
 										<!-- Scheduled Items -->
@@ -909,8 +979,8 @@
 				{#each days as day (day)}
 					{@const dayItems = listFilteredSchedule.filter((s) => s.day_of_week === day)}
 					{#if dayItems.length > 0}
-						<Card.Root class="overflow-hidden">
-							<Card.Header class="bg-muted/30 py-3 px-4 border-b">
+						<Card.Root class="overflow-hidden bg-muted/30">
+							<Card.Header class=" py-3 px-4 border-b">
 								<h3 class="font-semibold flex items-center gap-2">
 									{day}
 								</h3>
@@ -967,60 +1037,8 @@
 			</div>
 		{:else}
 			<!-- List View -->
-			<div id="list-view-content">
-				<Card.Root>
-					<Card.Content class="p-0">
-						<div class="rounded-md border">
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head class="w-[300px]">Subject</Table.Head>
-										<Table.Head>Type</Table.Head>
-										<Table.Head>Block</Table.Head>
-										<Table.Head>Instructor</Table.Head>
-										<Table.Head>Room</Table.Head>
-										<Table.Head>Day</Table.Head>
-										<Table.Head class="text-right">Time</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each listFilteredSchedule as item (item.id)}
-										<Table.Row>
-											<Table.Cell class="font-medium">
-												<div>{item.classes.subjects.subject_name}</div>
-												<div class="text-xs text-muted-foreground hover:text-primary">
-													{item.classes.subjects.subject_code}
-												</div>
-											</Table.Cell>
-											<Table.Cell>
-												<Badge
-													variant={item.course_type === 'Lecture' ? 'default' : 'destructive'}
-													class="text-xs"
-												>
-													{item.course_type}
-												</Badge>
-											</Table.Cell>
-											<Table.Cell>{item.classes.blocks.block_name}</Table.Cell>
-											<Table.Cell>{item.classes.instructors?.name || 'Unassigned'}</Table.Cell>
-											<Table.Cell>{item.rooms.room_name}</Table.Cell>
-											<Table.Cell>{item.day_of_week}</Table.Cell>
-											<Table.Cell class="text-right">
-												{item.start_time.substring(0, 5)} - {item.end_time.substring(0, 5)}
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-									{#if listFilteredSchedule.length === 0}
-										<Table.Row>
-											<Table.Cell colspan={7} class="h-24 text-center">
-												No schedule entries found.
-											</Table.Cell>
-										</Table.Row>
-									{/if}
-								</Table.Body>
-							</Table.Root>
-						</div>
-					</Card.Content>
-				</Card.Root>
+			<div id="list-view-content" class="h-full">
+				<DataTable data={data.schedules} {columns} />
 			</div>
 		{/if}
 	</div>
