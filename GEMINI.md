@@ -347,4 +347,24 @@ The following features are planned for future development cycles:
 2.  **Asynchronous (Background) Generation:** To prevent browser timeouts on large and complex generation tasks, this feature would move the solver process to a background job. The UI would poll for updates and notify the user upon completion.
 3.  **Saved Configuration Presets:** Allow users (especially Admins and Deans) to save a complete generator configuration (selected rooms, constraints, algorithm choice) as a named "preset" for quick one-click reuse in the future.
 4.  **Visualizing Constraints:** Enhance the UI by providing more context next to constraint toggles. For example, showing the number of unassigned instructors next to the "Enforce Instructor Availability" checkbox.
-```
+### Summary of 2025-12-04 Session
+
+This session focused on enhancing the "Auto-Scheduler" with "Smart" features to improve the quality of generated timetables.
+
+**Key Accomplishments:**
+
+1.  **Algorithm Enhancements:**
+    *   **Smart CP Solver (`smart_cp.ts`):** Created a new solver that extends the robust Constraint Programming approach with **Value Ordering Heuristics**.
+        *   **Gap Minimization:** Prioritizes time slots that place classes for the same block back-to-back.
+        *   **Preferred Rooms:** Prioritizes assigning classes to their `pref_room_id` if available.
+    *   **Memetic Algorithm Update:** Enhanced the fitness function in `memetic.ts` to include penalties for gaps and bonuses for preferred rooms.
+    *   **Type Definitions:** Updated `types.ts` to include `pref_room_id` in the `Class` interface.
+
+2.  **UI Integration:**
+    *   Updated the **Generation Page** (`/menu/timetables/generate`) to include "Smart CP" as a selectable algorithm option.
+    *   Added a "Smart" badge to the UI to highlight the new capability.
+
+3.  **Verification:**
+    *   Created and ran a test script to verify the Smart CP solver.
+    *   **Results:** The solver successfully prioritized preferred rooms (100% success) and minimized gaps (scheduled classes back-to-back) in the test scenarios.
+
