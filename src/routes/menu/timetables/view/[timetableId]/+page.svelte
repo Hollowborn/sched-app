@@ -17,7 +17,8 @@
 		Users,
 		DoorOpen,
 		User as UserIcon,
-		Building
+		Building,
+		ClockFading
 	} from '@lucide/svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
@@ -694,14 +695,14 @@
 							>
 								<!-- Time Header -->
 								<div
-									class="sticky left-0 z-10 p-2 border-r border-b bg-background font-medium text-sm"
+									class="sticky left-0 z-10 p-2 text-center border-r border-b bg-muted/10 font-medium text-sm"
 								>
 									Time
 								</div>
 								<!-- Day Headers -->
 								{#each days as day (day)}
 									<div
-										class="sticky top-0 z-10 p-2 border-r border-b bg-background font-medium text-sm text-center"
+										class="sticky top-0 z-10 p-2 border-r border-b bg-muted/10 font-medium text-sm text-center"
 									>
 										{day}
 									</div>
@@ -710,7 +711,7 @@
 								<!-- Time Slots Column -->
 								{#each timeSlots as slot, i (slot)}
 									<div
-										class="sticky left-0 p-1 text-xs text-muted-foreground border-r bg-background text-center border-t"
+										class="sticky left-0 p-1 text-xs text-muted-foreground border-r bg-muted/10 text-center border-t"
 										style="grid-row: {i + 2}; grid-column: 1;"
 									>
 										{slot}
@@ -725,7 +726,7 @@
 									>
 										<!-- Horizontal lines for 1-hour intervals -->
 										{#each timeSlots as _, i (i)}
-											<div class="h-[{rowHeight}px] border-t border-border/50"></div>
+											<div class="h-[{rowHeight}px] border-t border-border/20"></div>
 										{/each}
 
 										<!-- Scheduled Items -->

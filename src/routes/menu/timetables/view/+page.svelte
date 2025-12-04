@@ -170,14 +170,9 @@
 							</form>
 						{/if}
 						<div class="ml-auto flex gap-2">
-							<Button href="/menu/timetables/view/{tt.id}" variant="outline" size="sm">
+							<Button href="/menu/timetables/view/{tt.id}" variant="default" size="sm">
 								<Eye class="mr-2 h-4 w-4" />View
 							</Button>
-							{#if tt.status === 'draft'}
-								<Button href="/menu/timetables/scheduler?timetableId={tt.id}" size="sm">
-									<Edit class="mr-2 h-4 w-4" />Edit
-								</Button>
-							{/if}
 						</div>
 					</Card.Footer>
 				</Card.Root>
