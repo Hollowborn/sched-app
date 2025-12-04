@@ -8,6 +8,7 @@ export interface Class {
 	estimated_students: number;
 	split_lecture: boolean;
 	lecture_days: string[] | null;
+	pref_room_id: number | null;
 }
 
 export interface Room {
