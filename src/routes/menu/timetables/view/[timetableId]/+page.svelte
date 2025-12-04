@@ -21,7 +21,11 @@
 		DoorOpen,
 		User as UserIcon,
 		Building,
-		ClockFading
+		ClockFading,
+		CircleCheck,
+		UserCheck,
+		Grid2X2Check,
+		MapPinCheck
 	} from '@lucide/svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
@@ -500,29 +504,29 @@
 				</div>
 
 				{#if report.generation_params?.constraints}
-					<div class="mt-4 pt-4 border-t">
-						<h4 class="text-sm font-semibold mb-2">Constraints Applied</h4>
-						<div class="flex flex-wrap gap-2">
-							{#if report.generation_params.constraints.enforceCapacity}
-								<Badge variant="outline">Capacity Check</Badge>
-							{/if}
-							{#if report.generation_params.constraints.enforceInstructor}
-								<Badge variant="outline">Instructor Conflict</Badge>
-							{/if}
-							{#if report.generation_params.constraints.enforceBlock}
-								<Badge variant="outline">Block Conflict</Badge>
-							{/if}
-							{#if report.generation_params.constraints.roomTypeConstraint === 'strict'}
-								<Badge variant="outline">Strict Room Type</Badge>
-							{:else if report.generation_params.constraints.roomTypeConstraint === 'soft'}
-								<Badge variant="outline">Soft Room Type</Badge>
-							{/if}
-							{#if report.generation_params.constraints.excludedDays?.length > 0}
-								<Badge variant="destructive">
-									Excluded Days: {report.generation_params.constraints.excludedDays.join(', ')}
-								</Badge>
-							{/if}
-						</div>
+					<Separator />
+					<h4 class="text-sm font-semibold mb-2">Constraints Applied</h4>
+					<div class="flex flex-wrap gap-2">
+						<!-- , , ,  -->
+						{#if report.generation_params.constraints.enforceCapacity}
+							<Badge variant="outline">Capacity Check<CircleCheck /></Badge>
+						{/if}
+						{#if report.generation_params.constraints.enforceInstructor}
+							<Badge variant="outline">Instructor Conflict <UserCheck /></Badge>
+						{/if}
+						{#if report.generation_params.constraints.enforceBlock}
+							<Badge variant="outline">Block Conflict<Grid2X2Check /></Badge>
+						{/if}
+						{#if report.generation_params.constraints.roomTypeConstraint === 'strict'}
+							<Badge variant="outline">Strict Room Type<MapPinCheck /></Badge>
+						{:else if report.generation_params.constraints.roomTypeConstraint === 'soft'}
+							<Badge variant="outline">Soft Room Type<MapPinCheck /></Badge>
+						{/if}
+						{#if report.generation_params.constraints.excludedDays?.length > 0}
+							<Badge variant="destructive">
+								Excluded Days: {report.generation_params.constraints.excludedDays.join(', ')}
+							</Badge>
+						{/if}
 					</div>
 				{/if}
 			{/if}
