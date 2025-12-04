@@ -280,7 +280,72 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 		if (hardConflictCount > 0) {
 			return -hardConflictCount * 1_000_000;
 		} else {
-			return genes.length * 100 - softConflictCount * 10; // Reward for scheduled classes, penalize soft conflicts
+			let score = genes.length * 1000; // Base score
+			score -= softConflictCount * 50; // Penalize soft conflicts (e.g. room type mismatch)
+
+			// --- NEW: Preferred Room Bonus ---
+			for (const gene of genes) {
+				const task = tasks.find((t) => t.id === gene.taskId)!;
+				if (task.classData.pref_room_id && task.classData.pref_room_id === gene.roomId) {
+					score += 20; // Bonus for using preferred room
+				}
+			}
+
+			// --- NEW: Block Schedule Optimization (Gap Minimization & Grouping) ---
+			// Group genes by block_id
+			const blockSchedule = new Map<number, { day: string; start: number; end: number }[]>();
+			
+			for (const gene of genes) {
+				const task = tasks.find((t) => t.id === gene.taskId)!;
+				const blockId = task.classData.block_id;
+				
+				if (!blockSchedule.has(blockId)) {
+					blockSchedule.set(blockId, []);
+				}
+				
+				const start = gene.startTimeIndex; // Using index as proxy for time (assuming linear slots)
+				const durationSlots = task.slotsNeeded;
+				const end = start + durationSlots;
+				
+				blockSchedule.get(blockId)?.push({ day: gene.day, start, end });
+			}
+
+			// Analyze each block's schedule
+			for (const [blockId, entries] of blockSchedule.entries()) {
+				// Group by day
+				const dayEntries = new Map<string, { start: number; end: number }[]>();
+				for (const entry of entries) {
+					if (!dayEntries.has(entry.day)) {
+						dayEntries.set(entry.day, []);
+					}
+					dayEntries.get(entry.day)?.push(entry);
+				}
+
+				for (const [day, daySlots] of dayEntries.entries()) {
+					// Sort by start time
+					daySlots.sort((a, b) => a.start - b.start);
+
+					for (let i = 0; i < daySlots.length - 1; i++) {
+						const current = daySlots[i];
+						const next = daySlots[i + 1];
+						const gap = next.start - current.end;
+
+						if (gap === 0) {
+							score += 10; // Bonus for back-to-back classes
+						} else if (gap > 0) {
+							// Penalty for gaps. 
+							// Assuming 30min slots. 
+							// 1 slot gap (30 mins) -> small penalty
+							// Large gaps -> larger penalty
+							// However, we might want to allow a lunch break (e.g. around 12:00).
+							// For simplicity, just penalize all gaps for now to encourage compaction.
+							score -= gap * 5; 
+						}
+					}
+				}
+			}
+
+			return score;
 		}
 	}
 	// --- Initialization ---
