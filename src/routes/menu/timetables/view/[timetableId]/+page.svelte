@@ -2,11 +2,17 @@
 	import type { PageData } from './$types';
 
 	import { generateTimeSlots } from '$lib/utils/time';
+	import { SvelteMap } from 'svelte/reactivity';
+
+	// Libs for export
+	import jsPDF from 'jspdf';
+	import autoTable from 'jspdf-autotable';
+	import html2canvas from 'html2canvas';
+	import * as XLSX from 'xlsx';
 
 	import {
 		ChevronLeft,
 		ChevronRight,
-		Printer,
 		FileDown,
 		Users,
 		DoorOpen,
@@ -20,13 +26,41 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
-	import * as ButtonGroup from '$lib/components/ui/button-group/';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+
+	interface GenerationMetadata {
+		status: 'Generating' | 'Completed';
+		successRate: number;
+		scheduledCount: number;
+		totalClasses: number;
+		timeTakenSec: string;
+		failedClasses: { class: string; reason: string }[];
+		generation_params?: {
+			algorithm: string;
+			academic_year: string;
+			semester: string;
+			scheduleStartTime: string;
+			scheduleEndTime: string;
+			breakTime: string;
+			constraints: {
+				enforceCapacity: boolean;
+				enforceInstructor: boolean;
+				enforceBlock: boolean;
+				roomTypeConstraint: 'strict' | 'soft' | 'off';
+				excludedDays: string[];
+			};
+		};
+		roomsUsed: number;
+		algorithm: string;
+	}
 
 	let { data } = $props<{ data: PageData }>();
 
 	// --- State ---
 	let viewBy = $state<'room' | 'instructor' | 'block'>('room');
 	let currentItemIndex = $state(0);
+	let isExporting = $state(false);
 
 	// --- Time Grid Setup ---
 	const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -44,6 +78,154 @@
 		}
 		const index = Math.abs(hash % colorPalette.length);
 		return colorPalette[index];
+	}
+
+	// --- Export Logic ---
+	async function exportAsPDF() {
+		if (isExporting) return;
+		isExporting = true;
+
+		const elementToPrint = document.getElementById(`${viewMode}-view-content`);
+		if (!elementToPrint) {
+			console.error('Printable element not found for view:', viewMode);
+			isExporting = false;
+			return;
+		}
+
+		// OKLCH to RGB conversion for html2canvas
+		const originalStyles = new SvelteMap<
+			HTMLElement,
+			{ backgroundColor: string; color: string; borderLeftColor: string }
+		>();
+		const elementsToProcess = elementToPrint.querySelectorAll('.schedule-item-cell');
+
+		try {
+			// Pre-process: Apply computed styles as inline styles
+			elementsToProcess.forEach((el) => {
+				const element = el as HTMLElement;
+				const computedStyle = window.getComputedStyle(element);
+				const original = {
+					backgroundColor: element.style.backgroundColor,
+					color: element.style.color,
+					borderLeftColor: element.style.borderLeftColor
+				};
+				originalStyles.set(element, original);
+
+				element.style.backgroundColor = computedStyle.backgroundColor;
+				element.style.color = computedStyle.color;
+				element.style.borderLeftColor = computedStyle.borderLeftColor;
+			});
+
+			const doc = new jsPDF({
+				orientation: 'p',
+				unit: 'mm',
+				format: 'a4'
+			});
+
+			const title = `${data.timetable.name} - ${data.timetable.academic_year}, ${data.timetable.semester}`;
+			doc.text(title, 14, 15);
+
+			let viewTitle = '';
+			if (currentItem && (viewMode === 'grid' || viewMode === 'transposed')) {
+				switch (viewBy) {
+					case 'room':
+						viewTitle = `View by Room: ${currentItem.room_name}`;
+						break;
+					case 'instructor':
+						viewTitle = `View by Instructor: ${currentItem.name}`;
+						break;
+					case 'block':
+						viewTitle = `View by Block: ${currentItem.block_name}`;
+						break;
+				}
+			}
+
+			if (viewMode === 'list' || viewMode === 'agenda') {
+				const head = [['Time', 'Day', 'Subject', 'Block', 'Instructor', 'Room']];
+				const body = listFilteredSchedule.map((item) => [
+					`${item.start_time.substring(0, 5)} - ${item.end_time.substring(0, 5)}`,
+					item.day_of_week,
+					`${item.classes.subjects.subject_name} (${item.classes.subjects.subject_code})`,
+					item.classes.blocks.block_name,
+					item.classes.instructors?.name || 'N/A',
+					item.rooms.room_name
+				]);
+
+				autoTable(doc, {
+					head: head,
+					body: body,
+					startY: 20,
+					styles: { fontSize: 8 },
+					headStyles: { fillColor: [38, 38, 38] }
+				});
+			} else {
+				if (viewTitle) doc.text(viewTitle, 14, 22);
+
+				const canvas = await html2canvas(elementToPrint, {
+					scale: 2,
+					useCORS: true,
+					backgroundColor: null
+				});
+				const imgData = canvas.toDataURL('image/png');
+
+				const imgProps = doc.getImageProperties(imgData);
+				const pdfWidth = doc.internal.pageSize.getWidth() - 28;
+				const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+				doc.addImage(imgData, 'PNG', 14, 28, pdfWidth, pdfHeight);
+			}
+
+			doc.save(`${data.timetable.name}_${viewMode}.pdf`);
+		} catch (error) {
+			console.error('Error exporting PDF:', error);
+		} finally {
+			// Post-process: Restore original styles
+			elementsToProcess.forEach((el) => {
+				const element = el as HTMLElement;
+				const original = originalStyles.get(element);
+				if (original) {
+					element.style.backgroundColor = original.backgroundColor;
+					element.style.color = original.color;
+					element.style.borderLeftColor = original.borderLeftColor;
+				}
+			});
+			isExporting = false;
+		}
+	}
+
+	function exportAsExcel() {
+		if (isExporting) return;
+		isExporting = true;
+		try {
+			const dataToExport = listFilteredSchedule.map((item) => ({
+				Subject: item.classes.subjects.subject_name,
+				'Subject Code': item.classes.subjects.subject_code,
+				'Course Type': item.course_type,
+				Block: item.classes.blocks.block_name,
+				Instructor: item.classes.instructors?.name || 'Unassigned',
+				Room: item.rooms.room_name,
+				Day: item.day_of_week,
+				'Start Time': item.start_time.substring(0, 5),
+				'End Time': item.end_time.substring(0, 5)
+			}));
+
+			const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+			const workbook = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(workbook, worksheet, 'Schedule');
+
+			const objectMaxLength = Object.keys(dataToExport[0] || {}).map((key) => ({
+				wch: Math.max(
+					key.length,
+					...dataToExport.map((row) => (row[key] ? row[key].toString().length : 0))
+				)
+			}));
+			worksheet['!cols'] = objectMaxLength;
+
+			XLSX.writeFile(workbook, `${data.timetable.name}_schedule.xlsx`);
+		} catch (error) {
+			console.error('Error exporting Excel:', error);
+		} finally {
+			isExporting = false;
+		}
 	}
 
 	// --- Derived State (The core logic) ---
@@ -105,26 +287,19 @@
 
 	const itemClassCounts = $derived.by(() => {
 		const counts: Record<string, Set<number>> = {};
-		
-		// Initialize sets for all known entities to ensure 0 counts are handled if needed, 
-		// though the current logic handles missing keys gracefully.
-		
+
 		data.schedules.forEach((s) => {
 			const classId = s.classes.id;
-
-			// Count for rooms
 			if (s.room_id) {
 				const key = s.room_id.toString();
 				if (!counts[key]) counts[key] = new Set();
 				counts[key].add(classId);
 			}
-			// Count for instructors
 			if (s.classes.instructor_id) {
 				const key = s.classes.instructor_id.toString();
 				if (!counts[key]) counts[key] = new Set();
 				counts[key].add(classId);
 			}
-			// Count for blocks
 			if (s.classes.block_id) {
 				const key = s.classes.block_id.toString();
 				if (!counts[key]) counts[key] = new Set();
@@ -132,7 +307,6 @@
 			}
 		});
 
-		// Convert Sets to counts
 		const result: Record<string, number> = {};
 		for (const [key, set] of Object.entries(counts)) {
 			result[key] = set.size;
@@ -151,7 +325,6 @@
 	}
 
 	$effect(() => {
-		// Reset index when view changes
 		currentItemIndex = 0;
 	});
 
@@ -173,7 +346,6 @@
 					s.rooms.room_name.toLowerCase().includes(q)
 			);
 		}
-		// Sort by Day then Time
 		return items.sort((a, b) => {
 			const dayDiff = days.indexOf(a.day_of_week) - days.indexOf(b.day_of_week);
 			if (dayDiff !== 0) return dayDiff;
@@ -182,13 +354,10 @@
 	});
 
 	// --- Report Data ---
-	const report = $derived(data.timetable.metadata as any);
-
-	// Type assertion for now
+	const report = $derived(data.timetable.metadata as GenerationMetadata | null);
 </script>
 
 <!-- Report Dialog -->
-
 <Dialog.Root bind:open={reportOpen}>
 	<Dialog.Content class="max-w-2xl max-h-[90vh] overflow-y-auto">
 		<Dialog.Header>
@@ -196,7 +365,7 @@
 			<Dialog.Description>Statistics and details from the last generation run.</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
-			{#if report.status == 'Generating'}
+			{#if !report || report.status == 'Generating'}
 				<div class="flex flex-col items-center justify-center py-8 space-y-4">
 					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 					<p class="text-muted-foreground">Generation in progress...</p>
@@ -228,7 +397,7 @@
 							Failed Classes ({report.failedClasses.length})
 						</h3>
 						<div class="max-h-[200px] overflow-y-auto space-y-2">
-							{#each report.failedClasses as fail}
+							{#each report.failedClasses as fail (fail.class)}
 								<div class="text-sm border-b last:border-0 pb-2 last:pb-0 border-destructive/10">
 									<span class="font-medium">{fail.class}</span>:
 									<span class="text-muted-foreground">{fail.reason}</span>
@@ -238,7 +407,7 @@
 					</div>
 				{:else}
 					<Card.Root>
-						<Card.Content>
+						<Card.Content class="p-4">
 							<p class="font-medium">All classes scheduled successfully! 🎉</p>
 						</Card.Content>
 					</Card.Root>
@@ -249,8 +418,7 @@
 						<span class="font-semibold">Algorithm:</span>
 						{report.generation_params?.algorithm.charAt(0).toUpperCase() +
 							report.generation_params?.algorithm.slice(1) ||
-							report.algorithm.charAt(0).toUpperCase() +
-								report.generation_params?.algorithm.slice(1) ||
+							report.algorithm.charAt(0).toUpperCase() + report.algorithm.slice(1) ||
 							'N/A'}
 					</p>
 					<p><span class="font-semibold">Rooms Used:</span> {report.roomsUsed}</p>
@@ -307,9 +475,6 @@
 			</Dialog.Close>
 		</Dialog.Footer>
 	</Dialog.Content>
-
-	<!-- Trigger is handled via the button below, but we need to wrap the button or use open state -->
-	<!-- Actually, shadcn Dialog usually wraps the trigger. Let's adjust the button below to be the trigger. -->
 </Dialog.Root>
 
 <div class="h-full flex flex-col">
@@ -317,8 +482,6 @@
 	<div
 		class="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2 border-b"
 	>
-		<!-- Breadcrumb navigation removed as there is already such navigation on site-header.svelte -->
-
 		<!-- Header & Controls -->
 		<header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 			<div class="flex items-center gap-4">
@@ -419,7 +582,7 @@
 							{#if listSource.length === 0}
 								<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
 							{:else if viewBy === 'room'}
-								{#each listSource as room}
+								{#each listSource as room (room.id)}
 									<Select.Item value={room.id.toString()} class="flex items-center justify-between">
 										<span>{room.room_name}</span>
 										<Badge variant="secondary"
@@ -428,7 +591,7 @@
 									</Select.Item>
 								{/each}
 							{:else if viewBy === 'instructor'}
-								{#each listSource as instructor}
+								{#each listSource as instructor (instructor.id)}
 									<Select.Item
 										value={instructor.id.toString()}
 										class="flex items-center justify-between"
@@ -440,7 +603,7 @@
 									</Select.Item>
 								{/each}
 							{:else if viewBy === 'block'}
-								{#each listSource as block}
+								{#each listSource as block (block.id)}
 									<Select.Item
 										value={block.id.toString()}
 										class="flex items-center justify-between"
@@ -463,12 +626,23 @@
 						bind:value={listSearch}
 					/>
 				{/if}
-				<ButtonGroup.Root>
-					<Button variant="outline" class="ml-auto"
-						><Printer class="mr-2 h-4 w-4" />Print / PDF</Button
-					>
-					<Button variant="outline"><FileDown class="mr-2 h-4 w-4" />Export</Button>
-				</ButtonGroup.Root>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger asChild>
+						<Button variant="outline" class="ml-auto w-[120px]" disabled={isExporting}>
+							{#if isExporting}
+								<Spinner class="mr-2 h-4 w-4" />
+								Exporting...
+							{:else}
+								<FileDown class="mr-2 h-4 w-4" />
+								Export
+							{/if}
+						</Button>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content>
+						<DropdownMenu.Item onclick={exportAsPDF}>As PDF</DropdownMenu.Item>
+						<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 		</header>
 	</div>
@@ -476,246 +650,262 @@
 	<!-- Scrollable Main Content -->
 	<div class="flex-1 overflow-y-auto py-6">
 		{#if viewMode === 'grid'}
-			<Card.Root>
-				<Card.Header class="flex flex-row items-center justify-between p-2">
-					<div class="flex items-center gap-3">
-						{#if gridHeader.icon}
-							<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
-						{/if}
-						<div>
-							<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
-							<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
+			<div id="grid-view-content">
+				<Card.Root>
+					<Card.Header class="flex flex-row items-center justify-between p-2">
+						<div class="flex items-center gap-3">
+							{#if gridHeader.icon}
+								<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
+							{/if}
+							<div>
+								<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
+								<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
+							</div>
+							{#if gridHeader.badge}
+								<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
+							{/if}
 						</div>
-						{#if gridHeader.badge}
-							<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
-						{/if}
-					</div>
-					<div class="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="icon"
-							class="h-8 w-8"
-							onclick={goToPrev}
-							disabled={listSource.length < 2}
-						>
-							<ChevronLeft class="h-4 w-4" />
-						</Button>
-						<Button
-							variant="outline"
-							size="icon"
-							class="h-8 w-8"
-							onclick={goToNext}
-							disabled={listSource.length < 2}
-						>
-							<ChevronRight class="h-4 w-4" />
-						</Button>
-					</div>
-				</Card.Header>
-				<Card.Content class="p-0">
-					<div class="border-t overflow-x-auto">
-						<div
-							class="grid min-w-[800px]"
-							style="grid-template-columns: 60px repeat(5, 1fr); grid-template-rows: auto repeat({timeSlots.length}, {rowHeight}px);"
-						>
-							<!-- Time Header -->
-							<div
-								class="sticky left-0 z-10 p-2 border-r border-b bg-background font-medium text-sm"
+						<div class="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								onclick={goToPrev}
+								disabled={listSource.length < 2}
 							>
-								Time
-							</div>
-							<!-- Day Headers -->
-							{#each days as day}
-								<div
-									class="sticky top-0 z-10 p-2 border-r border-b bg-background font-medium text-sm text-center"
-								>
-									{day}
-								</div>
-							{/each}
-
-							<!-- Time Slots Column -->
-							{#each timeSlots as slot, i}
-								<div
-									class="sticky left-0 p-1 text-xs text-muted-foreground border-r bg-background text-center border-t"
-									style="grid-row: {i + 2}; grid-column: 1;"
-								>
-									{slot}
-								</div>
-							{/each}
-
-							<!-- Schedule Cells -->
-							{#each days as day, col}
-								<div
-									class="relative border-r"
-									style="grid-column: {col + 2}; grid-row: 2 / span {timeSlots.length};"
-								>
-									<!-- Horizontal lines for 1-hour intervals -->
-									{#each timeSlots as slot, i}
-										<div class="h-[{rowHeight}px] border-t border-border/50"></div>
-									{/each}
-
-									<!-- Scheduled Items -->
-									{#each filteredSchedule.filter((s) => s.day_of_week === day) as item (item.id)}
-										{@const [startH, startM] = item.start_time.split(':').map(Number)}
-										{@const [endH, endM] = item.end_time.split(':').map(Number)}
-										{@const startMinutes = (startH - 7) * 60 + startM}
-										{@const durationMinutes = endH * 60 + endM - (startH * 60 + startM)}
-										{@const top = (startMinutes / 60) * rowHeight}
-										{@const height = (durationMinutes / 60) * rowHeight}
-										{@const colorVar = generateColorFromString(item.classes.subjects.subject_code)}
-
-										<div class="absolute w-full px-1" style="top: {top}px; height: {height - 2}px;">
-											<div
-												class="h-full w-full border-l-4 p-1.5 rounded-md text-left leading-tight overflow-hidden transition-colors hover:brightness-95"
-												style="
-														background-color: oklch(from var({colorVar}) l c h / 0.25);
-														border-left-color: var({colorVar});
-														color: oklch(from var({colorVar}) var(--cell-fg-l) c h);
-													"
-											>
-												<div class="flex justify-between items-start">
-													<p class="font-bold text-xs truncate">
-														{item.classes.subjects.subject_code} - {item.classes.subjects
-															.subject_name}
-													</p>
-													{#if item.course_type === 'Lecture'}
-														<Badge variant="default" class="text-[9px] h-4 px-1 ml-1 shrink-0">
-															Lec
-														</Badge>
-													{:else}
-														<Badge variant="destructive" class="text-[9px] h-4 px-1 ml-1 shrink-0">
-															Lab
-														</Badge>
-													{/if}
-												</div>
-												<p class="text-[10px] opacity-80"></p>
-
-												<div class="text-xs mt-1 space-y-0.5">
-													{#if viewBy !== 'block'}
-														<p class="truncate">{item.classes.blocks.block_name}</p>
-													{/if}
-													{#if viewBy !== 'instructor'}
-														<p class="truncate">{item.classes.instructors?.name || 'N/A'}</p>
-													{/if}
-													{#if viewBy !== 'room'}
-														<p class="truncate">{item.rooms.room_name}</p>
-													{/if}
-												</div>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{/each}
+								<ChevronLeft class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								onclick={goToNext}
+								disabled={listSource.length < 2}
+							>
+								<ChevronRight class="h-4 w-4" />
+							</Button>
 						</div>
-					</div>
-				</Card.Content>
-			</Card.Root>
-		{:else if viewMode === 'transposed'}
-			<!-- Transposed Timeline View -->
-			<Card.Root>
-				<Card.Header class="flex flex-row items-center justify-between p-2">
-					<div class="flex items-center gap-3">
-						{#if gridHeader.icon}
-							<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
-						{/if}
-						<div>
-							<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
-							<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
-						</div>
-						{#if gridHeader.badge}
-							<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
-						{/if}
-					</div>
-					<div class="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="icon"
-							class="h-8 w-8"
-							onclick={goToPrev}
-							disabled={listSource.length < 2}
-						>
-							<ChevronLeft class="h-4 w-4" />
-						</Button>
-						<Button
-							variant="outline"
-							size="icon"
-							class="h-8 w-8"
-							onclick={goToNext}
-							disabled={listSource.length < 2}
-						>
-							<ChevronRight class="h-4 w-4" />
-						</Button>
-					</div>
-				</Card.Header>
-				<Card.Content class="p-0">
-					<div class="border-t overflow-x-auto">
-						<div class="min-w-[1000px]">
-							<!-- Header Row (Times) -->
-							<div class="flex border-b bg-muted/30">
-								<div class="w-32 shrink-0 p-3 font-medium text-sm border-r bg-muted/50">Day</div>
-								{#each timeSlots as time}
+					</Card.Header>
+					<Card.Content class="p-0">
+						<div class="border-t overflow-x-auto">
+							<div
+								class="grid min-w-[800px]"
+								style="grid-template-columns: 60px repeat(5, 1fr); grid-template-rows: auto repeat({timeSlots.length}, {rowHeight}px);"
+							>
+								<!-- Time Header -->
+								<div
+									class="sticky left-0 z-10 p-2 border-r border-b bg-background font-medium text-sm"
+								>
+									Time
+								</div>
+								<!-- Day Headers -->
+								{#each days as day (day)}
 									<div
-										class="flex-1 p-2 text-xs text-center border-r last:border-0 text-muted-foreground"
-									>
-										{time}
-									</div>
-								{/each}
-							</div>
-
-							<!-- Day Rows -->
-							{#each days as day}
-								<div class="flex border-b last:border-0 h-24 relative group hover:bg-muted/5">
-									<div
-										class="w-32 shrink-0 p-3 font-medium text-sm border-r bg-muted/10 flex items-center"
+										class="sticky top-0 z-10 p-2 border-r border-b bg-background font-medium text-sm text-center"
 									>
 										{day}
 									</div>
-									<div class="flex-1 relative">
-										<!-- Grid Lines -->
-										<div class="absolute inset-0 flex pointer-events-none">
-											{#each timeSlots as _}
-												<div
-													class="flex-1 border-r last:border-0 border-dashed border-border/30"
-												></div>
-											{/each}
-										</div>
+								{/each}
 
-										<!-- Items -->
-										{#each filteredSchedule.filter((s) => s.day_of_week === day) as item}
+								<!-- Time Slots Column -->
+								{#each timeSlots as slot, i (slot)}
+									<div
+										class="sticky left-0 p-1 text-xs text-muted-foreground border-r bg-background text-center border-t"
+										style="grid-row: {i + 2}; grid-column: 1;"
+									>
+										{slot}
+									</div>
+								{/each}
+
+								<!-- Schedule Cells -->
+								{#each days as day, col (day)}
+									<div
+										class="relative border-r"
+										style="grid-column: {col + 2}; grid-row: 2 / span {timeSlots.length};"
+									>
+										<!-- Horizontal lines for 1-hour intervals -->
+										{#each timeSlots as _, i (i)}
+											<div class="h-[{rowHeight}px] border-t border-border/50"></div>
+										{/each}
+
+										<!-- Scheduled Items -->
+										{#each filteredSchedule.filter((s) => s.day_of_week === day) as item (item.id)}
 											{@const [startH, startM] = item.start_time.split(':').map(Number)}
 											{@const [endH, endM] = item.end_time.split(':').map(Number)}
 											{@const startMinutes = (startH - 7) * 60 + startM}
 											{@const durationMinutes = endH * 60 + endM - (startH * 60 + startM)}
-											{@const totalMinutes = (21 - 7) * 60}
+											{@const top = (startMinutes / 60) * rowHeight}
+											{@const height = (durationMinutes / 60) * rowHeight}
 											{@const colorVar = generateColorFromString(
 												item.classes.subjects.subject_code
 											)}
 
 											<div
-												class="absolute top-2 bottom-2 rounded-md p-2 text-xs border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden"
-												style="
+												class="absolute w-full px-1"
+												style="top: {top}px; height: {height - 2}px;"
+											>
+												<div
+													class="schedule-item-cell h-full w-full border-l-4 p-1.5 rounded-md text-left leading-tight overflow-hidden transition-colors hover:brightness-95"
+													style="
+														background-color: oklch(from var({colorVar}) l c h / 0.25);
+														border-left-color: var({colorVar});
+														color: oklch(from var({colorVar}) var(--cell-fg-l) c h);
+													"
+												>
+													<div class="flex justify-between items-start">
+														<p class="font-bold text-xs truncate">
+															{item.classes.subjects.subject_code} - {item.classes.subjects
+																.subject_name}
+														</p>
+														{#if item.course_type === 'Lecture'}
+															<Badge variant="default" class="text-[9px] h-4 px-1 ml-1 shrink-0">
+																Lec
+															</Badge>
+														{:else}
+															<Badge
+																variant="destructive"
+																class="text-[9px] h-4 px-1 ml-1 shrink-0"
+															>
+																Lab
+															</Badge>
+														{/if}
+													</div>
+													<p class="text-[10px] opacity-80"></p>
+
+													<div class="text-xs mt-1 space-y-0.5">
+														{#if viewBy !== 'block'}
+															<p class="truncate">{item.classes.blocks.block_name}</p>
+														{/if}
+														{#if viewBy !== 'instructor'}
+															<p class="truncate">
+																{item.classes.instructors?.name || 'N/A'}
+															</p>
+														{/if}
+														{#if viewBy !== 'room'}
+															<p class="truncate">{item.rooms.room_name}</p>
+														{/if}
+													</div>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/each}
+							</div>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			</div>
+		{:else if viewMode === 'transposed'}
+			<!-- Transposed Timeline View -->
+			<div id="transposed-view-content">
+				<Card.Root>
+					<Card.Header class="flex flex-row items-center justify-between p-2">
+						<div class="flex items-center gap-3">
+							{#if gridHeader.icon}
+								<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
+							{/if}
+							<div>
+								<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
+								<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
+							</div>
+							{#if gridHeader.badge}
+								<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
+							{/if}
+						</div>
+						<div class="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								onclick={goToPrev}
+								disabled={listSource.length < 2}
+							>
+								<ChevronLeft class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								onclick={goToNext}
+								disabled={listSource.length < 2}
+							>
+								<ChevronRight class="h-4 w-4" />
+							</Button>
+						</div>
+					</Card.Header>
+					<Card.Content class="p-0">
+						<div class="border-t overflow-x-auto">
+							<div class="min-w-[1000px]">
+								<!-- Header Row (Times) -->
+								<div class="flex border-b bg-muted/30">
+									<div class="w-32 shrink-0 p-3 font-medium text-sm border-r bg-muted/50">Day</div>
+									{#each timeSlots as time (time)}
+										<div
+											class="flex-1 p-2 text-xs text-center border-r last:border-0 text-muted-foreground"
+										>
+											{time}
+										</div>
+									{/each}
+								</div>
+
+								<!-- Day Rows -->
+								{#each days as day (day)}
+									<div class="flex border-b last:border-0 h-24 relative group hover:bg-muted/5">
+										<div
+											class="w-32 shrink-0 p-3 font-medium text-sm border-r bg-muted/10 flex items-center"
+										>
+											{day}
+										</div>
+										<div class="flex-1 relative">
+											<!-- Grid Lines -->
+											<div class="absolute inset-0 flex pointer-events-none">
+												{#each timeSlots as _, i (i)}
+													<div
+														class="flex-1 border-r last:border-0 border-dashed border-border/30"
+													></div>
+												{/each}
+											</div>
+
+											<!-- Items -->
+											{#each filteredSchedule.filter((s) => s.day_of_week === day) as item (item.id)}
+												{@const [startH, startM] = item.start_time.split(':').map(Number)}
+												{@const [endH, endM] = item.end_time.split(':').map(Number)}
+												{@const startMinutes = (startH - 7) * 60 + startM}
+												{@const durationMinutes = endH * 60 + endM - (startH * 60 + startM)}
+												{@const totalMinutes = (21 - 7) * 60}
+												{@const colorVar = generateColorFromString(
+													item.classes.subjects.subject_code
+												)}
+
+												<div
+													class="schedule-item-cell absolute top-2 bottom-2 rounded-md p-2 text-xs border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden"
+													style="
                                                     left: {(startMinutes / totalMinutes) * 100}%;
                                                     width: {(durationMinutes / totalMinutes) *
-													100}%;
+														100}%;
                                                     background-color: oklch(from var({colorVar}) l c h / 0.25);
                                                     border-left-color: var({colorVar});
                                                     color: oklch(from var({colorVar}) var(--cell-fg-l) c h);
                                                 "
-											>
-												<div class="font-bold truncate">{item.classes.subjects.subject_code}</div>
-												<div class="opacity-80 truncate">{item.rooms.room_name}</div>
-											</div>
-										{/each}
+												>
+													<div class="font-bold truncate">
+														{item.classes.subjects.subject_code}
+													</div>
+													<div class="opacity-80 truncate">{item.rooms.room_name}</div>
+												</div>
+											{/each}
+										</div>
 									</div>
-								</div>
-							{/each}
+								{/each}
+							</div>
 						</div>
-					</div>
-				</Card.Content>
-			</Card.Root>
+					</Card.Content>
+				</Card.Root>
+			</div>
 		{:else if viewMode === 'agenda'}
 			<!-- Grouped Agenda View -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-				{#each days as day}
+			<div id="agenda-view-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				{#each days as day (day)}
 					{@const dayItems = listFilteredSchedule.filter((s) => s.day_of_week === day)}
 					{#if dayItems.length > 0}
 						<Card.Root class="overflow-hidden">
@@ -726,8 +916,7 @@
 							</Card.Header>
 							<Card.Content class="p-0">
 								<div class="divide-y">
-									{#each dayItems as item}
-										{@const colorVar = generateColorFromString(item.classes.subjects.subject_code)}
+									{#each dayItems as item (item.id)}
 										<div class="p-4 flex gap-4 hover:bg-muted/20 transition-colors">
 											<div class="flex flex-col items-center justify-center w-16 shrink-0">
 												<span class="text-sm font-bold">{item.start_time.substring(0, 5)}</span>
@@ -777,59 +966,61 @@
 			</div>
 		{:else}
 			<!-- List View -->
-			<Card.Root>
-				<Card.Content class="p-0">
-					<div class="rounded-md border">
-						<Table.Root>
-							<Table.Header>
-								<Table.Row>
-									<Table.Head class="w-[300px]">Subject</Table.Head>
-									<Table.Head>Type</Table.Head>
-									<Table.Head>Block</Table.Head>
-									<Table.Head>Instructor</Table.Head>
-									<Table.Head>Room</Table.Head>
-									<Table.Head>Day</Table.Head>
-									<Table.Head class="text-right">Time</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each listFilteredSchedule as item}
+			<div id="list-view-content">
+				<Card.Root>
+					<Card.Content class="p-0">
+						<div class="rounded-md border">
+							<Table.Root>
+								<Table.Header>
 									<Table.Row>
-										<Table.Cell class="font-medium">
-											<div>{item.classes.subjects.subject_name}</div>
-											<div class="text-xs text-muted-foreground hover:text-primary">
-												{item.classes.subjects.subject_code}
-											</div>
-										</Table.Cell>
-										<Table.Cell>
-											<Badge
-												variant={item.course_type === 'Lecture' ? 'default' : 'destructive'}
-												class="text-xs"
-											>
-												{item.course_type}
-											</Badge>
-										</Table.Cell>
-										<Table.Cell>{item.classes.blocks.block_name}</Table.Cell>
-										<Table.Cell>{item.classes.instructors?.name || 'Unassigned'}</Table.Cell>
-										<Table.Cell>{item.rooms.room_name}</Table.Cell>
-										<Table.Cell>{item.day_of_week}</Table.Cell>
-										<Table.Cell class="text-right">
-											{item.start_time.substring(0, 5)} - {item.end_time.substring(0, 5)}
-										</Table.Cell>
+										<Table.Head class="w-[300px]">Subject</Table.Head>
+										<Table.Head>Type</Table.Head>
+										<Table.Head>Block</Table.Head>
+										<Table.Head>Instructor</Table.Head>
+										<Table.Head>Room</Table.Head>
+										<Table.Head>Day</Table.Head>
+										<Table.Head class="text-right">Time</Table.Head>
 									</Table.Row>
-								{/each}
-								{#if listFilteredSchedule.length === 0}
-									<Table.Row>
-										<Table.Cell colspan={7} class="h-24 text-center">
-											No schedule entries found.
-										</Table.Cell>
-									</Table.Row>
-								{/if}
-							</Table.Body>
-						</Table.Root>
-					</div>
-				</Card.Content>
-			</Card.Root>
+								</Table.Header>
+								<Table.Body>
+									{#each listFilteredSchedule as item (item.id)}
+										<Table.Row>
+											<Table.Cell class="font-medium">
+												<div>{item.classes.subjects.subject_name}</div>
+												<div class="text-xs text-muted-foreground hover:text-primary">
+													{item.classes.subjects.subject_code}
+												</div>
+											</Table.Cell>
+											<Table.Cell>
+												<Badge
+													variant={item.course_type === 'Lecture' ? 'default' : 'destructive'}
+													class="text-xs"
+												>
+													{item.course_type}
+												</Badge>
+											</Table.Cell>
+											<Table.Cell>{item.classes.blocks.block_name}</Table.Cell>
+											<Table.Cell>{item.classes.instructors?.name || 'Unassigned'}</Table.Cell>
+											<Table.Cell>{item.rooms.room_name}</Table.Cell>
+											<Table.Cell>{item.day_of_week}</Table.Cell>
+											<Table.Cell class="text-right">
+												{item.start_time.substring(0, 5)} - {item.end_time.substring(0, 5)}
+											</Table.Cell>
+										</Table.Row>
+									{/each}
+									{#if listFilteredSchedule.length === 0}
+										<Table.Row>
+											<Table.Cell colspan={7} class="h-24 text-center">
+												No schedule entries found.
+											</Table.Cell>
+										</Table.Row>
+									{/if}
+								</Table.Body>
+							</Table.Root>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			</div>
 		{/if}
 	</div>
 </div>
