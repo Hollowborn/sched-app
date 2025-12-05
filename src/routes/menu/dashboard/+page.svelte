@@ -169,7 +169,7 @@
 				<Button variant="outline" href="/menu/resources/subjects?action=create">Add Subjects</Button
 				>
 				<Button variant="outline" href="/menu/timetables/generate">Create Timetable</Button>
-				<Button variant="outline" href="/menu/timetables/view">View Timetables</Button>
+				<Button variant="outline" href="/menu/timetables/view">View Schedules</Button>
 				<Button variant="outline" href="/menu/academics/offerings?action=create">Add Classes</Button
 				>
 			</Card.Content>
@@ -196,7 +196,7 @@
 		</Card.Root>
 
 		<!-- Action Items Table -->
-		<div class="col-span-12">
+		<!-- <div class="col-span-12">
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>Assign Instructors</Card.Title>
@@ -216,6 +216,6 @@
 					{/if}
 				</Card.Content>
 			</Card.Root>
-		</div>
+		</div> -->
 	</div>
 </div>

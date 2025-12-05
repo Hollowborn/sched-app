@@ -34,6 +34,7 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Input } from '$lib/components/ui/input';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
+	import { Separator } from 'bits-ui';
 
 	type Subject = PageData['subjects'][number];
 	type Block = PageData['blocks'][number];
@@ -499,12 +500,14 @@
 				<Trash2 class="mr-2 h-4 w-4" />
 				Delete ({selectedRowsCount})
 			</Button>
+
 			<ButtonGroup.Root>
-				<Button variant="outline" onclick={() => (createOpen = true)} disabled={isSubmitting}>
+				<Button variant="default" onclick={() => (createOpen = true)} disabled={isSubmitting}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create
 				</Button>
-				<Button onclick={() => (bulkCreateOpen = true)} variant="outline" disabled={isSubmitting}>
+				<ButtonGroup.Separator />
+				<Button onclick={() => (bulkCreateOpen = true)} variant="default" disabled={isSubmitting}>
 					<CopyPlus class="mr-2 h-4 w-4" />
 					Bulk Create
 				</Button>
