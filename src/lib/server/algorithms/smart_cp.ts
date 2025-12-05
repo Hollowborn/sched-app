@@ -266,8 +266,22 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 						let score = 0;
 
 						// 1. Preferred Room Bonus
-						if (task.classData.pref_room_id && task.classData.pref_room_id === room.id) {
-							score += 100;
+						if (task.classData.room_preferences) {
+							const prefs = task.classData.room_preferences;
+							if (prefs.priority && prefs.priority === room.id) {
+								score += 100; // Priority match
+							} else if (prefs.options && prefs.options.includes(room.id)) {
+								score += 75; // Option match
+							}
+						}
+						
+						// Room Ownership Bonus/Penalty
+						if (task.classData.college_id) {
+							if (room.owner_college_id === task.classData.college_id) {
+								score += 50; // Bonus for using own college's room
+							} else if (!room.is_general_use) {
+								score -= 50; // Penalty for using another college's room (if not general use)
+							}
 						}
 						// Soft Room Type Bonus
 						if (constraints.roomTypeConstraint === 'soft' && room.type === task.type) {

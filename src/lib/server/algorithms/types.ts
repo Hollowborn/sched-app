@@ -8,7 +8,8 @@ export interface Class {
 	estimated_students: number;
 	split_lecture: boolean;
 	lecture_days: string[] | null;
-	pref_room_id: number | null;
+	room_preferences: { priority: number | null; options: number[] } | null;
+	college_id?: number;
 }
 
 export interface Room {
@@ -16,6 +17,8 @@ export interface Room {
 	room_name: string;
 	capacity: number;
 	type: string;
+	owner_college_id: number | null;
+	is_general_use: boolean;
 }
 
 export interface TimeSlot {

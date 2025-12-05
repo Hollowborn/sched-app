@@ -286,8 +286,13 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			// --- NEW: Preferred Room Bonus ---
 			for (const gene of genes) {
 				const task = tasks.find((t) => t.id === gene.taskId)!;
-				if (task.classData.pref_room_id && task.classData.pref_room_id === gene.roomId) {
-					score += 20; // Bonus for using preferred room
+				if (task.classData.room_preferences) {
+					const prefs = task.classData.room_preferences;
+					if (prefs.priority && prefs.priority === gene.roomId) {
+						score += 20; // Bonus for priority room
+					} else if (prefs.options && prefs.options.includes(gene.roomId)) {
+						score += 10; // Bonus for option room
+					}
 				}
 			}
 

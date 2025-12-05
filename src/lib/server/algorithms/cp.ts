@@ -94,10 +94,21 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
-							// 1. Preferred Room
-							if (cls.pref_room_id) {
-								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
-								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							// 1. Preferred Room (Priority & Options)
+							if (cls.room_preferences) {
+								const prefs = cls.room_preferences;
+								// Priority Room
+								if (prefs.priority) {
+									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
+									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
+								}
+								// Option Rooms
+								if (prefs.options && prefs.options.length > 0) {
+									const aIsOption = prefs.options.includes(a.id);
+									const bIsOption = prefs.options.includes(b.id);
+									if (aIsOption && !bIsOption) return -1;
+									if (!aIsOption && bIsOption) return 1;
+								}
 							}
 							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
@@ -123,10 +134,21 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
-							// 1. Preferred Room
-							if (cls.pref_room_id) {
-								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
-								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							// 1. Preferred Room (Priority & Options)
+							if (cls.room_preferences) {
+								const prefs = cls.room_preferences;
+								// Priority Room
+								if (prefs.priority) {
+									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
+									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
+								}
+								// Option Rooms
+								if (prefs.options && prefs.options.length > 0) {
+									const aIsOption = prefs.options.includes(a.id);
+									const bIsOption = prefs.options.includes(b.id);
+									if (aIsOption && !bIsOption) return -1;
+									if (!aIsOption && bIsOption) return 1;
+								}
 							}
 							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
@@ -153,10 +175,21 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 							return capOk && typeOk;
 						})
 						.sort((a, b) => {
-							// 1. Preferred Room
-							if (cls.pref_room_id) {
-								if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
-								if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+							// 1. Preferred Room (Priority & Options)
+							if (cls.room_preferences) {
+								const prefs = cls.room_preferences;
+								// Priority Room
+								if (prefs.priority) {
+									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
+									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
+								}
+								// Option Rooms
+								if (prefs.options && prefs.options.length > 0) {
+									const aIsOption = prefs.options.includes(a.id);
+									const bIsOption = prefs.options.includes(b.id);
+									if (aIsOption && !bIsOption) return -1;
+									if (!aIsOption && bIsOption) return 1;
+								}
 							}
 							// 2. Soft Room Type
 							if (constraints.roomTypeConstraint === 'soft') {
@@ -185,10 +218,21 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 						return capOk && typeOk;
 					})
 					.sort((a, b) => {
-						// 1. Preferred Room
-						if (cls.pref_room_id) {
-							if (a.id === cls.pref_room_id && b.id !== cls.pref_room_id) return -1;
-							if (a.id !== cls.pref_room_id && b.id === cls.pref_room_id) return 1;
+						// 1. Preferred Room (Priority & Options)
+						if (cls.room_preferences) {
+							const prefs = cls.room_preferences;
+							// Priority Room
+							if (prefs.priority) {
+								if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
+								if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
+							}
+							// Option Rooms
+							if (prefs.options && prefs.options.length > 0) {
+								const aIsOption = prefs.options.includes(a.id);
+								const bIsOption = prefs.options.includes(b.id);
+								if (aIsOption && !bIsOption) return -1;
+								if (!aIsOption && bIsOption) return 1;
+							}
 						}
 						// 2. Soft Room Type
 						if (constraints.roomTypeConstraint === 'soft') {
