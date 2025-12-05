@@ -171,7 +171,7 @@
 
 								if (result.type === 'success') {
 									toast.success(result.data?.message, { id: toastId });
-
+									genYearLevel = [];
 									invalidateAll();
 								} else if (result.type === 'failure') {
 									toast.error(result.data?.message, { id: toastId });
