@@ -17,7 +17,9 @@
 		Filter
 	} from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item';
 	import * as Select from '$lib/components/ui/select';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -27,6 +29,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { cn } from '$lib/utils';
+	import { Action } from '$lib/components/ui/alert-dialog';
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
 
@@ -299,88 +302,74 @@
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 			{#if data.timetables.length > 0}
 				{#each data.timetables as tt (tt.id)}
-					<Card.Root
-						class="group relative flex flex-col justify-between hover:shadow-md transition-all duration-200 border-muted/60 hover:border-border/80"
-					>
-						<Card.Header class="pb-2">
-							<div class="flex justify-between items-start gap-3">
-								<div class="space-y-1.5">
-									<Card.Title
-										class="text-lg leading-tight tracking-tight text-foreground/90 group-hover:text-primary transition-colors"
-									>
-										{tt.name}
-									</Card.Title>
-									<Card.Description class="flex items-center gap-2 text-xs">
-										<Calendar class="h-3.5 w-3.5" />
-										<span>{tt.academic_year} • {tt.semester}</span>
-									</Card.Description>
-								</div>
-								<Badge variant={getStatusVariant(tt.status)} class="shrink-0 capitalize shadow-sm">
-									{tt.status}
-								</Badge>
-							</div>
-						</Card.Header>
-						<Card.Content class="py-0">
-							<!-- Spacer or additional content if needed -->
-						</Card.Content>
-						<Card.Footer class="pt-2 flex items-end justify-between">
-							<div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground/80">
-								<BookOpen class="h-3.5 w-3.5" />
-								<span
-									class="truncate max-w-[140px]"
-									title={tt.colleges?.college_name || 'System-wide'}
-								>
-									{tt.colleges?.college_name || 'System-wide'}
-								</span>
-							</div>
-
-							<div
-								class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+					<Item.Root variant="outline"
+						><Item.Header class="flex">
+							<Item.Title class="text-2xl flex-1 leading-tight tracking-tight "
+								>{tt.name}</Item.Title
 							>
-								{#if tt.status !== 'archived'}
-									<form
-										method="POST"
-										action="?/archiveTimetable"
-										use:enhance={() => {
-											isSubmitting = true;
-											const toastId = toast.loading('Archiving timetable...');
-											return async ({ update, result }) => {
-												isSubmitting = false;
-												if (result.type === 'success') {
-													toast.success(result.data?.message, { id: toastId });
-													await invalidateAll();
-												} else if (result.type === 'failure') {
-													toast.error(result.data?.message, { id: toastId });
-												}
-												await update({ reset: false });
-											};
-										}}
-									>
-										<input type="hidden" name="timetableId" value={tt.id} />
-										<Button
-											type="submit"
-											variant="ghost"
-											size="icon"
-											class="h-8 w-8 text-muted-foreground hover:text-destructive"
-											disabled={isSubmitting}
-											title="Archive"
-										>
-											<Archive class="h-4 w-4" />
-										</Button>
-									</form>
-								{/if}
-								<Button
-									href="/menu/timetables/view/{tt.id}"
-									variant="secondary"
-									size="icon"
-									class="h-8 w-8 shadow-sm"
-									title="View"
+							<Item.Actions></Item.Actions>
+							<Item.Description class="flex gap-2 items-center"
+								><Calendar class="h-3.5 w-3.5" />{tt.academic_year} • {tt.semester}</Item.Description
+							>
+						</Item.Header>
+						<Item.Content>
+							<Badge variant="outline" class="shrink-0 capitalize shadow-sm ">
+								{tt.status}
+							</Badge>
+							<Item.Actions class="flex md:justify-end">
+								<div
+									class="flex justify-end items-center gap-1 group-hover:opacity-100 transition-opacity duration-200"
 								>
-									<Eye class="h-4 w-4" />
-								</Button>
-							</div>
-						</Card.Footer>
-					</Card.Root>
+									{#if tt.status !== 'archived'}
+										<form
+											method="POST"
+											action="?/archiveTimetable"
+											use:enhance={() => {
+												isSubmitting = true;
+												const toastId = toast.loading('Archiving timetable...');
+												return async ({ update, result }) => {
+													isSubmitting = false;
+													if (result.type === 'success') {
+														toast.success(result.data?.message, { id: toastId });
+														await invalidateAll();
+													} else if (result.type === 'failure') {
+														toast.error(result.data?.message, { id: toastId });
+													}
+													await update({ reset: false });
+												};
+											}}
+										>
+											<input type="hidden" name="timetableId" value={tt.id} />
+											<Button
+												type="submit"
+												variant="ghost"
+												size="icon"
+												class="h-8 w-8 text-muted-foreground hover:text-destructive"
+												disabled={isSubmitting}
+												title="Archive"
+											>
+												<Archive class="h-4 w-4" />
+											</Button>
+										</form>
+									{/if}
+									<Button
+										href="/menu/timetables/view/{tt.id}"
+										variant="secondary"
+										size="icon"
+										class="h-8 w-8 shadow-sm"
+										title="View"
+									>
+										<Eye class="h-4 w-4" />
+									</Button>
+								</div>
+							</Item.Actions>
+						</Item.Content>
+						<Separator />
+						<Item.Footer class="text-sm text-muted-foreground truncate ">
+							<BookOpen class="h-3.5 w-3.5" />
+							{tt.colleges?.college_name || 'System-wide'}
+						</Item.Footer>
+					</Item.Root>
 				{/each}
 			{:else}
 				<div class="sm:col-span-2 lg:col-span-3 text-center py-16 text-muted-foreground">

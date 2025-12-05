@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// --- Dynamic Health Check Stats ---
 	let healthStats = null;
 	const program_ids_param = url.searchParams.get('program_ids');
-	
+
 	if (program_ids_param && academic_year && semester) {
 		const programIds = program_ids_param.split(',').map(Number);
 

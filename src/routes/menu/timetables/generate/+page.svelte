@@ -14,7 +14,10 @@
 		PackageOpen,
 		Info,
 		Rocket,
-		Cpu
+		Cpu,
+		Check,
+		ChevronRight,
+		ChevronLeft
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -24,6 +27,7 @@
 	// Shadcn Components
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
+	import * as Item from '$lib/components/ui/item';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import * as Alert from '$lib/components/ui/alert';
@@ -42,7 +46,11 @@
 
 	// --- Page State ---
 	let isSubmitting = $state(false);
-	let showConstraintSteps = $state(false); // New state to control visibility of steps 2-4
+
+	// Stepper State
+	const totalSteps = 4;
+	// If healthStats exist, we likely just loaded programs, so jump to step 2. Otherwise step 1.
+	let currentStep = $state(data.healthStats ? 2 : 1);
 
 	let failedClassesModalOpen = $state(false);
 	let reportData = $state<any>(null);
@@ -54,7 +62,7 @@
 	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>(
 		(urlParams.get('semester') as '1st Semester' | '2nd Semester' | 'Summer') || '1st Semester'
 	);
-	
+
 	// Parse initial program IDs from URL (comma separated)
 	let initialProgramIds = urlParams.get('program_ids')?.split(',').filter(Boolean) || [];
 	// Fallback to single program_id for backward compatibility or if user just has one
@@ -143,6 +151,14 @@
 		}
 	}
 
+	function nextStep() {
+		if (currentStep < totalSteps) currentStep++;
+	}
+
+	function prevStep() {
+		if (currentStep > 1) currentStep--;
+	}
+
 	// Group rooms by building
 	const roomsByBuilding = $derived.by(() => {
 		return (data.allRooms || []).reduce(
@@ -194,10 +210,39 @@
 
 <div class="space-y-6">
 	<header>
-		<h1 class="text-3xl font-bold tracking-tight">Generate Timetable</h1>
-		<p class="text-muted-foreground mt-1">
-			A step-by-step tool to generate a new class schedule from scratch.
-		</p>
+		<!-- Stepper Indicator -->
+		<div class="flex items-center justify-between mb-8 relative max-w-3xl mx-auto">
+			<!-- Background Line -->
+			<div class="absolute top-1/2 left-0 w-full h-1 bg-muted"></div>
+			<!-- Progress Line -->
+			<div
+				class="absolute top-1/2 left-0 h-1 bg-primary transition-all duration-300 ease-in-out"
+				style="width: {((currentStep - 1) / (totalSteps - 1)) * 100}%"
+			></div>
+
+			{#each [1, 2, 3, 4] as step}
+				<div class="flex flex-col items-center bg-background px-2 relative z-10">
+					<div
+						class="w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold transition-colors
+						{step < currentStep ? 'bg-primary border-primary text-primary-foreground' : ''}
+						{step === currentStep ? 'border-primary text-primary' : 'border-muted text-muted-foreground'}"
+					>
+						{#if step < currentStep}
+							<Check class="h-4 w-4" />
+						{:else}
+							{step}
+						{/if}
+					</div>
+					<span
+						class="text-xs mt-2 font-medium {step === currentStep
+							? 'text-foreground'
+							: 'text-muted-foreground'}"
+					>
+						{#if step === 1}Program{:else if step === 2}Rooms{:else if step === 3}Constraints{:else}Generate{/if}
+					</span>
+				</div>
+			{/each}
+		</div>
 	</header>
 
 	<form
@@ -241,316 +286,260 @@
 			};
 		}}
 	>
-		<Card.Root>
+		<Card.Root class="max-w-3xl mx-auto min-h-[500px] flex flex-col">
 			<Card.Header>
-				<Card.Title>Step 1: Select Program and Term</Card.Title>
+				<Card.Title>
+					{#if currentStep === 1}Step 1: Select Program & Term
+					{:else if currentStep === 2}Step 2: Select Rooms
+					{:else if currentStep === 3}Step 3: Define Constraints
+					{:else}Step 4: Generate Schedule{/if}
+				</Card.Title>
 				<Card.Description>
-					Choose the academic program and term you want to generate a schedule for.
+					{#if currentStep === 1}Choose the academic year, semester, and programs to schedule.
+					{:else if currentStep === 2}Select the rooms available for this schedule.
+					{:else if currentStep === 3}Set time boundaries and solver rules.
+					{:else}Review summary and start generation.{/if}
 				</Card.Description>
 			</Card.Header>
-			<Card.Content class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<!-- Program Select (Tabs) -->
-				<div class="space-y-2 md:col-span-3">
-					<Label>Programs</Label>
-					<Tabs.Root value="program" class="w-full">
-						<Tabs.List class="grid w-full grid-cols-2">
-							<Tabs.Trigger value="program">By Program</Tabs.Trigger>
-							<Tabs.Trigger value="college" disabled={!programsByCollege}>By College</Tabs.Trigger>
-						</Tabs.List>
-						<Tabs.Content value="program">
-							<div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2">
-								{#if programsByCollege}
-									{#each Object.keys(programsByCollege) as college}
-										<div class="mb-4 last:mb-0">
-											<h4 class="font-semibold text-sm mb-2 sticky top-0 bg-card py-1 z-10 border-b">
-												{college}
-											</h4>
-											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-												{#each programsByCollege[college] as program}
-													<div class="flex items-center gap-2">
-														<Checkbox
-															id="prog-{program.id}"
-															checked={selectedProgramIds.includes(program.id.toString())}
-															onCheckedChange={(v) => toggleProgram(program.id.toString(), v as boolean)}
-														/>
-														<input
-															type="hidden"
-															name="program_ids"
-															value={program.id}
-															disabled={!selectedProgramIds.includes(program.id.toString())}
-														/>
-														<Label for="prog-{program.id}" class="font-normal cursor-pointer"
-															>{program.program_name}</Label
-														>
-													</div>
-												{/each}
-											</div>
-										</div>
-									{/each}
-								{:else if data.programs.length > 0}
-									<!-- Fallback for non-admin or flat list -->
-									<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-										{#each data.programs as program}
-											<div class="flex items-center gap-2">
-												<Checkbox
-													id="prog-{program.id}"
-													checked={selectedProgramIds.includes(program.id.toString())}
-													onCheckedChange={(v) => toggleProgram(program.id.toString(), v as boolean)}
-												/>
-												<input
-													type="hidden"
-													name="program_ids"
-													value={program.id}
-													disabled={!selectedProgramIds.includes(program.id.toString())}
-												/>
-												<Label for="prog-{program.id}" class="font-normal cursor-pointer"
-													>{program.program_name}</Label
-												>
-											</div>
-										{/each}
-									</div>
-								{:else}
-									<div class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2">
-										<p class="text-muted-foreground">No programs available.</p>
-									</div>
-								{/if}
-							</div>
-						</Tabs.Content>
-						<Tabs.Content value="college">
-							<div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2">
-								{#if programsByCollege}
-									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<Card.Content class="flex-1">
+				<div class={currentStep === 1 ? 'block' : 'hidden'}>
+					<!-- Program Select (Tabs) -->
+					<div class="space-y-2 md:col-span-3">
+						<Label>Programs</Label>
+						<Tabs.Root value="program" class="w-full">
+							<Tabs.List class="grid w-full grid-cols-2">
+								<Tabs.Trigger value="program">By Program</Tabs.Trigger>
+								<Tabs.Trigger value="college" disabled={!programsByCollege}>By College</Tabs.Trigger
+								>
+							</Tabs.List>
+							<Tabs.Content value="program">
+								<Item.Group class="gap-2 max-h-64 overflow-auto">
+									<!-- <div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2"> -->
+									{#if programsByCollege}
 										{#each Object.keys(programsByCollege) as college}
-											{@const programs = programsByCollege[college]}
-											{@const allSelected = programs.every(p => selectedProgramIds.includes(p.id.toString()))}
-											{@const someSelected = programs.some(p => selectedProgramIds.includes(p.id.toString()))}
-											
-											<div class="flex items-center gap-2 p-2 border rounded-md hover:bg-accent/50 transition-colors">
-												<Checkbox
-													id="col-{college}"
-													checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-													onCheckedChange={(v) => toggleCollege(college, v as boolean)}
-												/>
-												<div class="flex flex-col">
-													<Label for="col-{college}" class="font-semibold cursor-pointer">{college}</Label>
-													<span class="text-xs text-muted-foreground">{programs.length} programs</span>
-												</div>
-											</div>
+											<Item.Root variant="muted">
+												<Item.Header>
+													<Item.Title class="text-sm font-semibold">{college}</Item.Title>
+													<div class="bg-blue-500 size-2 rounded-full"></div>
+												</Item.Header>
+												<Separator />
+												<Item.Content>
+													{#each programsByCollege[college] as program}
+														<Item.Description class="flex gap-4">
+															<Checkbox
+																id="prog-{program.id}"
+																checked={selectedProgramIds.includes(program.id.toString())}
+																onCheckedChange={(v) =>
+																	toggleProgram(program.id.toString(), v as boolean)}
+															/>
+															<input
+																type="hidden"
+																name="program_ids"
+																value={program.id}
+																disabled={!selectedProgramIds.includes(program.id.toString())}
+															/>
+															<Label
+																for="prog-{program.id}"
+																class="font-normal cursor-pointer tracking-wide"
+																>{program.program_name}</Label
+															>
+														</Item.Description>
+													{/each}
+												</Item.Content>
+											</Item.Root>
 										{/each}
-									</div>
-								{:else}
-									<p class="text-muted-foreground p-4 text-center">College selection is only available for Admins.</p>
-								{/if}
-							</div>
-						</Tabs.Content>
-					</Tabs.Root>
-					<p class="text-xs text-muted-foreground">
-						Select one or more programs to schedule together.
-					</p>
-				</div>
-
-				<!-- Academic Year Select -->
-				<div class="space-y-2">
-					<Label for="academic_year">Academic Year</Label>
-					<Select.Root type="single" name="academic_year" bind:value={academicYear}>
-						<Select.Trigger id="academic_year" class="w-full">
-							<span>{academicYear}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each generateAcademicYears() as year}
-								<Select.Item value={year}>{year}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-
-				<!-- Semester Select -->
-				<div class="space-y-2">
-					<Label for="semester">Semester</Label>
-					<Select.Root type="single" name="semester" bind:value={semester}>
-						<Select.Trigger id="semester" class="w-full">
-							<span>{semester}</span>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="1st Semester">1st Semester</Select.Item>
-							<Select.Item value="2nd Semester">2nd Semester</Select.Item>
-							<Select.Item value="Summer">Summer</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-
-				<!-- Load Details Button -->
-				<div class="md:col-span-3 pt-2">
-					<Button
-						variant="secondary"
-						class="w-full"
-						onclick={loadProgramDetails}
-						disabled={selectedProgramIds.length === 0}
-					>
-						Load Program Details
-					</Button>
-				</div>
-			</Card.Content>
-
-			<Collapsible.Root open={!!data.healthStats}>
-				<Collapsible.Content>
-					{#if selectedPrograms.length > 0 && data.healthStats}
-				<Card.Footer class="grid gap-4 grid-cols-2 md:grid-cols-4 p-4 border-t">
-					<div class="flex flex-col p-4 border rounded-lg bg-background">
-						<div class="flex items-center justify-between">
-							<h3 class="text-sm font-medium text-muted-foreground">Total Classes</h3>
-							<BookCheck class="h-4 w-4 text-muted-foreground" />
-						</div>
-						<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
-						<p class="text-xs text-muted-foreground mt-1">offerings for selected programs</p>
-					</div>
-					<div
-						class={cn(
-							'flex flex-col p-4 border rounded-lg',
-							data.healthStats.unassignedClasses > 0 && 'border-destructive'
-						)}
-					>
-						<div class="flex items-center justify-between">
-							<h3 class="text-sm font-medium">Unassigned</h3>
-							<Users
-								class={cn(
-									'h-4 w-4',
-									data.healthStats.unassignedClasses > 0
-										? 'text-destructive'
-										: 'text-muted-foreground'
-								)}
-							/>
-						</div>
-						<p
-							class={cn(
-								'text-2xl font-bold',
-								data.healthStats.unassignedClasses > 0 && 'text-destructive'
-							)}
-						>
-							{data.healthStats.unassignedClasses}
-						</p>
-						<p class="text-xs text-muted-foreground mt-1">classes have no instructor</p>
-					</div>
-					<div
-						class={cn(
-							'flex flex-col p-4 border rounded-lg',
-							data.healthStats.emptyBlocks > 0 && 'border-amber-500'
-						)}
-					>
-						<div class="flex items-center justify-between">
-							<h3 class="text-sm font-medium">Empty Blocks</h3>
-							<ClipboardX
-								class={cn(
-									'h-4 w-4',
-									data.healthStats.emptyBlocks > 0 ? 'text-amber-600' : 'text-muted-foreground'
-								)}
-							/>
-						</div>
-						<p
-							class={cn('text-2xl font-bold', data.healthStats.emptyBlocks > 0 && 'text-amber-600')}
-						>
-							{data.healthStats.emptyBlocks}
-						</p>
-						<p class="text-xs text-muted-foreground mt-1">blocks have no classes</p>
-					</div>
-					<div class="flex flex-col p-4 border rounded-lg bg-background">
-						<div class="flex items-center justify-between">
-							<h3 class="text-sm font-medium text-muted-foreground">Total Blocks</h3>
-							<PackageOpen class="h-4 w-4 text-muted-foreground" />
-						</div>
-						<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
-						<p class="text-xs text-muted-foreground mt-1">in selected programs</p>
-					</div>
-				</Card.Footer>
-			{/if}
-
-			<!-- All other steps will be added here -->
-			<fieldset class="contents" disabled={!data.healthStats}>
-				<!-- Step 2: Room Selection -->
-				<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
-					<Card.Header class="pt-4">
-						<Card.Title>Step 2: Select Rooms</Card.Title>
-						<Card.Description>
-							Choose the rooms that can be used for scheduling. Rooms for your college and
-							general-use rooms are selected by default.
-						</Card.Description>
-					</Card.Header>
-					<Card.Content>
-						<Collapsible.Root class="space-y-2">
-							<Collapsible.Trigger class="w-full">
-								<div class="flex items-center justify-between rounded-lg border p-4 mt-2">
-									<span class="font-semibold">
-										{Object.values(selectedRoomIds).filter(Boolean).length} /
-										{data.allRooms.length} rooms selected
-									</span>
-									<Button variant="outline">View & Edit Rooms</Button>
-								</div>
-							</Collapsible.Trigger>
-							<Collapsible.Content class="space-y-4 rounded-md border p-4 max-h-96 overflow-y-auto">
-								{#each Object.keys(roomsByBuilding) as building}
-									{@const rooms = roomsByBuilding[building]}
-									<div class="space-y-2">
-										<div class="flex items-center justify-between">
-											<Label class="font-semibold flex items-center gap-2">
-												<Building class="h-4 w-4" />
-												{building}
-											</Label>
-											<div class="flex items-center gap-2">
-												<Button
-													type="button"
-													variant="link"
-													size="sm"
-													class="h-auto p-0"
-													onclick={() => toggleAllRooms(building, true)}>Select All</Button
-												>
-												<span class="text-sm text-muted-foreground">/</span>
-												<Button
-													type="button"
-													variant="link"
-													size="sm"
-													class="h-auto p-0"
-													onclick={() => toggleAllRooms(building, false)}>None</Button
-												>
-											</div>
-										</div>
-										<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pl-2">
-											{#each rooms as room}
+									{:else if data.programs.length > 0}
+										<!-- Fallback for non-admin or flat list -->
+										<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+											{#each data.programs as program}
 												<div class="flex items-center gap-2">
 													<Checkbox
-														id="room-{room.id}"
-														name="room_ids"
-														value={room.id}
-														bind:checked={selectedRoomIds[room.id]}
+														id="prog-{program.id}"
+														checked={selectedProgramIds.includes(program.id.toString())}
+														onCheckedChange={(v) =>
+															toggleProgram(program.id.toString(), v as boolean)}
 													/>
-													<Label
-														for="room-{room.id}"
-														class="font-normal truncate"
-														title="{room.room_name} ({room.type}, Cap: {room.capacity})"
+													<input
+														type="hidden"
+														name="program_ids"
+														value={program.id}
+														disabled={!selectedProgramIds.includes(program.id.toString())}
+													/>
+													<Label for="prog-{program.id}" class="font-normal cursor-pointer"
+														>{program.program_name}</Label
 													>
-														{room.room_name}
-														<span class="text-muted-foreground"
-															>({room.type}, Cap: {room.capacity})</span
-														>
-													</Label>
 												</div>
 											{/each}
 										</div>
-									</div>
-								{/each}
-							</Collapsible.Content>
-						</Collapsible.Root>
-					</Card.Content>
+									{:else}
+										<div
+											class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2"
+										>
+											<p class="text-muted-foreground">No programs available.</p>
+										</div>
+									{/if}
+								</Item.Group>
+								<!-- </div> -->
+							</Tabs.Content>
+							<Tabs.Content value="college">
+								<div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2">
+									{#if programsByCollege}
+										<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+											{#each Object.keys(programsByCollege) as college}
+												{@const programs = programsByCollege[college]}
+												{@const allSelected = programs.every((p) =>
+													selectedProgramIds.includes(p.id.toString())
+												)}
+												{@const someSelected = programs.some((p) =>
+													selectedProgramIds.includes(p.id.toString())
+												)}
+
+												<div
+													class="flex items-center gap-2 p-2 border rounded-md hover:bg-accent/50 transition-colors"
+												>
+													<Checkbox
+														id="col-{college}"
+														checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+														onCheckedChange={(v) => toggleCollege(college, v as boolean)}
+													/>
+													<div class="flex flex-col">
+														<Label for="col-{college}" class="font-semibold cursor-pointer"
+															>{college}</Label
+														>
+														<span class="text-xs text-muted-foreground"
+															>{programs.length} programs</span
+														>
+													</div>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-muted-foreground p-4 text-center">
+											College selection is only available for Admins.
+										</p>
+									{/if}
+								</div>
+							</Tabs.Content>
+						</Tabs.Root>
+						<p class="text-xs text-muted-foreground">
+							Select one or more programs to schedule together.
+						</p>
+					</div>
+
+					<!-- Academic Year Select -->
+					<div class="gap-2 justify-between mt-4">
+						<div class="space-y-2">
+							<Label for="academic_year">Academic Year</Label>
+							<Select.Root type="single" name="academic_year" bind:value={academicYear}>
+								<Select.Trigger id="academic_year" class="w-full">
+									<span>{academicYear}</span>
+								</Select.Trigger>
+								<Select.Content>
+									{#each generateAcademicYears() as year}
+										<Select.Item value={year}>{year}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
+
+						<!-- Semester Select -->
+						<div class="space-y-2">
+							<Label for="semester">Semester</Label>
+							<Select.Root type="single" name="semester" bind:value={semester}>
+								<Select.Trigger id="semester" class="w-full">
+									<span>{semester}</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="1st Semester">1st Semester</Select.Item>
+									<Select.Item value="2nd Semester">2nd Semester</Select.Item>
+									<Select.Item value="Summer">Summer</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</div>
+					</div>
+
+					<!-- Load Details Button -->
+					<div class="md:col-span-3 pt-2">
+						<Button
+							variant="secondary"
+							class="w-full"
+							onclick={loadProgramDetails}
+							disabled={selectedProgramIds.length === 0}
+						>
+							Load Program Details
+						</Button>
+					</div>
 				</div>
 
-				<!-- Step 3: Define Constraints -->
-				<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
-					<Card.Header class="pt-4">
-						<Card.Title>Step 3: Define Constraints</Card.Title>
-						<Card.Description>
-							Set the rules and time boundaries for the schedule generation.
-						</Card.Description>
-					</Card.Header>
-					<Card.Content class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+				<div class={currentStep === 2 ? 'block' : 'hidden'}>
+					<!-- Step 2: Room Selection -->
+					<div class="space-y-4">
+						<div class="flex items-center justify-between rounded-lg border p-4">
+							<span class="font-semibold">
+								{Object.values(selectedRoomIds).filter(Boolean).length} /
+								{data.allRooms.length} rooms selected
+							</span>
+							<Button variant="outline" size="sm">View & Edit Rooms</Button>
+						</div>
+
+						<div class="space-y-4 rounded-md border p-4 max-h-96 overflow-y-auto">
+							{#each Object.keys(roomsByBuilding) as building}
+								{@const rooms = roomsByBuilding[building]}
+								<div class="space-y-2">
+									<div class="flex items-center justify-between">
+										<Label class="font-semibold flex items-center gap-2">
+											<Building class="h-4 w-4" />
+											{building}
+										</Label>
+										<div class="flex items-center gap-2">
+											<Button
+												type="button"
+												variant="link"
+												size="sm"
+												class="h-auto p-0"
+												onclick={() => toggleAllRooms(building, true)}>Select All</Button
+											>
+											<span class="text-sm text-muted-foreground">/</span>
+											<Button
+												type="button"
+												variant="link"
+												size="sm"
+												class="h-auto p-0"
+												onclick={() => toggleAllRooms(building, false)}>None</Button
+											>
+										</div>
+									</div>
+									<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pl-2">
+										{#each rooms as room}
+											<div class="flex items-center gap-2">
+												<Checkbox
+													id="room-{room.id}"
+													name="room_ids"
+													value={room.id}
+													bind:checked={selectedRoomIds[room.id]}
+												/>
+												<Label
+													for="room-{room.id}"
+													class="font-normal truncate"
+													title="{room.room_name} ({room.type}, Cap: {room.capacity})"
+												>
+													{room.room_name}
+													<span class="text-muted-foreground"
+														>({room.type}, Cap: {room.capacity})</span
+													>
+												</Label>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
+
+				<div class={currentStep === 3 ? 'block' : 'hidden'}>
+					<!-- Step 3: Define Constraints -->
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						<!-- Day Rules -->
 						<div class="space-y-4 rounded-md border p-4">
 							<h4 class="font-semibold">Day Rules</h4>
@@ -667,20 +656,88 @@
 								</div>
 							</div>
 						</div>
-					</Card.Content>
+					</div>
 				</div>
-			</fieldset>
 
-			<!-- Step 4: Generate -->
-			<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
-				<Card.Header class="pt-4">
-					<Card.Title>Step 4: Generate</Card.Title>
-					<Card.Description>
-						Choose the algorithm and start the generation process.
-					</Card.Description>
-				</Card.Header>
-				<Card.Content>
-					<fieldset class="contents" disabled={!data.healthStats}>
+				<div class={currentStep === 4 ? 'block' : 'hidden'}>
+					<!-- Step 4: Generate -->
+					<div class="space-y-6">
+						<!-- Health Stats (Moved from Footer) -->
+						{#if data.healthStats}
+							<div class="grid gap-4 grid-cols-2 md:grid-cols-4">
+								<div class="flex flex-col p-4 border rounded-lg bg-background">
+									<div class="flex items-center justify-between">
+										<h3 class="text-sm font-medium text-muted-foreground">Total Classes</h3>
+										<BookCheck class="h-4 w-4 text-muted-foreground" />
+									</div>
+									<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
+									<p class="text-xs text-muted-foreground mt-1">offerings for selected programs</p>
+								</div>
+								<div
+									class={cn(
+										'flex flex-col p-4 border rounded-lg',
+										data.healthStats.unassignedClasses > 0 && 'border-destructive'
+									)}
+								>
+									<div class="flex items-center justify-between">
+										<h3 class="text-sm font-medium">Unassigned</h3>
+										<Users
+											class={cn(
+												'h-4 w-4',
+												data.healthStats.unassignedClasses > 0
+													? 'text-destructive'
+													: 'text-muted-foreground'
+											)}
+										/>
+									</div>
+									<p
+										class={cn(
+											'text-2xl font-bold',
+											data.healthStats.unassignedClasses > 0 && 'text-destructive'
+										)}
+									>
+										{data.healthStats.unassignedClasses}
+									</p>
+									<p class="text-xs text-muted-foreground mt-1">classes have no instructor</p>
+								</div>
+								<div
+									class={cn(
+										'flex flex-col p-4 border rounded-lg',
+										data.healthStats.emptyBlocks > 0 && 'border-amber-500'
+									)}
+								>
+									<div class="flex items-center justify-between">
+										<h3 class="text-sm font-medium">Empty Blocks</h3>
+										<ClipboardX
+											class={cn(
+												'h-4 w-4',
+												data.healthStats.emptyBlocks > 0
+													? 'text-amber-600'
+													: 'text-muted-foreground'
+											)}
+										/>
+									</div>
+									<p
+										class={cn(
+											'text-2xl font-bold',
+											data.healthStats.emptyBlocks > 0 && 'text-amber-600'
+										)}
+									>
+										{data.healthStats.emptyBlocks}
+									</p>
+									<p class="text-xs text-muted-foreground mt-1">blocks have no classes</p>
+								</div>
+								<div class="flex flex-col p-4 border rounded-lg bg-background">
+									<div class="flex items-center justify-between">
+										<h3 class="text-sm font-medium text-muted-foreground">Total Blocks</h3>
+										<PackageOpen class="h-4 w-4 text-muted-foreground" />
+									</div>
+									<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
+									<p class="text-xs text-muted-foreground mt-1">in selected programs</p>
+								</div>
+							</div>
+						{/if}
+
 						<div class="space-y-2 mb-4">
 							<Label for="custom_name" class="mt-2 ml-2 text-muted-foreground"
 								>Timetable Name (Optional)</Label
@@ -735,23 +792,35 @@
 							>
 								<RadioGroup.Item value="smart_cp" id="smart_cp" class="sr-only" />
 								<Label class="text-lg font-semibold"
-									>Smart CP <Badge variant="default"><Wand2 class="w-3 h-3 mr-1" /> Smart</Badge></Label
+									>Smart CP <Badge variant="default"><Wand2 class="w-3 h-3 mr-1" />best</Badge
+									></Label
 								>
 								<Separator />
 								<p class="text-sm text-muted-foreground mt-2 text-center">
-									An enhanced CP solver that optimizes for preferred rooms and minimizes gaps.
-									Best balance of speed and quality.
+									An enhanced CP solver that optimizes for preferred rooms and minimizes gaps. Best
+									balance of speed and quality.
 								</p>
 							</Label>
 						</RadioGroup.Root>
-					</fieldset>
-				</Card.Content>
-				<Card.Footer class="border-t pt-6">
+					</div>
+				</div>
+			</Card.Content>
+
+			<Card.Footer class="flex justify-between border-t pt-6">
+				<Button type="button" variant="outline" onclick={prevStep} disabled={currentStep === 1}>
+					<ChevronLeft class="mr-2 h-4 w-4" /> Back
+				</Button>
+
+				{#if currentStep < totalSteps}
 					<Button
-						type="submit"
-						class="w-full md:w-auto"
-						disabled={selectedPrograms.length === 0 || isSubmitting}
+						type="button"
+						onclick={nextStep}
+						disabled={currentStep === 1 && !data.healthStats}
 					>
+						Next <ChevronRight class="ml-2 h-4 w-4" />
+					</Button>
+				{:else}
+					<Button type="submit" disabled={selectedPrograms.length === 0 || isSubmitting}>
 						{#if isSubmitting}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 							Generating...
@@ -760,12 +829,10 @@
 							Generate Schedule
 						{/if}
 					</Button>
-				</Card.Footer>
-			</div>
-			</Collapsible.Content>
-		</Collapsible.Root>
-	</Card.Root>
-</form>
+				{/if}
+			</Card.Footer>
+		</Card.Root>
+	</form>
 </div>
 
 <!-- Generation Report Modal -->
