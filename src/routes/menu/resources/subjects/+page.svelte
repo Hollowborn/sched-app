@@ -196,7 +196,7 @@
 	>
 		<div slot="filters">
 			<Select.Root type="single" bind:value={selectedCollegeId}>
-				<Select.Trigger disabled={isSubmitting} class="w-[200px]">
+				<Select.Trigger disabled={isSubmitting} class="truncate max-w-[200px]">
 					<span>{selectedCollegeName || 'Filter by College'}</span>
 				</Select.Trigger>
 				<Select.Content>
