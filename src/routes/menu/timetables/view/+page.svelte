@@ -49,14 +49,6 @@
 			cell: ({ row }) => renderSnippet(nameCell, { row: row.original })
 		},
 		{
-			accessorKey: 'semester',
-			header: 'Semester'
-		},
-		{
-			accessorKey: 'academic_year',
-			header: 'Academic Year'
-		},
-		{
 			accessorKey: 'status',
 			header: 'Status',
 			cell: ({ row }) => renderSnippet(statusCell, { status: row.original.status })
@@ -66,7 +58,7 @@
 			header: 'College'
 		},
 		{
-			accessorKey: 'created_at',
+			accessorKey: 'created at',
 			header: 'Last Updated',
 			cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString()
 		},
