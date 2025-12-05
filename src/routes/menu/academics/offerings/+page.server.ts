@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.from('classes')
 		.select(
 			`
-			id, semester, academic_year, pref_room_id, split_lecture, lecture_days,
+			id, semester, academic_year, room_preferences, split_lecture, lecture_days,
 			subjects!inner (id, subject_code, subject_name, lecture_hours),
 			instructors (id, name),
 			blocks!inner (id, block_name, programs!inner (id, college_id))
@@ -162,9 +162,16 @@ export const actions: Actions = {
 		const instructor_id_val = formData.get('instructor_id');
 		const instructor_id =
 			instructor_id_val && Number(instructor_id_val) > 0 ? Number(instructor_id_val) : null;
-		const pref_room_id_val = formData.get('pref_room_id');
-		const pref_room_id =
-			pref_room_id_val && Number(pref_room_id_val) > 0 ? Number(pref_room_id_val) : null;
+		const priority_room_id_val = formData.get('priority_room_id');
+		const priority =
+			priority_room_id_val && Number(priority_room_id_val) > 0 ? Number(priority_room_id_val) : null;
+		const option_room_ids_str = formData.get('option_room_ids')?.toString();
+		const options = option_room_ids_str ? JSON.parse(option_room_ids_str) : [];
+		
+		const room_preferences = {
+			priority,
+			options
+		};
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
 		const split_lecture_str = formData.get('split_lecture')?.toString();
@@ -180,7 +187,7 @@ export const actions: Actions = {
 			subject_id,
 			block_id,
 			instructor_id,
-			pref_room_id,
+			room_preferences,
 			academic_year,
 			semester,
 			split_lecture,
@@ -231,6 +238,14 @@ export const actions: Actions = {
 		const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
 		const split_lecture_flag = formData.get('split_lecture') === 'true';
+		const default_option_room_ids_str = formData.get('default_option_room_ids')?.toString();
+		const default_options = default_option_room_ids_str ? JSON.parse(default_option_room_ids_str) : [];
+		
+		const bulk_priority_room_id_val = formData.get('bulk_priority_room_id');
+		const bulk_priority =
+			bulk_priority_room_id_val && Number(bulk_priority_room_id_val) > 0
+				? Number(bulk_priority_room_id_val)
+				: null;
 
 		if (!block_id || subject_ids.length === 0 || !academic_year || !semester) {
 			return fail(400, {
@@ -276,7 +291,8 @@ export const actions: Actions = {
 			academic_year,
 			semester,
 			split_lecture: split_lecture_flag && subjectsWithLectureHours.has(subject_id),
-			lecture_days: [] // Explicitly set lecture_days to empty array
+			lecture_days: [], // Explicitly set lecture_days to empty array
+			room_preferences: { priority: bulk_priority, options: default_options }
 		}));
 
 		const { data: insertedData, error: insertError } = await locals.supabase

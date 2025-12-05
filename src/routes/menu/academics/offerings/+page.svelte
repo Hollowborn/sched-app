@@ -64,7 +64,9 @@
 	let createSubjectId = $state('');
 	let createBlockId = $state('');
 	let createInstructorId = $state('');
-	let createPrefRoomId = $state('');
+
+	let createPriorityRoomId = $state('');
+	let createOptionRoomIds = $state<number[]>([]);
 	let createOfferingCollegeId = $state('');
 	let createSplitLecture = $state(false);
 	let createLectureDays = $state<string[]>([]);
@@ -75,16 +77,22 @@
 	let bulkSubjectIds = $state<number[]>([]);
 	let bulkSubjectSearch = $state('');
 	let bulkSplitLecture = $state(false);
+	let bulkDefaultOptionRoomIds = $state<number[]>([]);
+	let bulkPriorityRoomId = $state('');
 
 	// --- Combobox Open States ---
 	let subjectOpen = $state(false);
 	let collegeOpen = $state(false);
 	let blockOpen = $state(false);
 	let instructorOpen = $state(false);
-	let roomOpen = $state(false);
+
+	let priorityRoomOpen = $state(false);
+	let optionRoomOpen = $state(false);
 	let filterOpen = $state(false);
 	let bulkCollegeOpen = $state(false);
 	let bulkBlockOpen = $state(false);
+	let bulkOptionRoomOpen = $state(false);
+	let bulkPriorityRoomOpen = $state(false);
 
 	// --- Derived State ---
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
@@ -230,7 +238,9 @@
 		createSubjectId = '';
 		createBlockId = '';
 		createInstructorId = '';
-		createPrefRoomId = '';
+		createInstructorId = '';
+		createPriorityRoomId = '';
+		createOptionRoomIds = [];
 		createOfferingCollegeId = '';
 		createSplitLecture = false;
 		createLectureDays = [];
@@ -246,6 +256,8 @@
 		bulkSubjectIds = [];
 		bulkSubjectSearch = '';
 		bulkSplitLecture = false;
+		bulkDefaultOptionRoomIds = [];
+		bulkPriorityRoomId = '';
 	}
 
 	$effect(() => {
@@ -785,70 +797,160 @@
 					</Popover.Root>
 					<input type="hidden" name="instructor_id" value={createInstructorId} />
 				</div>
-				<div class="space-y-2 flex flex-col">
-					<Label>Preferred Room (Optional)</Label>
-					<Popover.Root bind:open={roomOpen}>
-						<Popover.Trigger>
-							{#snippet child({ props })}
-								<Button
-									variant="outline"
-									class="w-full justify-between"
-									{...props}
-									role="combobox"
-									aria-expanded={roomOpen}
-								>
-									<span class="truncate"
-										>{data.rooms.find((r) => r.id.toString() === createPrefRoomId)?.room_name ||
-											'Select a preferred room'}</span
+				<!-- Room Preferences -->
+				<div class="space-y-3 border rounded-md p-3">
+					<Label class="font-semibold">Room Preferences</Label>
+
+					<!-- Priority Room -->
+					<div class="space-y-2 flex flex-col">
+						<Label class="text-xs text-muted-foreground">Priority Room (Best Choice)</Label>
+						<Popover.Root bind:open={priorityRoomOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={priorityRoomOpen}
 									>
-									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-								</Button>
-							{/snippet}
-						</Popover.Trigger>
-						<Popover.Content class="w-[400px] p-0">
-							<Command.Root>
-								<Command.Input placeholder="Search room..." />
-								<Command.List>
-									<Command.Empty>No room found.</Command.Empty>
-									<Command.Group>
-										<Command.Item
-											value="No Preference"
-											onSelect={() => {
-												createPrefRoomId = '0';
-												roomOpen = false;
-											}}
+										<span class="truncate"
+											>{data.rooms.find((r) => r.id.toString() === createPriorityRoomId)
+												?.room_name || 'Select priority room'}</span
 										>
-											<Check
-												class={cn(
-													'mr-2 h-4 w-4',
-													createPrefRoomId === '0' ? 'opacity-100' : 'opacity-0'
-												)}
-											/>
-											No Preference
-										</Command.Item>
-										{#each data.rooms || [] as room}
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[400px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search room..." />
+									<Command.List>
+										<Command.Empty>No room found.</Command.Empty>
+										<Command.Group>
 											<Command.Item
-												value={room.room_name}
+												value="None"
 												onSelect={() => {
-													createPrefRoomId = room.id.toString();
-													roomOpen = false;
+													createPriorityRoomId = '';
+													priorityRoomOpen = false;
 												}}
 											>
 												<Check
 													class={cn(
 														'mr-2 h-4 w-4',
-														createPrefRoomId === room.id.toString() ? 'opacity-100' : 'opacity-0'
+														createPriorityRoomId === '' ? 'opacity-100' : 'opacity-0'
 													)}
 												/>
-												{room.room_name} ({room.building})
+												None
 											</Command.Item>
-										{/each}
-									</Command.Group>
-								</Command.List>
-							</Command.Root>
-						</Popover.Content>
-					</Popover.Root>
-					<input type="hidden" name="pref_room_id" value={createPrefRoomId} />
+											{#each data.rooms as room}
+												<Command.Item
+													value={room.room_name}
+													onSelect={() => {
+														createPriorityRoomId = room.id.toString();
+														priorityRoomOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															createPriorityRoomId === room.id.toString()
+																? 'opacity-100'
+																: 'opacity-0'
+														)}
+													/>
+													{room.room_name} ({room.type}, Cap: {room.capacity})
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input type="hidden" name="priority_room_id" value={createPriorityRoomId} />
+					</div>
+
+					<!-- Alternative Rooms -->
+					<div class="space-y-2 flex flex-col">
+						<Label class="text-xs text-muted-foreground">Alternative Rooms (Options)</Label>
+						<Popover.Root bind:open={optionRoomOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={optionRoomOpen}
+									>
+										<span class="truncate">
+											{#if createOptionRoomIds.length === 0}
+												Select alternatives...
+											{:else}
+												{createOptionRoomIds.length} room(s) selected
+											{/if}
+										</span>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[400px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search room..." />
+									<Command.List>
+										<Command.Empty>No room found.</Command.Empty>
+										<Command.Group>
+											{#each data.rooms as room}
+												<Command.Item
+													value={room.room_name}
+													onSelect={() => {
+														if (createOptionRoomIds.includes(room.id)) {
+															createOptionRoomIds = createOptionRoomIds.filter(
+																(id) => id !== room.id
+															);
+														} else {
+															createOptionRoomIds = [...createOptionRoomIds, room.id];
+														}
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															createOptionRoomIds.includes(room.id) ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{room.room_name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input
+							type="hidden"
+							name="option_room_ids"
+							value={JSON.stringify(createOptionRoomIds)}
+						/>
+						<div class="flex flex-wrap gap-1 mt-2">
+							{#each createOptionRoomIds as optId}
+								{@const r = data.rooms.find((rm) => rm.id === optId)}
+								{#if r}
+									<Badge variant="secondary" class="text-xs">
+										{r.room_name}
+										<button
+											type="button"
+											class="ml-1 hover:text-destructive"
+											onclick={() =>
+												(createOptionRoomIds = createOptionRoomIds.filter((id) => id !== optId))}
+										>
+											×
+										</button>
+									</Badge>
+								{/if}
+							{/each}
+						</div>
+					</div>
 				</div>
 
 				{#if createSubject?.lecture_hours > 0}
@@ -1056,6 +1158,162 @@
 							days.
 						</p>
 					</Label>
+				</div>
+
+				<!-- Bulk Room Preferences -->
+				<div class="space-y-3 border rounded-md p-3 mb-4">
+					<Label class="font-semibold">Default Room Preferences</Label>
+					
+					<!-- Priority Room -->
+					<div class="space-y-2 flex flex-col">
+						<Label class="text-xs text-muted-foreground">Priority Room (Best Choice)</Label>
+						<Popover.Root bind:open={bulkPriorityRoomOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={bulkPriorityRoomOpen}
+									>
+										<span class="truncate"
+											>{data.rooms.find((r) => r.id.toString() === bulkPriorityRoomId)
+												?.room_name || 'Select priority room'}</span
+										>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[400px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search room..." />
+									<Command.List>
+										<Command.Empty>No room found.</Command.Empty>
+										<Command.Group>
+											<Command.Item
+												value="None"
+												onSelect={() => {
+													bulkPriorityRoomId = '';
+													bulkPriorityRoomOpen = false;
+												}}
+											>
+												<Check
+													class={cn(
+														'mr-2 h-4 w-4',
+														bulkPriorityRoomId === '' ? 'opacity-100' : 'opacity-0'
+													)}
+												/>
+												None
+											</Command.Item>
+											{#each data.rooms as room}
+												<Command.Item
+													value={room.room_name}
+													onSelect={() => {
+														bulkPriorityRoomId = room.id.toString();
+														bulkPriorityRoomOpen = false;
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															bulkPriorityRoomId === room.id.toString()
+																? 'opacity-100'
+																: 'opacity-0'
+														)}
+													/>
+													{room.room_name} ({room.type}, Cap: {room.capacity})
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input type="hidden" name="bulk_priority_room_id" value={bulkPriorityRoomId} />
+					</div>
+
+					<!-- Alternative Rooms -->
+					<div class="space-y-2 flex flex-col">
+						<Label class="text-xs text-muted-foreground">Alternative Rooms (Options)</Label>
+						<Popover.Root bind:open={bulkOptionRoomOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full justify-between"
+										{...props}
+										role="combobox"
+										aria-expanded={bulkOptionRoomOpen}
+									>
+										<span class="truncate">
+											{#if bulkDefaultOptionRoomIds.length === 0}
+												Select alternatives...
+											{:else}
+												{bulkDefaultOptionRoomIds.length} room(s) selected
+											{/if}
+										</span>
+										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-[400px] p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search room..." />
+									<Command.List>
+										<Command.Empty>No room found.</Command.Empty>
+										<Command.Group>
+											{#each data.rooms as room}
+												<Command.Item
+													value={room.room_name}
+													onSelect={() => {
+														if (bulkDefaultOptionRoomIds.includes(room.id)) {
+															bulkDefaultOptionRoomIds = bulkDefaultOptionRoomIds.filter(
+																(id) => id !== room.id
+															);
+														} else {
+															bulkDefaultOptionRoomIds = [...bulkDefaultOptionRoomIds, room.id];
+														}
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															bulkDefaultOptionRoomIds.includes(room.id) ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{room.room_name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input
+							type="hidden"
+							name="default_option_room_ids"
+							value={JSON.stringify(bulkDefaultOptionRoomIds)}
+						/>
+						<div class="flex flex-wrap gap-1 mt-2">
+							{#each bulkDefaultOptionRoomIds as optId}
+								{@const r = data.rooms.find((rm) => rm.id === optId)}
+								{#if r}
+									<Badge variant="secondary" class="text-xs">
+										{r.room_name}
+										<button
+											type="button"
+											class="ml-1 hover:text-destructive"
+											onclick={() =>
+												(bulkDefaultOptionRoomIds = bulkDefaultOptionRoomIds.filter((id) => id !== optId))}
+										>
+											×
+										</button>
+									</Badge>
+								{/if}
+							{/each}
+						</div>
+					</div>
 				</div>
 
 				<div class="space-y-2">
