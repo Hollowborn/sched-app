@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS programs (
 CREATE TABLE IF NOT EXISTS blocks (
     id SERIAL PRIMARY KEY,
     block_name VARCHAR(255) NOT NULL,
-    program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE NOT NULL,
+    program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
     year_level INTEGER NOT NULL CHECK (year_level BETWEEN 1 AND 5),
     estimated_students INTEGER NOT NULL DEFAULT 30, -- Added for capacity checks
     UNIQUE (block_name, program_id)
@@ -265,8 +265,8 @@ CREATE TABLE schedules (
 
 -- 11. INSTRUCTOR_SUBJECTS (Qualifications)
 CREATE TABLE IF NOT EXISTS instructor_subjects (
-    instructor_id INTEGER REFERENCES instructors(id) ON DELETE CASCADE,
-    subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
+    instructor_id INTEGER REFERENCES instructors(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (instructor_id, subject_id)
 );
 
