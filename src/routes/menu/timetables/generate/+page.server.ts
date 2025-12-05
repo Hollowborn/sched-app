@@ -62,13 +62,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// --- Dynamic Health Check Stats ---
 	let healthStats = null;
-	if (program_id_param && academic_year && semester) {
-		const program_id = Number(program_id_param);
+	const program_ids_param = url.searchParams.get('program_ids');
+	
+	if (program_ids_param && academic_year && semester) {
+		const programIds = program_ids_param.split(',').map(Number);
 
 		const { data: blockIdsData } = await locals.supabase
 			.from('blocks')
 			.select('id')
-			.eq('program_id', program_id);
+			.in('program_id', programIds);
 		const blockIds = blockIdsData?.map((b) => b.id) || [];
 
 		if (blockIds.length > 0) {
@@ -131,7 +133,7 @@ export const actions: Actions = {
 			| '1st Semester'
 			| '2nd Semester'
 			| 'Summer';
-		const program_id = Number(formData.get('program_id'));
+		const program_ids = formData.getAll('program_ids').map(Number);
 		const room_ids = formData.getAll('room_ids').map(Number);
 		const excluded_days = formData.getAll('excluded_days').map(String);
 
@@ -155,28 +157,40 @@ export const actions: Actions = {
 			breakTime: breakTime
 		};
 
-		if (!academic_year || !semester || !program_id || room_ids.length === 0) {
-			return fail(400, { message: 'Academic Term, Program, and Rooms must be selected.' });
+		if (!academic_year || !semester || program_ids.length === 0 || room_ids.length === 0) {
+			return fail(400, { message: 'Academic Term, Programs, and Rooms must be selected.' });
 		}
 
 		// 3. Create a new Timetable entry for this generation
-		const program = (await locals.supabase
+		const { data: programsData, error: programsError } = await locals.supabase
 			.from('programs')
-			.select('program_name, college_id')
-			.eq('id', program_id)
-			.single()) as { data: { program_name: string; college_id: number } };
+			.select('id, program_name, college_id')
+			.in('id', program_ids);
 
-		const timetableName =
-			custom_name && custom_name.trim() !== ''
-				? custom_name.trim()
-				: `TT-${program.data.program_name}-${academic_year}-${semester}`;
+		if (programsError || !programsData) {
+			return fail(500, { message: 'Failed to fetch program details.' });
+		}
+
+		let timetableName = custom_name?.trim();
+		if (!timetableName) {
+			if (programsData.length === 1) {
+				timetableName = `TT-${programsData[0].program_name}-${academic_year}-${semester}`;
+			} else {
+				timetableName = `Unified TT (${programsData.length} Programs) - ${academic_year}-${semester}`;
+			}
+		}
+
+		// Determine college_id and program_id for the timetable entry
+		const uniqueCollegeIds = new Set(programsData.map((p) => p.college_id));
+		const college_id = uniqueCollegeIds.size === 1 ? [...uniqueCollegeIds][0] : null;
+		const program_id = programsData.length === 1 ? programsData[0].id : null;
 
 		// Initial metadata for the timetable entry
 		const initialMetadata = {
 			generation_params: {
 				academic_year,
 				semester,
-				program_id,
+				program_ids, // Store array of IDs
 				room_ids,
 				scheduleStartTime,
 				scheduleEndTime,
@@ -193,7 +207,7 @@ export const actions: Actions = {
 				name: timetableName,
 				academic_year,
 				semester,
-				college_id: program.data.college_id,
+				college_id,
 				program_id,
 				created_by: locals.user?.id,
 				status: 'draft',
@@ -221,11 +235,11 @@ export const actions: Actions = {
 					locals.supabase
 						.from('classes')
 						.select(
-							'id, split_lecture, lecture_days, instructor_id, block_id, pref_room_id, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
+							'id, split_lecture, lecture_days, instructor_id, block_id, room_preferences, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
 						)
 						.eq('academic_year', academic_year)
 						.eq('semester', semester)
-						.eq('blocks.program_id', program_id),
+						.in('blocks.program_id', program_ids),
 					locals.supabase.from('rooms').select('*').in('id', room_ids)
 				]);
 
@@ -317,12 +331,18 @@ export const actions: Actions = {
 			const startTime = performance.now();
 			let result: SolverResult;
 
+			// Map classes to include college_id for the solver
+			const mappedClasses = (classesData || []).map((cls: any) => ({
+				...cls,
+				college_id: cls.blocks?.programs?.college_id
+			}));
+
 			if (algorithm === 'cp') {
-				result = solveCP(classesData, roomsData, TIMESLOTS, constraints);
+				result = solveCP(mappedClasses, roomsData, TIMESLOTS, constraints);
 			} else if (algorithm === 'smart_cp') {
-				result = solveSmartCP(classesData, roomsData, TIMESLOTS, constraints);
+				result = solveSmartCP(mappedClasses, roomsData, TIMESLOTS, constraints);
 			} else {
-				result = solveMemetic(classesData, roomsData, TIMESLOTS, constraints);
+				result = solveMemetic(mappedClasses, roomsData, TIMESLOTS, constraints);
 			}
 
 			const { scheduledEntries, failedClasses } = result;
