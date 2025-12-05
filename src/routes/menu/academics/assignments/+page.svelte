@@ -19,6 +19,7 @@
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
+	import RoomAssignmentCell from './room-assignment-cell.svelte';
 
 	// Shadcn Components
 	import { Button } from '$lib/components/ui/button';
@@ -44,7 +45,6 @@
 	let statusFilter = $state<'all' | 'assigned' | 'unassigned'>('all');
 
 	let selectedInstructorIds = $state<{ [key: number]: string | undefined }>({});
-	let selectedRoomIds = $state<{ [key: number]: string | undefined }>({});
 
 	// --- Edit Popover State ---
 	let editingClassId = $state<number | null>(null);
@@ -56,15 +56,12 @@
 
 	$effect(() => {
 		const initialIds: { [key: number]: string | undefined } = {};
-		const initialRoomIds: { [key: number]: string | undefined } = {};
 		if (data.classes) {
 			for (const c of data.classes) {
 				initialIds[c.id] = c.instructors?.id.toString() ?? '0';
-				initialRoomIds[c.id] = c.pref_room_id?.toString() ?? '0';
 			}
 		}
 		selectedInstructorIds = initialIds;
-		selectedRoomIds = initialRoomIds;
 	});
 
 	// --- Derived State ---
@@ -179,8 +176,16 @@
 		},
 		{
 			id: 'room',
-			accessorFn: (d) => d.rooms?.room_name || '',
-			header: 'Preferred Room',
+			accessorFn: (d) => {
+				const prefs = d.room_preferences;
+				if (!prefs) return 'No Preference';
+				const priorityName = prefs.priority
+					? data.rooms?.find((r) => r.id === prefs.priority)?.room_name
+					: 'None';
+				const optionCount = prefs.options?.length || 0;
+				return `${priorityName} (+${optionCount})`;
+			},
+			header: 'Room Preferences',
 			cell: ({ row }) => renderSnippet(roomCell, { rowData: row.original }),
 			meta: {
 				class: 'w-[20%]'
@@ -389,71 +394,9 @@
 {/snippet}
 
 {#snippet roomCell({ rowData }: { rowData: ClassOffering })}
-	{@const collegeId = rowData.blocks?.programs?.college_id}
-	{@const relevantRooms = data.rooms?.filter(
-		(r) => r.is_general_use || (collegeId && r.owner_college_id === collegeId)
-	)}
-	{@const collegeRooms = relevantRooms?.filter((r) => r.owner_college_id === collegeId)}
-	{@const generalRooms = relevantRooms?.filter(
-		(r) => r.is_general_use && r.owner_college_id !== collegeId
-	)}
-
-	<form
-		method="POST"
-		action="?/assignRoom"
-		id="room-form-{rowData.id}"
-		use:enhance={() => {
-			const toastId = toast.loading('Saving room preference...');
-			return async ({ update, result }) => {
-				if (result.type === 'success') {
-					toast.success(result.data?.message, { id: toastId });
-					await update({ reset: false });
-				} else if (result.type === 'failure') {
-					toast.error(result.data?.message, { id: toastId });
-					await invalidateAll();
-				}
-			};
-		}}
-	>
-		<input type="hidden" name="classId" value={rowData.id} />
-		<Select.Root
-			type="single"
-			name="roomId"
-			value={selectedRoomIds[rowData.id]}
-			onValueChange={(v) => {
-				selectedRoomIds[rowData.id] = v;
-				handleRoomChange(rowData.id);
-			}}
-		>
-			<Select.Trigger class="w-full">
-				{#if selectedRoomIds[rowData.id] && selectedRoomIds[rowData.id] !== '0'}
-					{data.rooms?.find((r) => r.id.toString() === selectedRoomIds[rowData.id])?.room_name ||
-						'Unknown Room'}
-				{:else}
-					<span class="text-muted-foreground">No Preference</span>
-				{/if}
-			</Select.Trigger>
-			<Select.Content>
-				<Select.Item value="0">No Preference</Select.Item>
-				{#if collegeRooms && collegeRooms.length > 0}
-					<Select.Group>
-						<Select.Label>College Rooms</Select.Label>
-						{#each collegeRooms as room}
-							<Select.Item value={room.id.toString()}>{room.room_name}</Select.Item>
-						{/each}
-					</Select.Group>
-				{/if}
-				{#if generalRooms && generalRooms.length > 0}
-					<Select.Group>
-						<Select.Label>General Use Rooms</Select.Label>
-						{#each generalRooms as room}
-							<Select.Item value={room.id.toString()}>{room.room_name}</Select.Item>
-						{/each}
-					</Select.Group>
-				{/if}
-			</Select.Content>
-		</Select.Root>
-	</form>
+	<div class="flex justify-center">
+		<RoomAssignmentCell {rowData} {data} />
+	</div>
 {/snippet}
 
 <svelte:head>

@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             id, split_lecture, lecture_days, subjects!inner (id, subject_code, subject_name, lecture_hours),
             instructors (id, name),
             blocks!inner (id, block_name, programs!inner (id, college_id, program_name)),
-            pref_room_id, rooms (room_name)
+            room_preferences
         `
 		)
 		.eq('academic_year', academic_year)
@@ -125,7 +125,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// Fetch rooms for the dropdown
 	const { data: rooms } = await locals.supabase
 		.from('rooms')
-		.select('id, room_name, owner_college_id, is_general_use')
+		.select('id, room_name, type, owner_college_id, is_general_use')
 		.order('room_name');
 
 	return {
@@ -180,26 +180,32 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const classId = Number(formData.get('classId'));
-		const roomIdVal = formData.get('roomId');
-
-		// Handle "No Preference" selection
-		const pref_room_id = roomIdVal && Number(roomIdVal) > 0 ? Number(roomIdVal) : null;
+		const priorityRoomId = formData.get('priorityRoomId');
+		const optionRoomIdsStr = formData.get('optionRoomIds')?.toString();
 
 		if (!classId) {
 			return fail(400, { message: 'Invalid class ID.' });
 		}
 
+		const priority = priorityRoomId && Number(priorityRoomId) > 0 ? Number(priorityRoomId) : null;
+		const options = optionRoomIdsStr ? JSON.parse(optionRoomIdsStr) : [];
+
+		const room_preferences = {
+			priority,
+			options
+		};
+
 		const { error: updateError } = await locals.supabase
 			.from('classes')
-			.update({ pref_room_id })
+			.update({ room_preferences })
 			.eq('id', classId);
 
 		if (updateError) {
-			console.error('Error assigning room:', updateError);
-			return fail(500, { message: 'Failed to assign room.' });
+			console.error('Error assigning room preferences:', updateError);
+			return fail(500, { message: 'Failed to assign room preferences.' });
 		}
 
-		return { message: 'Room preference updated successfully.' };
+		return { message: 'Room preferences updated successfully.' };
 	},
 
 	updateLectureSplit: async ({ request, locals }) => {
