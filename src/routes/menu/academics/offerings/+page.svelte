@@ -1010,7 +1010,7 @@
 		!open && resetBulkCreateForm();
 	}}
 >
-	<Dialog.Content class="max-w-2xl">
+	<Dialog.Content class="max-w-2xl max-h-9/12 overflow-auto">
 		<Dialog.Header>
 			<Dialog.Title>Bulk Create Class Offerings</Dialog.Title>
 			<Dialog.Description>
@@ -1163,7 +1163,7 @@
 				<!-- Bulk Room Preferences -->
 				<div class="space-y-3 border rounded-md p-3 mb-4">
 					<Label class="font-semibold">Default Room Preferences</Label>
-					
+
 					<!-- Priority Room -->
 					<div class="space-y-2 flex flex-col">
 						<Label class="text-xs text-muted-foreground">Priority Room (Best Choice)</Label>
@@ -1178,8 +1178,8 @@
 										aria-expanded={bulkPriorityRoomOpen}
 									>
 										<span class="truncate"
-											>{data.rooms.find((r) => r.id.toString() === bulkPriorityRoomId)
-												?.room_name || 'Select priority room'}</span
+											>{data.rooms.find((r) => r.id.toString() === bulkPriorityRoomId)?.room_name ||
+												'Select priority room'}</span
 										>
 										<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 									</Button>
@@ -1279,7 +1279,9 @@
 													<Check
 														class={cn(
 															'mr-2 h-4 w-4',
-															bulkDefaultOptionRoomIds.includes(room.id) ? 'opacity-100' : 'opacity-0'
+															bulkDefaultOptionRoomIds.includes(room.id)
+																? 'opacity-100'
+																: 'opacity-0'
 														)}
 													/>
 													{room.room_name}
@@ -1305,7 +1307,9 @@
 											type="button"
 											class="ml-1 hover:text-destructive"
 											onclick={() =>
-												(bulkDefaultOptionRoomIds = bulkDefaultOptionRoomIds.filter((id) => id !== optId))}
+												(bulkDefaultOptionRoomIds = bulkDefaultOptionRoomIds.filter(
+													(id) => id !== optId
+												))}
 										>
 											×
 										</button>
