@@ -34,6 +34,7 @@
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as Field from '$lib/components/ui/field';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 
 	type Program = PageData['programs'][number];
 
@@ -53,13 +54,25 @@
 	let semester = $state<'1st Semester' | '2nd Semester' | 'Summer'>(
 		(urlParams.get('semester') as '1st Semester' | '2nd Semester' | 'Summer') || '1st Semester'
 	);
-	let programId = $state(urlParams.get('program_id') || data.profile?.program_id?.toString());
+	
+	// Parse initial program IDs from URL (comma separated)
+	let initialProgramIds = urlParams.get('program_ids')?.split(',').filter(Boolean) || [];
+	// Fallback to single program_id for backward compatibility or if user just has one
+	if (initialProgramIds.length === 0 && urlParams.get('program_id')) {
+		initialProgramIds = [urlParams.get('program_id')!];
+	} else if (initialProgramIds.length === 0 && data.profile?.program_id) {
+		initialProgramIds = [data.profile.program_id.toString()];
+	}
+
+	let selectedProgramIds = $state<string[]>(initialProgramIds);
 
 	// --- Derived State ---
-	const selectedProgram = $derived(data.programs.find((p) => p.id.toString() === programId));
+	const selectedPrograms = $derived(
+		data.programs.filter((p: Program) => selectedProgramIds.includes(p.id.toString()))
+	);
 
 	let selectedRoomIds = $state(
-		Object.fromEntries((data.allRooms || []).map((room) => [room.id, false]))
+		Object.fromEntries((data.allRooms || []).map((room: any) => [room.id, false]))
 	);
 	let constraints = $state({
 		enforceCapacity: true,
@@ -75,7 +88,7 @@
 	const programsByCollege = $derived.by(() => {
 		if (data.profile?.role !== 'Admin') return null;
 		return data.programs.reduce(
-			(acc, program) => {
+			(acc: Record<string, Program[]>, program: Program) => {
 				const collegeName = program.colleges?.college_name || 'No College';
 				if (!acc[collegeName]) {
 					acc[collegeName] = [];
@@ -98,19 +111,42 @@
 	}
 
 	function loadProgramDetails() {
-		if (!programId) return;
+		if (selectedProgramIds.length === 0) return;
 		const params = new URLSearchParams();
-		params.set('program_id', programId);
+		// Use program_ids parameter
+		params.set('program_ids', selectedProgramIds.join(','));
 		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 
-		goto(`?${params.toString()}`, { noScroll: true, keepData: true, invalidateAll: true });
+		goto(`?${params.toString()}`, { noScroll: true, invalidateAll: true });
+	}
+
+	function toggleProgram(id: string, checked: boolean) {
+		if (checked) {
+			selectedProgramIds = [...selectedProgramIds, id];
+		} else {
+			selectedProgramIds = selectedProgramIds.filter((p) => p !== id);
+		}
+	}
+
+	function toggleCollege(collegeName: string, checked: boolean) {
+		const programsInCollege = programsByCollege?.[collegeName] || [];
+		const programIds = programsInCollege.map((p) => p.id.toString());
+
+		if (checked) {
+			// Add all programs from this college that aren't already selected
+			const newIds = programIds.filter((id) => !selectedProgramIds.includes(id));
+			selectedProgramIds = [...selectedProgramIds, ...newIds];
+		} else {
+			// Remove all programs from this college
+			selectedProgramIds = selectedProgramIds.filter((id) => !programIds.includes(id));
+		}
 	}
 
 	// Group rooms by building
 	const roomsByBuilding = $derived.by(() => {
 		return (data.allRooms || []).reduce(
-			(acc, room) => {
+			(acc: Record<string, typeof data.allRooms>, room: any) => {
 				const building = room.building || 'General';
 				if (!acc[building]) {
 					acc[building] = [];
@@ -132,13 +168,16 @@
 	// Smart Room Selection
 	$effect(() => {
 		const newSelectedRoomIds: Record<string, boolean> = {};
-		const programCollegeId = selectedProgram?.college_id;
+		// Get all college IDs from selected programs
+		const selectedCollegeIds = new Set(selectedPrograms.map((p: Program) => p.college_id));
 
 		for (const room of data.allRooms) {
-			if (selectedProgram) {
+			if (selectedPrograms.length > 0) {
 				// If a program is selected, apply smart selection logic
+				// Select if general use OR owned by ANY of the selected programs' colleges
 				newSelectedRoomIds[room.id] = !!(
-					room.is_general_use || room.owner_college_id === programCollegeId
+					room.is_general_use ||
+					(room.owner_college_id && selectedCollegeIds.has(room.owner_college_id))
 				);
 			} else {
 				// If no program is selected, default all to false
@@ -210,51 +249,104 @@
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<!-- Program Select -->
-				<div class="space-y-2">
-					<Label for="program">Program</Label>
-					{#if data.profile?.role === 'Admin'}
-						<Select.Root type="single" name="program_id" bind:value={programId}>
-							<Select.Trigger id="program" class="w-full">
-								<span>{selectedProgram?.program_name || 'Select a program'}</span>
-							</Select.Trigger>
-							<Select.Content>
+				<!-- Program Select (Tabs) -->
+				<div class="space-y-2 md:col-span-3">
+					<Label>Programs</Label>
+					<Tabs.Root value="program" class="w-full">
+						<Tabs.List class="grid w-full grid-cols-2">
+							<Tabs.Trigger value="program">By Program</Tabs.Trigger>
+							<Tabs.Trigger value="college" disabled={!programsByCollege}>By College</Tabs.Trigger>
+						</Tabs.List>
+						<Tabs.Content value="program">
+							<div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2">
 								{#if programsByCollege}
 									{#each Object.keys(programsByCollege) as college}
-										{@const programs = programsByCollege[college]}
-										<Select.Group>
-											<Select.Label>{college}</Select.Label>
-											{#each programs as program}
-												<Select.Item value={program.id.toString()}
-													>{program.program_name}</Select.Item
-												>
-											{/each}
-										</Select.Group>
+										<div class="mb-4 last:mb-0">
+											<h4 class="font-semibold text-sm mb-2 sticky top-0 bg-card py-1 z-10 border-b">
+												{college}
+											</h4>
+											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+												{#each programsByCollege[college] as program}
+													<div class="flex items-center gap-2">
+														<Checkbox
+															id="prog-{program.id}"
+															checked={selectedProgramIds.includes(program.id.toString())}
+															onCheckedChange={(v) => toggleProgram(program.id.toString(), v as boolean)}
+														/>
+														<input
+															type="hidden"
+															name="program_ids"
+															value={program.id}
+															disabled={!selectedProgramIds.includes(program.id.toString())}
+														/>
+														<Label for="prog-{program.id}" class="font-normal cursor-pointer"
+															>{program.program_name}</Label
+														>
+													</div>
+												{/each}
+											</div>
+										</div>
 									{/each}
+								{:else if data.programs.length > 0}
+									<!-- Fallback for non-admin or flat list -->
+									<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+										{#each data.programs as program}
+											<div class="flex items-center gap-2">
+												<Checkbox
+													id="prog-{program.id}"
+													checked={selectedProgramIds.includes(program.id.toString())}
+													onCheckedChange={(v) => toggleProgram(program.id.toString(), v as boolean)}
+												/>
+												<input
+													type="hidden"
+													name="program_ids"
+													value={program.id}
+													disabled={!selectedProgramIds.includes(program.id.toString())}
+												/>
+												<Label for="prog-{program.id}" class="font-normal cursor-pointer"
+													>{program.program_name}</Label
+												>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2">
+										<p class="text-muted-foreground">No programs available.</p>
+									</div>
 								{/if}
-							</Select.Content>
-						</Select.Root>
-					{:else if data.programs.length > 1}
-						<Select.Root type="single" name="program_id" bind:value={programId}>
-							<Select.Trigger id="program" class="w-full">
-								<span>{selectedProgram?.program_name || 'Select a program'}</span>
-							</Select.Trigger>
-							<Select.Content>
-								{#each data.programs as program}
-									<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					{:else if data.programs.length === 1}
-						<input type="hidden" name="program_id" value={data.programs[0].id} />
-						<div class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2">
-							<p>{data.programs[0].program_name}</p>
-						</div>
-					{:else}
-						<div class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2">
-							<p class="text-muted-foreground">No programs available.</p>
-						</div>
-					{/if}
+							</div>
+						</Tabs.Content>
+						<Tabs.Content value="college">
+							<div class="rounded-md border p-4 max-h-60 overflow-y-auto bg-card mt-2">
+								{#if programsByCollege}
+									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										{#each Object.keys(programsByCollege) as college}
+											{@const programs = programsByCollege[college]}
+											{@const allSelected = programs.every(p => selectedProgramIds.includes(p.id.toString()))}
+											{@const someSelected = programs.some(p => selectedProgramIds.includes(p.id.toString()))}
+											
+											<div class="flex items-center gap-2 p-2 border rounded-md hover:bg-accent/50 transition-colors">
+												<Checkbox
+													id="col-{college}"
+													checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+													onCheckedChange={(v) => toggleCollege(college, v as boolean)}
+												/>
+												<div class="flex flex-col">
+													<Label for="col-{college}" class="font-semibold cursor-pointer">{college}</Label>
+													<span class="text-xs text-muted-foreground">{programs.length} programs</span>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-muted-foreground p-4 text-center">College selection is only available for Admins.</p>
+								{/if}
+							</div>
+						</Tabs.Content>
+					</Tabs.Root>
+					<p class="text-xs text-muted-foreground">
+						Select one or more programs to schedule together.
+					</p>
 				</div>
 
 				<!-- Academic Year Select -->
@@ -293,14 +385,16 @@
 						variant="secondary"
 						class="w-full"
 						onclick={loadProgramDetails}
-						disabled={!programId}
+						disabled={selectedProgramIds.length === 0}
 					>
 						Load Program Details
 					</Button>
 				</div>
 			</Card.Content>
 
-			{#if selectedProgram && data.healthStats}
+			<Collapsible.Root open={!!data.healthStats}>
+				<Collapsible.Content>
+					{#if selectedPrograms.length > 0 && data.healthStats}
 				<Card.Footer class="grid gap-4 grid-cols-2 md:grid-cols-4 p-4 border-t">
 					<div class="flex flex-col p-4 border rounded-lg bg-background">
 						<div class="flex items-center justify-between">
@@ -308,7 +402,7 @@
 							<BookCheck class="h-4 w-4 text-muted-foreground" />
 						</div>
 						<p class="text-2xl font-bold">{data.healthStats.totalClasses}</p>
-						<p class="text-xs text-muted-foreground mt-1">offerings for this program</p>
+						<p class="text-xs text-muted-foreground mt-1">offerings for selected programs</p>
 					</div>
 					<div
 						class={cn(
@@ -365,7 +459,7 @@
 							<PackageOpen class="h-4 w-4 text-muted-foreground" />
 						</div>
 						<p class="text-2xl font-bold">{data.healthStats.totalBlocks}</p>
-						<p class="text-xs text-muted-foreground mt-1">in the selected program</p>
+						<p class="text-xs text-muted-foreground mt-1">in selected programs</p>
 					</div>
 				</Card.Footer>
 			{/if}
@@ -373,7 +467,7 @@
 			<!-- All other steps will be added here -->
 			<fieldset class="contents" disabled={!data.healthStats}>
 				<!-- Step 2: Room Selection -->
-				<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
+				<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
 					<Card.Header class="pt-4">
 						<Card.Title>Step 2: Select Rooms</Card.Title>
 						<Card.Description>
@@ -449,7 +543,7 @@
 				</div>
 
 				<!-- Step 3: Define Constraints -->
-				<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
+				<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
 					<Card.Header class="pt-4">
 						<Card.Title>Step 3: Define Constraints</Card.Title>
 						<Card.Description>
@@ -578,7 +672,7 @@
 			</fieldset>
 
 			<!-- Step 4: Generate -->
-			<div class={cn('border-t', !selectedProgram && 'opacity-50')}>
+			<div class={cn('border-t', selectedPrograms.length === 0 && 'opacity-50')}>
 				<Card.Header class="pt-4">
 					<Card.Title>Step 4: Generate</Card.Title>
 					<Card.Description>
@@ -656,7 +750,7 @@
 					<Button
 						type="submit"
 						class="w-full md:w-auto"
-						disabled={!selectedProgram || isSubmitting}
+						disabled={selectedPrograms.length === 0 || isSubmitting}
 					>
 						{#if isSubmitting}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -668,8 +762,10 @@
 					</Button>
 				</Card.Footer>
 			</div>
-		</Card.Root>
-	</form>
+			</Collapsible.Content>
+		</Collapsible.Root>
+	</Card.Root>
+</form>
 </div>
 
 <!-- Generation Report Modal -->
