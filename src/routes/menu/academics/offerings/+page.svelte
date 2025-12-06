@@ -862,7 +862,8 @@
 																: 'opacity-0'
 														)}
 													/>
-													{room.room_name} ({room.type}, Cap: {room.capacity})
+													{room.room_name}
+													<Badge variant="outline">{room.type}</Badge>
 												</Command.Item>
 											{/each}
 										</Command.Group>
@@ -1225,7 +1226,8 @@
 																: 'opacity-0'
 														)}
 													/>
-													{room.room_name} ({room.type}, Cap: {room.capacity})
+													{room.room_name}
+													<Badge variant="outline">{room.type}</Badge>
 												</Command.Item>
 											{/each}
 										</Command.Group>

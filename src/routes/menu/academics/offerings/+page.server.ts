@@ -103,7 +103,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		blocksQuery,
 		locals.supabase.from('colleges').select('id, college_name').order('college_name'),
 		locals.supabase.from('programs').select('id, program_name, college_id').order('program_name'),
-		locals.supabase.from('rooms').select('id, room_name, building').order('room_name')
+		locals.supabase.from('rooms').select('id, room_name, type, building').order('room_name')
 	]);
 
 	if (classesError) throw error(500, 'Failed to load class offerings.');
@@ -164,10 +164,12 @@ export const actions: Actions = {
 			instructor_id_val && Number(instructor_id_val) > 0 ? Number(instructor_id_val) : null;
 		const priority_room_id_val = formData.get('priority_room_id');
 		const priority =
-			priority_room_id_val && Number(priority_room_id_val) > 0 ? Number(priority_room_id_val) : null;
+			priority_room_id_val && Number(priority_room_id_val) > 0
+				? Number(priority_room_id_val)
+				: null;
 		const option_room_ids_str = formData.get('option_room_ids')?.toString();
 		const options = option_room_ids_str ? JSON.parse(option_room_ids_str) : [];
-		
+
 		const room_preferences = {
 			priority,
 			options
@@ -239,8 +241,10 @@ export const actions: Actions = {
 		const semester = formData.get('semester')?.toString();
 		const split_lecture_flag = formData.get('split_lecture') === 'true';
 		const default_option_room_ids_str = formData.get('default_option_room_ids')?.toString();
-		const default_options = default_option_room_ids_str ? JSON.parse(default_option_room_ids_str) : [];
-		
+		const default_options = default_option_room_ids_str
+			? JSON.parse(default_option_room_ids_str)
+			: [];
+
 		const bulk_priority_room_id_val = formData.get('bulk_priority_room_id');
 		const bulk_priority =
 			bulk_priority_room_id_val && Number(bulk_priority_room_id_val) > 0
