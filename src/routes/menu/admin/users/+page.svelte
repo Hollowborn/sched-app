@@ -76,6 +76,10 @@
 		);
 	});
 
+	const availablePrograms = $derived(
+		data.programs.filter((p) => formCollegeId && p.college_id.toString() === formCollegeId)
+	);
+
 	function openEditModal(user: User) {
 		selectedUser = user;
 		formUsername = user.username;
@@ -324,10 +328,18 @@
 								</Select.Content>
 							</Select.Root>
 						</Field.Set>
-						{#if formRole === 'Dean'}
+						{#if formRole === 'Dean' || formRole === 'Chairperson'}
 							<Field.Set>
 								<Field.Label>College</Field.Label>
-								<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
+								<Select.Root
+									type="single"
+									name="college_id"
+									value={formCollegeId}
+									onValueChange={(v) => {
+										formCollegeId = v;
+										formProgramId = undefined; // Reset program when college changes
+									}}
+								>
 									<Select.Trigger>
 										<span class="truncate max-w-32">
 											{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
@@ -335,7 +347,7 @@
 										</span>
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="">N/A</Select.Item>
+										<Select.Item value={undefined}>N/A</Select.Item>
 										{#each data.colleges as college}
 											<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item
 											>
@@ -344,27 +356,31 @@
 								</Select.Root>
 							</Field.Set>
 						{/if}
-						{#if formRole === 'Chairperson'}
-							<Field.Set>
-								<Field.Label>Program</Field.Label>
-								<Select.Root type="single" name="program_id" bind:value={formProgramId}>
-									<Select.Trigger>
-										<span class="truncate max-w-32">
-											{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
-												'Select Program'}
-										</span>
-									</Select.Trigger>
-									<Select.Content>
-										<Select.Item value="">N/A</Select.Item>
-										{#each data.programs as program}
-											<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
-											>
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</Field.Set>
-						{/if}
 					</div>
+					{#if formRole === 'Chairperson'}
+						<Field.Set>
+							<Field.Label>Program</Field.Label>
+							<Select.Root
+								type="single"
+								name="program_id"
+								bind:value={formProgramId}
+								disabled={!formCollegeId}
+							>
+								<Select.Trigger>
+									<span class="truncate max-w-32">
+										{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
+											'Select Program'}
+									</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value={undefined}>N/A</Select.Item>
+									{#each availablePrograms as program}
+										<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</Field.Set>
+					{/if}
 				</Field.Group>
 			</Field.Set>
 			<Dialog.Footer>
@@ -421,10 +437,18 @@
 								</Select.Content>
 							</Select.Root>
 						</Field.Set>
-						{#if formRole === 'Dean'}
+						{#if formRole === 'Dean' || formRole === 'Chairperson'}
 							<Field.Set>
 								<Field.Label>College</Field.Label>
-								<Select.Root type="single" name="college_id" bind:value={formCollegeId}>
+								<Select.Root
+									type="single"
+									name="college_id"
+									value={formCollegeId}
+									onValueChange={(v) => {
+										formCollegeId = v;
+										formProgramId = undefined; // Reset program when college changes
+									}}
+								>
 									<Select.Trigger>
 										<span class="truncate max-w-32">
 											{data.colleges.find((c) => c.id.toString() === formCollegeId)?.college_name ||
@@ -432,7 +456,7 @@
 										</span>
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="">N/A</Select.Item>
+										<Select.Item value={undefined}>N/A</Select.Item>
 										{#each data.colleges as college}
 											<Select.Item value={college.id.toString()}>{college.college_name}</Select.Item
 											>
@@ -441,27 +465,32 @@
 								</Select.Root>
 							</Field.Set>
 						{/if}
-						{#if formRole === 'Chairperson'}
-							<Field.Set>
-								<Field.Label>Program</Field.Label>
-								<Select.Root type="single" name="program_id" bind:value={formProgramId}>
-									<Select.Trigger>
-										<span class="truncate max-w-32">
-											{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
-												'N/A'}
-										</span>
-									</Select.Trigger>
-									<Select.Content>
-										<Select.Item value="">N/A</Select.Item>
-										{#each data.programs as program}
-											<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
-											>
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</Field.Set>
-						{/if}
 					</div>
+					{#if formRole === 'Chairperson'}
+						<Field.Set>
+							<Field.Label>Program</Field.Label>
+							<Select.Root
+								type="single"
+								name="program_id"
+								bind:value={formProgramId}
+								disabled={!formCollegeId}
+							>
+								<Select.Trigger>
+									<span class="truncate max-w-32">
+										{data.programs.find((p) => p.id.toString() === formProgramId)?.program_name ||
+											'N/A'}
+									</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value={undefined}>N/A</Select.Item>
+									{#each availablePrograms as program (program.id)}
+										<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
+										>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</Field.Set>
+					{/if}
 				</Field.Group>
 			</Field.Set>
 			<Dialog.Footer>
