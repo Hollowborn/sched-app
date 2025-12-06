@@ -521,12 +521,10 @@
 												<Label
 													for="room-{room.id}"
 													class="font-normal truncate"
-													title="{room.room_name} ({room.type}, Cap: {room.capacity})"
+													title="{room.room_name} ({room.type})"
 												>
 													{room.room_name}
-													<span class="text-muted-foreground"
-														>({room.type}, Cap: {room.capacity})</span
-													>
+													<span class="text-muted-foreground">({room.type})</span>
 												</Label>
 											</div>
 										{/each}
