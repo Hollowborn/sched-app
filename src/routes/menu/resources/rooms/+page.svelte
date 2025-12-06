@@ -235,10 +235,10 @@
 						</div>
 					</Card.Header>
 					<Card.Content class="flex-grow space-y-4">
-						<div class="flex items-center text-sm text-muted-foreground">
+						<!-- <div class="flex items-center text-sm text-muted-foreground">
 							<Users class="mr-2 h-4 w-4" />
 							<span>Capacity: {room.capacity}</span>
-						</div>
+						</div> -->
 						<div class="flex flex-wrap gap-2">
 							{#if room.features && room.features.length > 0}
 								{#each room.features as feature}
