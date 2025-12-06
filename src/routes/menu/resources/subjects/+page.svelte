@@ -78,6 +78,15 @@
 	});
 
 	// --- Event Handlers ---
+	function openCreateModal() {
+		handleCreateFormReset(); // Always reset before opening
+		if (selectedCollegeId !== 'all') {
+			// Pre-select the filtered college when creating
+			createCollegeIds = [Number(selectedCollegeId)];
+		}
+		createOpen = true;
+	}
+
 	function openEditModal(subject: Subject) {
 		selectedSubject = subject;
 		editCode = subject.subject_code;
@@ -223,7 +232,7 @@
 					<Trash2 class="mr-2 h-4 w-4" />
 					Delete ({selectedRowsCount})
 				</Button>
-				<Button onclick={() => (createOpen = true)} disabled={isSubmitting}>
+				<Button onclick={openCreateModal} disabled={isSubmitting}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Add Subject
 				</Button>
@@ -307,29 +316,45 @@
 				</div>
 				<div class="grid grid-cols-4 items-start gap-4">
 					<Label class="text-right pt-2">Colleges</Label>
-					<ScrollArea class="col-span-3 h-32 rounded-md border">
-						<div class="p-4 space-y-2">
-							{#each data.colleges || [] as college}
-								<div class="flex items-center gap-2">
-									<Checkbox
-										id="create-col-{college.id}"
-										name="college_ids"
-										value={college.id}
-										onCheckedChange={(checked) => {
-											if (checked) {
-												createCollegeIds = [...createCollegeIds, college.id];
-											} else {
-												createCollegeIds = createCollegeIds.filter((id) => id !== college.id);
-											}
-										}}
-									/>
-									<Label for="create-col-{college.id}" class="font-normal"
-										>{college.college_name}</Label
-									>
-								</div>
-							{/each}
-						</div>
-					</ScrollArea>
+					<div class="col-span-3 space-y-2">
+						<ButtonGroup>
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => (createCollegeIds = (data.colleges || []).map((c) => c.id))}
+							>
+								Select All
+							</Button>
+							<Button type="button" variant="outline" onclick={() => (createCollegeIds = [])}>
+								Deselect All
+							</Button>
+						</ButtonGroup>
+
+						<ScrollArea class="h-32 rounded-md border">
+							<div class="p-4 space-y-2">
+								{#each data.colleges || [] as college}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="create-col-{college.id}"
+											name="college_ids"
+											value={college.id}
+											checked={createCollegeIds.includes(college.id)}
+											onCheckedChange={(checked) => {
+												if (checked) {
+													createCollegeIds = [...createCollegeIds, college.id];
+												} else {
+													createCollegeIds = createCollegeIds.filter((id) => id !== college.id);
+												}
+											}}
+										/>
+										<Label for="create-col-{college.id}" class="font-normal"
+											>{college.college_name}</Label
+										>
+									</div>
+								{/each}
+							</div>
+						</ScrollArea>
+					</div>
 				</div>
 			</div>
 			<Dialog.Footer>
@@ -407,30 +432,44 @@
 				</div>
 				<div class="grid grid-cols-4 items-start gap-4">
 					<Label class="text-right pt-2">Colleges</Label>
-					<ScrollArea class="col-span-3 h-32 rounded-md border">
-						<div class="p-4 space-y-2">
-							{#each data.colleges || [] as college}
-								<div class="flex items-center gap-2">
-									<Checkbox
-										id="edit-col-{college.id}"
-										name="college_ids"
-										value={college.id}
-										checked={editCollegeIds.includes(college.id)}
-										onCheckedChange={(checked) => {
-											if (checked) {
-												editCollegeIds = [...editCollegeIds, college.id];
-											} else {
-												editCollegeIds = editCollegeIds.filter((id) => id !== college.id);
-											}
-										}}
-									/>
-									<Label for="edit-col-{college.id}" class="font-normal"
-										>{college.college_name}</Label
-									>
-								</div>
-							{/each}
-						</div>
-					</ScrollArea>
+					<div class="col-span-3 space-y-2">
+						<ButtonGroup>
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => (editCollegeIds = (data.colleges || []).map((c) => c.id))}
+							>
+								Select All
+							</Button>
+							<Button type="button" variant="outline" onclick={() => (editCollegeIds = [])}>
+								Deselect All
+							</Button>
+						</ButtonGroup>
+						<ScrollArea class="h-32 rounded-md border">
+							<div class="p-4 space-y-2">
+								{#each data.colleges || [] as college}
+									<div class="flex items-center gap-2">
+										<Checkbox
+											id="edit-col-{college.id}"
+											name="college_ids"
+											value={college.id}
+											checked={editCollegeIds.includes(college.id)}
+											onCheckedChange={(checked) => {
+												if (checked) {
+													editCollegeIds = [...editCollegeIds, college.id];
+												} else {
+													editCollegeIds = editCollegeIds.filter((id) => id !== college.id);
+												}
+											}}
+										/>
+										<Label for="edit-col-{college.id}" class="font-normal"
+											>{college.college_name}</Label
+										>
+									</div>
+								{/each}
+							</div>
+						</ScrollArea>
+					</div>
 				</div>
 			</div>
 			<Dialog.Footer>
