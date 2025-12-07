@@ -129,7 +129,7 @@
 					<Card.Content>
 						<div class="text-2xl font-bold">{stats.instructorCount}</div>
 					</Card.Content>
-					<Card.Footer><Label class="text-muted-foreground">What emptiness</Label></Card.Footer>
+					<Card.Footer><Label class="text-muted-foreground">...</Label></Card.Footer>
 				</Card.Root>
 				<Card.Root class="hover-lift transition-base">
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">

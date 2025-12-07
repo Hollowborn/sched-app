@@ -757,20 +757,6 @@
 							bind:value={algorithm}
 						>
 							<Label
-								for="memetic"
-								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-							>
-								<RadioGroup.Item value="memetic" id="memetic" class="sr-only" />
-								<Label class="text-lg font-semibold"
-									>Memetic Algorithm <Badge variant="secondary"><Cpu />slow</Badge></Label
-								>
-								<Separator />
-								<p class="text-sm text-muted-foreground mt-2 text-center">
-									A hybrid approach combining a genetic algorithm with local search. Good for
-									finding high-quality solutions, but can be slower.
-								</p>
-							</Label>
-							<Label
 								for="cp"
 								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
 							>
@@ -790,13 +776,27 @@
 							>
 								<RadioGroup.Item value="smart_cp" id="smart_cp" class="sr-only" />
 								<Label class="text-lg font-semibold"
-									>Smart CP <Badge variant="default"><Wand2 class="w-3 h-3 mr-1" />best</Badge
+									>Smart CP <Badge variant="default"><Wand2 class="w-3 h-3 mr-1" />balanced</Badge
 									></Label
 								>
 								<Separator />
 								<p class="text-sm text-muted-foreground mt-2 text-center">
 									An enhanced CP solver that optimizes for preferred rooms and minimizes gaps. Best
 									balance of speed and quality.
+								</p>
+							</Label>
+							<Label
+								for="memetic"
+								class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+							>
+								<RadioGroup.Item value="memetic" id="memetic" class="sr-only" />
+								<Label class="text-lg font-semibold"
+									>Memetic Algorithm <Badge variant="secondary"><Cpu />slow</Badge></Label
+								>
+								<Separator />
+								<p class="text-sm text-muted-foreground mt-2 text-center">
+									A hybrid approach combining a genetic algorithm with local search. Good for
+									finding high-quality solutions, but can be slower.
 								</p>
 							</Label>
 						</RadioGroup.Root>

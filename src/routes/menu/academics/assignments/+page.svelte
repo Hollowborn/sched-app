@@ -153,6 +153,7 @@
 	const columns: ColumnDef<ClassOffering>[] = [
 		{
 			accessorKey: 'subjects',
+			accessorFn: (d) => d.subjects?.subject_name,
 			header: 'Subject',
 			cell: ({ row }) => renderSnippet(subjectCell, { rowData: row.original })
 		},
