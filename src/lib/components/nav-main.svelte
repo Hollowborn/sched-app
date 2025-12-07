@@ -32,14 +32,10 @@
 	<Sidebar.Menu>
 		<!-- Suggestion: Add a static Dashboard link -->
 		<Sidebar.MenuItem>
-			<Sidebar.MenuButton
-				href="/menu/dashboard"
-				isActive={currentPath === '/menu/dashboard'}
-				tooltipContent="Dashboard"
-			>
+			<Sidebar.MenuSubButton href="/menu/dashboard" isActive={currentPath === '/menu/dashboard'}>
 				<svelte:component this={icons['LayoutDashboard']} />
 				<span>Dashboard</span>
-			</Sidebar.MenuButton>
+			</Sidebar.MenuSubButton>
 		</Sidebar.MenuItem>
 
 		{#each items as item (item.title)}
