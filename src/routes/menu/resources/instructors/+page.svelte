@@ -68,7 +68,7 @@
 	let formName = $state('');
 	let formEmail = $state('');
 	let formCollegeIds = $state<number[]>([]);
-	let formMaxLoad = $state(18);
+	let formMaxLoad = $state(24);
 	let formMinLoad = $state(12);
 	let formQualificationIds = $state<number[]>([]);
 	let qualificationSearch = $state('');
@@ -153,7 +153,7 @@
 	function handleCreateFormReset() {
 		formName = '';
 		formEmail = '';
-		formMaxLoad = 18;
+		formMaxLoad = 24;
 		// If Dean, pre-select their college
 		if (data.profile?.role === 'Dean' && data.profile.college_id) {
 			formCollegeIds = [data.profile.college_id];
@@ -450,7 +450,7 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="create-max-load">Max Load (Units)</Label>
-					<Input id="create-max-load" name="max_load" type="number" step="0.5" value={18} />
+					<Input id="create-max-load" name="max_load" type="number" step="0.5" value={24} />
 				</div>
 				<div class="space-y-2">
 					<Label>Colleges</Label>
