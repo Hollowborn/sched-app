@@ -63,13 +63,6 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				description:
 					'Assign faculty, rooms, and lecture splitting to classes and manage teaching loads.',
 				roles: ['Admin', 'Dean', 'Chairperson']
-			},
-			{
-				title: 'Academic Dashboard',
-				url: '/menu/dashboard',
-				icon: 'LayoutDashboard',
-				description: 'Overview of department performance and key metrics.',
-				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
 	},
