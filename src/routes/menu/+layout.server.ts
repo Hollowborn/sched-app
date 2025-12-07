@@ -117,13 +117,6 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				icon: 'GraduationCap',
 				description: 'Manage academic programs and colleges.',
 				roles: ['Admin']
-			},
-			{
-				title: 'System Settings',
-				url: '/menu/admin/settings',
-				icon: 'Settings',
-				description: 'Configure global system settings and defaults.',
-				roles: ['Admin']
 			}
 		]
 	}
