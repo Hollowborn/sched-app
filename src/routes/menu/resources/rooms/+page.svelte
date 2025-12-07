@@ -14,7 +14,11 @@
 		Tag,
 		LayoutGrid,
 		List,
-		Eye
+		Eye,
+		Laptop,
+		Projector,
+		Presentation,
+		AirVent
 	} from '@lucide/svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Switch } from '$lib/components/ui/switch';
@@ -28,6 +32,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item';
 	import * as Select from '$lib/components/ui/select';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
 	// Removed: import * as Table from '$lib/components/ui/table';
@@ -224,17 +229,29 @@
 	{#if viewMode === 'grid'}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#each filteredRooms as room (room.id)}
-				<Card.Root class="flex flex-col hover-lift transition-base">
-					<Card.Header>
+				<Item.Root variant="outline" class="hover-lift transition-base">
+					<Item.Header>
 						<div class="flex justify-between items-start">
 							<div>
-								<Card.Title>{room.room_name}</Card.Title>
-								<Card.Description>{room.building || 'N/A'}</Card.Description>
+								<Item.Title>{room.room_name}</Item.Title>
+								<Item.Description>{room.building || 'N/A'}</Item.Description>
 							</div>
-							<Badge variant="outline">{room.type}</Badge>
 						</div>
-					</Card.Header>
-					<Card.Content class="flex-grow space-y-4">
+						<Item.Actions>
+							<Badge class="" variant="outline">
+								{#if room.type == 'Lecture'}
+									<div class="bg-green-500 size-2 rounded-full"></div>
+								{:else if room.type == 'Lab'}
+									<div class="bg-red-400 size-2 rounded-full"></div>
+								{:else}
+									<div class="bg-orange-400 size-2 rounded-full"></div>
+								{/if}
+
+								{room.type}</Badge
+							>
+						</Item.Actions>
+					</Item.Header>
+					<Item.Content class="flex-grow space-y-4">
 						<!-- <div class="flex items-center text-sm text-muted-foreground">
 							<Users class="mr-2 h-4 w-4" />
 							<span>Capacity: {room.capacity}</span>
@@ -242,16 +259,28 @@
 						<div class="flex flex-wrap gap-2">
 							{#if room.features && room.features.length > 0}
 								{#each room.features as feature}
-									<Badge variant="secondary">{feature}</Badge>
+									<Badge variant="outline">
+										{#if feature == 'Compuer'}
+											<Laptop />
+										{:else if feature == 'Projector'}
+											<Projector />
+										{:else if feature == 'Whiteboard'}
+											<Presentation />
+										{:else if feature == 'Airconditioned'}
+											<AirVent />
+										{/if}
+
+										{feature}</Badge
+									>
 								{/each}
 							{/if}
 						</div>
-					</Card.Content>
-					<Card.Footer class="flex justify-end gap-2">
-						<Button variant="outline" size="sm">View Schedule</Button>
+					</Item.Content>
+					<Item.Footer class="flex justify-end gap-2">
+						<!-- <Button variant="outline" size="sm">View Schedule</Button> -->
 						<Button variant="secondary" size="sm" onclick={() => openEditModal(room)}>Edit</Button>
-					</Card.Footer>
-				</Card.Root>
+					</Item.Footer>
+				</Item.Root>
 			{/each}
 		</div>
 	{:else}

@@ -157,7 +157,19 @@
 {#snippet collegesBadges({ rowData }: { rowData: Subject })}
 	<div class="flex flex-wrap gap-1">
 		{#each rowData.colleges as college}
-			<Badge variant="secondary">{college.college_name}</Badge>
+			<Badge variant="outline" class="flex gap-2 items-center">
+				{#if college.college_name == 'College of Fisheries'}
+					<div class="bg-cyan-500 size-2 rounded-full"></div>
+				{:else if college.college_name == 'College of Midwifery'}
+					<div class="bg-blue-100 size-2 rounded-full"></div>
+				{:else if college.college_name == 'College of Teacher Education'}
+					<div class="bg-blue-400 size-2 rounded-full"></div>
+				{:else}
+					<div class="bg-slate-600 size-2 rounded-full"></div>
+				{/if}
+
+				{college.college_name}</Badge
+			>
 		{/each}
 	</div>
 {/snippet}

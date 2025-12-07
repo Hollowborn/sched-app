@@ -22,6 +22,7 @@
 
 	// shadcn-svelte components
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
@@ -34,6 +35,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	type Instructor = {
 		id: number;
@@ -213,7 +215,20 @@
 {#snippet collegesCell({ instructor }: { instructor: Instructor })}
 	<div class="flex flex-wrap gap-1">
 		{#each instructor.colleges as college}
-			<Badge variant="secondary">{college.college_name}</Badge>
+			<Badge variant="outline" class="gap-2 flex items-center">
+				<!-- College colors -->
+				{#if college.college_name == 'College of Fisheries'}
+					<div class="bg-cyan-500 size-1.5 rounded-full"></div>
+				{:else if college.college_name == 'College of Midwifery'}
+					<div class="bg-blue-100 size-1.5 rounded-full"></div>
+				{:else if college.college_name == 'College of Teacher Education'}
+					<div class="bg-blue-400 size-1.5 rounded-full"></div>
+				{:else}
+					<div class="bg-slate-600 size-1.5 rounded-full"></div>
+				{/if}
+
+				{college.college_name}</Badge
+			>
 		{/each}
 	</div>
 {/snippet}
@@ -277,7 +292,7 @@
 		</p>
 	</header>
 
-	<div class="flex items-center justify-between gap-4">
+	<div class="flex flex-wrap items-center justify-between gap-4">
 		<!-- FILTERS -->
 		<div class="flex items-center gap-4">
 			<div class="flex items-center gap-2">
@@ -353,49 +368,62 @@
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#if data.instructors.length > 0}
 				{#each data.instructors as instructor (instructor.id)}
-					<div class="hover-lift transition-base">
-						<Card.Root class="flex flex-col ">
-							<Card.Header>
-								<Card.Title>{instructor.name}</Card.Title>
-								<Card.Description class="flex items-center gap-2 text-sm text-muted-foreground">
-									{#if instructor.email}
-										{instructor.email}
-									{:else}
-										N/A
-									{/if}
-								</Card.Description>
-							</Card.Header>
-							<Card.Content class="flex-grow">
-								<div class="space-y-2">
-									<div class="flex flex-wrap gap-1 pt-1">
-										{#each instructor.colleges as college}
-											<Badge variant="secondary">{college.college_name}</Badge>
-										{/each}
-									</div>
-									<Label class="text-xs text-muted-foreground"
-										>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
-									>
-									<Progress
-										value={(instructor.current_load / instructor.max_load) * 100}
-										style="--indicator-color: {getLoadColor(
-											instructor.current_load,
-											instructor.max_load
-										)};"
-									/>
+					<Item.Root variant="outline" class=" hover-lift transition-base">
+						<Item.Header class="flex flex-col">
+							<Item.Title>{instructor.name}</Item.Title>
+							<Item.Description class="flex items-center gap-2 text-sm text-muted-foreground">
+								{#if instructor.email}
+									{instructor.email}
+								{:else}
+									N/A
+								{/if}
+							</Item.Description>
+						</Item.Header>
+						<Separator />
+						<Item.Content class="">
+							<Item.Description>Affiliations:</Item.Description>
+							<div class="space-y-2">
+								<div class="flex flex-wrap gap-1 p-1">
+									{#each instructor.colleges as college}
+										<Badge variant="outline" class="gap-2 items-center">
+											{#if college.college_name == 'College of Fisheries'}
+												<div class="bg-cyan-500 size-2 rounded-full"></div>
+											{:else if college.college_name == 'College of Midwifery'}
+												<div class="bg-blue-100 size-2 rounded-full"></div>
+											{:else if college.college_name == 'College of Teacher Education'}
+												<div class="bg-blue-400 size-2 rounded-full"></div>
+											{:else}
+												<div class="bg-slate-600 size-2 rounded-full"></div>
+											{/if}
+
+											{college.college_name}</Badge
+										>
+									{/each}
 								</div>
-							</Card.Content>
-							<Card.Footer class="flex justify-end gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => openQualificationsModal(instructor)}>Qualifications</Button
+
+								<Label class="text-xs text-muted-foreground"
+									>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
 								>
-								<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
-									>Edit</Button
-								>
-							</Card.Footer>
-						</Card.Root>
-					</div>
+								<Progress
+									value={(instructor.current_load / instructor.max_load) * 100}
+									style="--indicator-color: {getLoadColor(
+										instructor.current_load,
+										instructor.max_load
+									)};"
+								/>
+							</div>
+						</Item.Content>
+						<Item.Footer class="flex justify-end gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => openQualificationsModal(instructor)}>Qualifications</Button
+							>
+							<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
+								>Edit</Button
+							>
+						</Item.Footer>
+					</Item.Root>
 				{/each}
 			{:else}
 				<div class="col-span-full text-center text-muted-foreground py-10">
@@ -666,7 +694,7 @@
 										/>
 										<Label for="qual-subj-{subject.id}" class="font-normal w-full">
 											{subject.subject_name}
-											<Badge variant="secondary" class="ml-2">{subject.subject_code}</Badge>
+											<Badge variant="outline" class="ml-2">{subject.subject_code}</Badge>
 										</Label>
 									</div>
 								{/each}

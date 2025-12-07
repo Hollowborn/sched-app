@@ -102,7 +102,19 @@
 								<Table.Row class="hover:bg-muted/50">
 									<Table.Cell class="font-medium">{program.program_name}</Table.Cell>
 									<Table.Cell>
-										<Badge variant="secondary">{program.colleges?.college_name || 'N/A'}</Badge>
+										<Badge variant="outline" class="flex items-center gap-2">
+											{#if program.colleges?.college_name == 'College of Fisheries'}
+												<div class="bg-cyan-500 size-2 rounded-full"></div>
+											{:else if program.colleges?.college_name == 'College of Midwifery'}
+												<div class="bg-blue-100 size-2 rounded-full"></div>
+											{:else if program.colleges?.college_name == 'College of Teacher Education'}
+												<div class="bg-blue-400 size-2 rounded-full"></div>
+											{:else}
+												<div class="bg-slate-600 size-2 rounded-full"></div>
+											{/if}
+
+											{program.colleges?.college_name}
+										</Badge>
 									</Table.Cell>
 									<Table.Cell class="text-right">
 										<Button
