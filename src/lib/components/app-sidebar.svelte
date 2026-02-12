@@ -2,6 +2,7 @@
 	import NavMain from './nav-main.svelte';
 
 	import NavUser from './nav-user.svelte';
+	import { Info } from '@lucide/svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { ComponentProps } from 'svelte';
 	import type { NavItem } from '../../nav';
@@ -49,6 +50,7 @@
 	</Sidebar.Content>
 
 	<Sidebar.Footer class="p-2">
+		<Sidebar.MenuSubButton href="/menu/help"><Info />User Manual</Sidebar.MenuSubButton>
 		{#if user}
 			<NavUser {user} />
 		{/if}
