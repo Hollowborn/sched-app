@@ -9,6 +9,10 @@
 	import autoTable from 'jspdf-autotable';
 	import html2canvas from 'html2canvas';
 	import * as XLSX from 'xlsx';
+	import PizZip from 'pizzip';
+	import Docxtemplater from 'docxtemplater';
+	import { saveAs } from 'file-saver';
+
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
@@ -231,6 +235,90 @@
 			XLSX.writeFile(workbook, `${data.timetable.name}_schedule.xlsx`);
 		} catch (error) {
 			console.error('Error exporting Excel:', error);
+		} finally {
+			isExporting = false;
+		}
+	}
+
+	async function exportAsDOCX() {
+		if (isExporting) return;
+
+		// Validations
+		if (viewBy !== 'instructor' || !currentItem) {
+			alert('Please select an Instructor view to export a workload document.');
+			return;
+		}
+
+		isExporting = true;
+
+		try {
+			// 1. Prepare Data
+			// Filter schedules for this instructor
+			const instructorSchedules = data.schedules.filter(
+				(s) => s.classes.instructor_id === currentItem.id
+			);
+
+			// Map to template structure
+			const templateData = {
+				instructor_name: currentItem.name,
+				academic_year: data.timetable.academic_year,
+				semester: data.timetable.semester,
+				college: currentItem.colleges?.college_name || 'N/A',
+				courses: instructorSchedules
+					.map((s) => ({
+						subject_code: s.classes.subjects.subject_code,
+						subject_title: s.classes.subjects.subject_name.replace(/&/g, '&amp;'), // Basic XML escape
+						block: s.classes.blocks.block_name,
+						units_lec: s.classes.subjects.lecture_hours || 0,
+						units_lab: s.classes.subjects.lab_hours || 0,
+						day: s.day_of_week,
+						time: `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`,
+						room: s.rooms.room_name
+					}))
+					.sort((a, b) => {
+						// Sort by day then time
+						const dayOrder = {
+							Monday: 1,
+							Tuesday: 2,
+							Wednesday: 3,
+							Thursday: 4,
+							Friday: 5,
+							Saturday: 6,
+							Sunday: 7
+						};
+						const dDiff = (dayOrder[a.day] || 99) - (dayOrder[b.day] || 99);
+						if (dDiff !== 0) return dDiff;
+						return a.time.localeCompare(b.time);
+					})
+			};
+
+			// 2. Load Template
+			const response = await fetch('/templates/workload_template.docx');
+			if (!response.ok) {
+				throw new Error(`Could not find template: ${response.statusText}`);
+			}
+			const content = await response.arrayBuffer();
+
+			const zip = new PizZip(content);
+			const doc = new Docxtemplater(zip, {
+				paragraphLoop: true,
+				linebreaks: true
+			});
+
+			// 3. Render
+			doc.render(templateData);
+
+			// 4. Output
+			const out = doc.getZip().generate({
+				type: 'blob',
+				mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+			});
+
+			// 5. Save
+			saveAs(out, `Workload_${currentItem.name.replace(/ /g, '_')}.docx`);
+		} catch (error) {
+			console.error('Error in export DOCX:', error);
+			alert('Error generating document. Please check console for details.');
 		} finally {
 			isExporting = false;
 		}
@@ -589,6 +677,9 @@
 						<DropdownMenu.Content align="end">
 							<DropdownMenu.Item onclick={exportAsPDF}>As PDF</DropdownMenu.Item>
 							<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
+							<DropdownMenu.Item onclick={exportAsDOCX} disabled={viewBy !== 'instructor'}>
+								As Workload (DOCX)
+							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 				</div>
