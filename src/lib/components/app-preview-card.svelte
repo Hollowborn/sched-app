@@ -34,7 +34,7 @@
 
 	// --- Static Data ---
 	const user = {
-		username: 'Jane Doe',
+		username: 'Juan de la Cruz',
 		role: 'Admin',
 		email: 'jane.doe@example.com'
 	};
