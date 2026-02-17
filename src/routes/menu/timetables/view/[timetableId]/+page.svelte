@@ -12,6 +12,7 @@
 	import PizZip from 'pizzip';
 	import Docxtemplater from 'docxtemplater';
 	import { saveAs } from 'file-saver';
+	import { toast } from 'svelte-sonner';
 
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
@@ -258,38 +259,65 @@
 				(s) => s.classes.instructor_id === currentItem.id
 			);
 
+			// Group by Subject Code + Block
+			const groupedCourses = new Map<string, any[]>();
+			instructorSchedules.forEach((s) => {
+				const key = `${s.classes.subjects.subject_code}-${s.classes.blocks.block_name}`;
+				if (!groupedCourses.has(key)) {
+					groupedCourses.set(key, []);
+				}
+				groupedCourses.get(key).push(s);
+			});
+
+			// Transform to template format
+			const coursesData = Array.from(groupedCourses.values()).map((group) => {
+				// Sort entries within the group by day/time
+				group.sort((a, b) => {
+					const dayOrder = {
+						Monday: 1,
+						Tuesday: 2,
+						Wednesday: 3,
+						Thursday: 4,
+						Friday: 5,
+						Saturday: 6,
+						Sunday: 7
+					};
+					const dDiff = (dayOrder[a.day_of_week] || 99) - (dayOrder[b.day_of_week] || 99);
+					if (dDiff !== 0) return dDiff;
+					return a.start_time.localeCompare(b.start_time);
+				});
+
+				const totalHours = group.reduce((sum, s) => {
+					const lec = s.classes.subjects.lecture_hours || 0;
+					const lab = s.classes.subjects.lab_hours || 0;
+					return sum + lec + lab;
+				}, 0);
+
+				const first = group[0];
+
+				return {
+					subject_code: first.classes.subjects.subject_code,
+					subject_title: first.classes.subjects.subject_name.replace(/&/g, '&amp;'),
+					block: first.classes.blocks.block_name,
+					units_lec: first.classes.subjects.lecture_hours || 0,
+					units_lab: first.classes.subjects.lab_hours || 0,
+					num_hours: first.classes.subjects.lecture_hours + first.classes.subjects.lab_hours || 0,
+					// Join details with newlines
+					day: group.map((s) => s.day_of_week.substring(0, 3)).join(',\n'),
+					time: group
+						.map((s) => `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`)
+						.join('\n'),
+					room: group.map((s) => s.rooms.room_name).join(',\n')
+				};
+			});
+
 			// Map to template structure
 			const templateData = {
 				instructor_name: currentItem.name,
 				academic_year: data.timetable.academic_year,
 				semester: data.timetable.semester,
 				college: currentItem.colleges?.college_name || 'N/A',
-				courses: instructorSchedules
-					.map((s) => ({
-						subject_code: s.classes.subjects.subject_code,
-						subject_title: s.classes.subjects.subject_name.replace(/&/g, '&amp;'), // Basic XML escape
-						block: s.classes.blocks.block_name,
-						units_lec: s.classes.subjects.lecture_hours || 0,
-						units_lab: s.classes.subjects.lab_hours || 0,
-						day: s.day_of_week,
-						time: `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`,
-						room: s.rooms.room_name
-					}))
-					.sort((a, b) => {
-						// Sort by day then time
-						const dayOrder = {
-							Monday: 1,
-							Tuesday: 2,
-							Wednesday: 3,
-							Thursday: 4,
-							Friday: 5,
-							Saturday: 6,
-							Sunday: 7
-						};
-						const dDiff = (dayOrder[a.day] || 99) - (dayOrder[b.day] || 99);
-						if (dDiff !== 0) return dDiff;
-						return a.time.localeCompare(b.time);
-					})
+				courses: coursesData.sort((a, b) => a.subject_code.localeCompare(b.subject_code))
 			};
 
 			// 2. Load Template
@@ -315,6 +343,7 @@
 			});
 
 			// 5. Save
+			toast.success('Workload exported successfully!');
 			saveAs(out, `Workload_${currentItem.name.replace(/ /g, '_')}.docx`);
 		} catch (error) {
 			console.error('Error in export DOCX:', error);
