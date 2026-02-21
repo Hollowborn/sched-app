@@ -12,6 +12,20 @@
 	import PizZip from 'pizzip';
 	import Docxtemplater from 'docxtemplater';
 	import { saveAs } from 'file-saver';
+	import {
+		Document,
+		Paragraph,
+		Table as Tablex,
+		TableRow,
+		TableCell,
+		WidthType,
+		TextRun,
+		VerticalMergeType,
+		AlignmentType,
+		HeadingLevel,
+		ShadingType,
+		Packer
+	} from 'docx';
 	import { toast } from 'svelte-sonner';
 
 	import DataTable from '$lib/components/data-table/data-table.svelte';
@@ -347,13 +361,259 @@
 			saveAs(out, `Workload_${currentItem.name.replace(/ /g, '_')}.docx`);
 		} catch (error) {
 			console.error('Error in export DOCX:', error);
-			alert('Error generating document. Please check console for details.');
+			toast.error('Error generating document. Please check console for details.');
+		} finally {
+			isExporting = false;
+		}
+	}
+
+	// --- Room Schedule Grid Export (Template-based) ---
+	async function exportRoomScheduleDOCX() {
+		if (isExporting) return;
+		isExporting = true;
+
+		try {
+			// --- Helpers ---
+			const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+			const SLOT_MINUTES = 30;
+			const DAY_START = '08:00';
+			const DAY_END = '19:00';
+
+			const toMinutes = (t: string) => {
+				const [h, m] = t.split(':').map(Number);
+				return h * 60 + m;
+			};
+			const toTimeStr = (mins: number) => {
+				const totalH = Math.floor(mins / 60);
+				const m = (mins % 60).toString().padStart(2, '0');
+				const period = totalH < 12 ? 'AM' : 'PM';
+				const h = totalH % 12 === 0 ? 12 : totalH % 12;
+				return `${h}:${m} ${period}`;
+			};
+			const xmlEscape = (s: string) =>
+				s
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;');
+
+			const startMins = toMinutes(DAY_START);
+			const endMins = toMinutes(DAY_END);
+			const slotCount = (endMins - startMins) / SLOT_MINUTES;
+			const slots: string[] = [];
+			for (let i = 0; i < slotCount; i++) slots.push(toTimeStr(startMins + i * SLOT_MINUTES));
+
+			// --- Group schedules by room ---
+			const schedulesByRoom = new Map<number, typeof data.schedules>();
+			data.schedules.forEach((s) => {
+				if (!schedulesByRoom.has(s.room_id)) schedulesByRoom.set(s.room_id, []);
+				schedulesByRoom.get(s.room_id)!.push(s);
+			});
+
+			if (schedulesByRoom.size === 0) {
+				toast.warning('No scheduled classes found to export.');
+				return;
+			}
+
+			// --- Load template ---
+			const response = await fetch('/templates/utilization_template.docx');
+			if (!response.ok) throw new Error(`Could not load template: ${response.statusText}`);
+			const templateBuffer = await response.arrayBuffer();
+			const zip = new PizZip(templateBuffer);
+
+			// --- OOXML helper builders ---
+			const wPr = (xml: string) => `<w:tcPr>${xml}</w:tcPr>`;
+
+			// Cell shading
+			const shading = (fill: string) => `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>`;
+
+			// Cell width (dxa units, 9072 = ~100% of A4 landscape body)
+			// 6 columns: Time=8%, Days=18.4% each -> use pct (5000ths of 100%)
+			const timeCellW = 800; // 8%
+			const dayCellW = 1840; // ~18.4%
+
+			// Build a single w:tc (table cell) OOXML string
+			function makeCell(
+				content: string,
+				opts: {
+					fill?: string;
+					bold?: boolean;
+					pct?: number;
+					vMerge?: 'restart' | 'continue';
+					center?: boolean;
+					color?: string;
+					italic?: boolean;
+					fontSize?: number;
+				} = {}
+			) {
+				const rPr = [
+					opts.bold ? '<w:b/>' : '',
+					opts.italic ? '<w:i/>' : '',
+					opts.color ? `<w:color w:val="${opts.color}"/>` : '',
+					opts.fontSize ? `<w:sz w:val="${opts.fontSize}"/><w:szCs w:val="${opts.fontSize}"/>` : ''
+				]
+					.filter(Boolean)
+					.join('');
+
+				const para = `<w:p><w:pPr>${opts.center ? '<w:jc w:val="center"/>' : ''}</w:pPr><w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ''}<w:t xml:space="preserve">${xmlEscape(content)}</w:t></w:r></w:p>`;
+
+				const vMergeXml =
+					opts.vMerge === 'restart'
+						? '<w:vMerge w:val="restart"/>'
+						: opts.vMerge === 'continue'
+							? '<w:vMerge/>'
+							: '';
+
+				const tcPrInner = [
+					opts.pct !== undefined
+						? `<w:tcW w:w="${opts.pct}" w:type="pct"/>`
+						: `<w:tcW w:w="0" w:type="auto"/>`,
+					vMergeXml,
+					opts.fill ? shading(opts.fill) : ''
+				]
+					.filter(Boolean)
+					.join('');
+
+				return `<w:tc>${wPr(tcPrInner)}${para}</w:tc>`;
+			}
+
+			// --- Build body XML ---
+			let bodyXml = '';
+			const rooms = Array.from(schedulesByRoom.entries());
+
+			rooms.forEach(([, roomSchedules], roomIndex) => {
+				const roomName = roomSchedules[0].rooms.room_name;
+
+				// Build grid lookup: day -> slotIndex -> { entry, spanCount }
+				type CellInfo = { entry: (typeof data.schedules)[0]; spanCount: number };
+				const grid: Record<string, Record<number, CellInfo>> = {};
+				DAYS.forEach((d) => (grid[d] = {}));
+
+				roomSchedules.forEach((s) => {
+					const si = (toMinutes(s.start_time.substring(0, 5)) - startMins) / SLOT_MINUTES;
+					const ei = (toMinutes(s.end_time.substring(0, 5)) - startMins) / SLOT_MINUTES;
+					const span = ei - si;
+					if (span <= 0) return;
+					grid[s.day_of_week][si] = { entry: s, spanCount: span };
+					for (let i = 1; i < span; i++) {
+						grid[s.day_of_week][si + i] = { entry: s, spanCount: -1 };
+					}
+				});
+
+				// Room title paragraph
+				bodyXml += `<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>${xmlEscape('Room: ' + roomName)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p><w:r><w:rPr><w:color w:val="555555"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(` ${data.timetable.academic_year}, ${data.timetable.semester}`)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p/>`;
+
+				// Table — use TableGrid style only, no custom border overrides
+				bodyXml += `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/></w:tblPr>`;
+
+				// Header row
+				bodyXml += `<w:tr><w:trPr><w:tblHeader/><w:trHeight w:val="280" w:hRule="atLeast"/></w:trPr>`;
+				bodyXml += makeCell('Time', {
+					fill: '1F3864',
+					bold: true,
+					color: 'FFFFFF',
+					pct: timeCellW,
+					center: true,
+					fontSize: 16
+				});
+				DAYS.forEach((d) => {
+					bodyXml += makeCell(d, {
+						fill: '1F3864',
+						bold: true,
+						color: 'FFFFFF',
+						pct: dayCellW,
+						center: true,
+						fontSize: 16
+					});
+				});
+				bodyXml += `</w:tr>`;
+
+				// Data rows
+				slots.forEach((slotLabel, slotIdx) => {
+					bodyXml += `<w:tr><w:trPr><w:trHeight w:val="280" w:hRule="atLeast"/></w:trPr>`;
+					// Time column
+					bodyXml += makeCell(slotLabel, {
+						fill: 'F2F2F2',
+						pct: timeCellW,
+						center: true,
+						fontSize: 14,
+						color: '555555'
+					});
+
+					DAYS.forEach((day) => {
+						const cell = grid[day][slotIdx];
+						if (!cell) {
+							bodyXml += makeCell('', { pct: dayCellW });
+						} else if (cell.spanCount === -1) {
+							bodyXml += makeCell('', { pct: dayCellW, vMerge: 'continue', fill: 'EEF2FF' });
+						} else {
+							const s = cell.entry;
+							const subj = `${s.classes.subjects.subject_code} — ${s.classes.subjects.subject_name}`;
+							const block = s.classes.blocks.block_name;
+							const instr = s.classes.instructors?.name || 'Unassigned';
+
+							// Multi-paragraph cell via manual XML for subject, block, instructor
+							const rPrSubj = `<w:rPr><w:b/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
+							const rPrBlock = `<w:rPr><w:color w:val="444444"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
+							const rPrInstr = `<w:rPr><w:i/><w:color w:val="777777"/><w:sz w:val="14"/><w:szCs w:val="14"/></w:rPr>`;
+							const pCenter = `<w:pPr><w:jc w:val="center"/></w:pPr>`;
+
+							const cellContent =
+								`<w:p>${pCenter}<w:r>${rPrSubj}<w:t xml:space="preserve">${xmlEscape(subj)}</w:t></w:r></w:p>` +
+								`<w:p>${pCenter}<w:r>${rPrBlock}<w:t xml:space="preserve">${xmlEscape(block)}</w:t></w:r></w:p>` +
+								`<w:p>${pCenter}<w:r>${rPrInstr}<w:t xml:space="preserve">${xmlEscape(instr)}</w:t></w:r></w:p>`;
+
+							const tcPr = wPr(
+								`<w:tcW w:w="${dayCellW}" w:type="pct"/><w:vMerge w:val="restart"/>${shading('EEF2FF')}`
+							);
+							bodyXml += `<w:tc>${tcPr}${cellContent}</w:tc>`;
+						}
+					});
+
+					bodyXml += `</w:tr>`;
+				});
+
+				bodyXml += `</w:tbl><w:p/>`;
+
+				// Page break between rooms (except last)
+				if (roomIndex < rooms.length - 1) {
+					bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+				}
+			});
+
+			// --- Inject into template's document.xml ---
+			const docXmlStr = zip.file('word/document.xml')!.asText();
+
+			// Replace body content, keeping <w:sectPr> (page layout/header-footer refs) intact
+			const sectPrMatch = docXmlStr.match(/<w:sectPr[\s\S]*?<\/w:sectPr>/);
+			const sectPr = sectPrMatch ? sectPrMatch[0] : '';
+
+			const newDocXml = docXmlStr.replace(
+				/<w:body>[\s\S]*<\/w:body>/,
+				`<w:body>${bodyXml}${sectPr}</w:body>`
+			);
+
+			zip.file('word/document.xml', newDocXml);
+
+			// --- Save ---
+			const blob = zip.generate({
+				type: 'blob',
+				mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+			});
+			saveAs(blob, `Room_Schedule_${data.timetable.name.replace(/ /g, '_')}.docx`);
+			toast.success('Room schedule exported successfully!');
+		} catch (error) {
+			console.error('Error exporting room schedule:', error);
+			toast.error('Error generating document. Please check the console.');
 		} finally {
 			isExporting = false;
 		}
 	}
 
 	// --- Derived State (The core logic) ---
+
 	const listSource = $derived.by(() => {
 		switch (viewBy) {
 			case 'room':
@@ -708,6 +968,9 @@
 							<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
 							<DropdownMenu.Item onclick={exportAsDOCX} disabled={viewBy !== 'instructor'}>
 								As Workload (DOCX)
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onclick={exportRoomScheduleDOCX}>
+								As Room Schedule (DOCX)
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
