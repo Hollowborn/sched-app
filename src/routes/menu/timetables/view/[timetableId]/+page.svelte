@@ -5,10 +5,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 
 	// Libs for export
-	import jsPDF from 'jspdf';
-	import autoTable from 'jspdf-autotable';
-	import html2canvas from 'html2canvas';
-	import * as XLSX from 'xlsx';
+
 	import PizZip from 'pizzip';
 	import Docxtemplater from 'docxtemplater';
 	import { saveAs } from 'file-saver';
@@ -108,152 +105,6 @@
 	}
 
 	// --- Export Logic ---
-	async function exportAsPDF() {
-		if (isExporting) return;
-		isExporting = true;
-
-		const elementToPrint = document.getElementById(`${viewMode}-view-content`);
-		if (!elementToPrint) {
-			console.error('Printable element not found for view:', viewMode);
-			isExporting = false;
-			return;
-		}
-
-		// OKLCH to RGB conversion for html2canvas
-		const originalStyles = new SvelteMap<
-			HTMLElement,
-			{ backgroundColor: string; color: string; borderLeftColor: string }
-		>();
-		const elementsToProcess = elementToPrint.querySelectorAll('.schedule-item-cell');
-
-		try {
-			// Pre-process: Apply computed styles as inline styles
-			elementsToProcess.forEach((el) => {
-				const element = el as HTMLElement;
-				const computedStyle = window.getComputedStyle(element);
-				const original = {
-					backgroundColor: element.style.backgroundColor,
-					color: element.style.color,
-					borderLeftColor: element.style.borderLeftColor
-				};
-				originalStyles.set(element, original);
-
-				element.style.backgroundColor = computedStyle.backgroundColor;
-				element.style.color = computedStyle.color;
-				element.style.borderLeftColor = computedStyle.borderLeftColor;
-			});
-
-			const doc = new jsPDF({
-				orientation: 'p',
-				unit: 'mm',
-				format: 'a4'
-			});
-
-			const title = `${data.timetable.name} - ${data.timetable.academic_year}, ${data.timetable.semester}`;
-			doc.text(title, 14, 15);
-
-			let viewTitle = '';
-			if (currentItem && (viewMode === 'grid' || viewMode === 'transposed')) {
-				switch (viewBy) {
-					case 'room':
-						viewTitle = `View by Room: ${currentItem.room_name}`;
-						break;
-					case 'instructor':
-						viewTitle = `View by Instructor: ${currentItem.name}`;
-						break;
-					case 'block':
-						viewTitle = `View by Block: ${currentItem.block_name}`;
-						break;
-				}
-			}
-
-			if (viewMode === 'list' || viewMode === 'agenda') {
-				const head = [['Time', 'Day', 'Subject', 'Block', 'Instructor', 'Room']];
-				const body = listFilteredSchedule.map((item) => [
-					`${item.start_time.substring(0, 5)} - ${item.end_time.substring(0, 5)}`,
-					item.day_of_week,
-					`${item.classes.subjects.subject_name} (${item.classes.subjects.subject_code})`,
-					item.classes.blocks.block_name,
-					item.classes.instructors?.name || 'N/A',
-					item.rooms.room_name
-				]);
-
-				autoTable(doc, {
-					head: head,
-					body: body,
-					startY: 20,
-					styles: { fontSize: 8 },
-					headStyles: { fillColor: [38, 38, 38] }
-				});
-			} else {
-				if (viewTitle) doc.text(viewTitle, 14, 22);
-
-				const canvas = await html2canvas(elementToPrint, {
-					scale: 2,
-					useCORS: true,
-					backgroundColor: null
-				});
-				const imgData = canvas.toDataURL('image/png');
-
-				const imgProps = doc.getImageProperties(imgData);
-				const pdfWidth = doc.internal.pageSize.getWidth() - 28;
-				const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-				doc.addImage(imgData, 'PNG', 14, 28, pdfWidth, pdfHeight);
-			}
-
-			doc.save(`${data.timetable.name}_${viewMode}.pdf`);
-		} catch (error) {
-			console.error('Error exporting PDF:', error);
-		} finally {
-			// Post-process: Restore original styles
-			elementsToProcess.forEach((el) => {
-				const element = el as HTMLElement;
-				const original = originalStyles.get(element);
-				if (original) {
-					element.style.backgroundColor = original.backgroundColor;
-					element.style.color = original.color;
-					element.style.borderLeftColor = original.borderLeftColor;
-				}
-			});
-			isExporting = false;
-		}
-	}
-
-	function exportAsExcel() {
-		if (isExporting) return;
-		isExporting = true;
-		try {
-			const dataToExport = listFilteredSchedule.map((item) => ({
-				Subject: item.classes.subjects.subject_name,
-				'Subject Code': item.classes.subjects.subject_code,
-				'Course Type': item.course_type,
-				Block: item.classes.blocks.block_name,
-				Instructor: item.classes.instructors?.name || 'Unassigned',
-				Room: item.rooms.room_name,
-				Day: item.day_of_week,
-				'Start Time': item.start_time.substring(0, 5),
-				'End Time': item.end_time.substring(0, 5)
-			}));
-
-			const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-			const workbook = XLSX.utils.book_new();
-			XLSX.utils.book_append_sheet(workbook, worksheet, 'Schedule');
-
-			const objectMaxLength = Object.keys(dataToExport[0] || {}).map((key) => ({
-				wch: Math.max(
-					key.length,
-					...dataToExport.map((row) => (row[key] ? row[key].toString().length : 0))
-				)
-			}));
-			worksheet['!cols'] = objectMaxLength;
-
-			XLSX.writeFile(workbook, `${data.timetable.name}_schedule.xlsx`);
-		} catch (error) {
-			console.error('Error exporting Excel:', error);
-		} finally {
-			isExporting = false;
-		}
-	}
 
 	async function exportAsDOCX() {
 		if (isExporting) return;
@@ -326,7 +177,9 @@
 			});
 
 			// Map to template structure
-			const sortedCourses = coursesData.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
+			const sortedCourses = coursesData.sort((a, b) =>
+				a.subject_code.localeCompare(b.subject_code)
+			);
 
 			const total_lec = sortedCourses.reduce((sum, c) => sum + Number(c.units_lec), 0);
 			const total_lab = sortedCourses.reduce((sum, c) => sum + Number(c.units_lab), 0);
@@ -962,7 +815,7 @@
 					{/if}
 
 					<DropdownMenu.Root>
-						<DropdownMenu.Trigger asChild>
+						<DropdownMenu.Trigger>
 							<Button variant="outline" size="sm" disabled={isExporting}>
 								{#if isExporting}
 									<Spinner class="mr-2 h-4 w-4" />
@@ -974,8 +827,6 @@
 							</Button>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
-							<DropdownMenu.Item onclick={exportAsPDF}>As PDF</DropdownMenu.Item>
-							<DropdownMenu.Item onclick={exportAsExcel}>As Excel (XLSX)</DropdownMenu.Item>
 							<DropdownMenu.Item onclick={exportAsDOCX} disabled={viewBy !== 'instructor'}>
 								As Workload (DOCX)
 							</DropdownMenu.Item>
