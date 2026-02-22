@@ -326,12 +326,22 @@
 			});
 
 			// Map to template structure
+			const sortedCourses = coursesData.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
+
+			const total_lec = sortedCourses.reduce((sum, c) => sum + Number(c.units_lec), 0);
+			const total_lab = sortedCourses.reduce((sum, c) => sum + Number(c.units_lab), 0);
+			const total_hours = total_lec + total_lab;
+
 			const templateData = {
 				instructor_name: currentItem.name,
 				academic_year: data.timetable.academic_year,
 				semester: data.timetable.semester,
 				college: currentItem.colleges?.college_name || 'N/A',
-				courses: coursesData.sort((a, b) => a.subject_code.localeCompare(b.subject_code))
+				total_lec,
+				total_lab,
+				total_hours,
+				num_classes: sortedCourses.length,
+				courses: sortedCourses
 			};
 
 			// 2. Load Template
