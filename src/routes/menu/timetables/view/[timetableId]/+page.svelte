@@ -363,9 +363,15 @@
 					}
 				});
 
-				// Room title paragraph
-				bodyXml += `<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>${xmlEscape('Room: ' + roomName)}</w:t></w:r></w:p>`;
-				bodyXml += `<w:p><w:r><w:rPr><w:color w:val="555555"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(` ${data.timetable.academic_year}, ${data.timetable.semester}`)}</w:t></w:r></w:p>`;
+				// Below the header idk what it's called
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`College of <College>`)}</w:t></w:r></w:p>`;
+
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`Department of <Department>`)}</w:t></w:r></w:p>`;
+
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(` ${data.timetable.semester}, A.Y. ${data.timetable.academic_year}`)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p/><w:spacing w:after="0"/>`;
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(roomName + ' & Room In-charge: <Name>')}</w:t></w:r></w:p>`;
+
 				bodyXml += `<w:p/>`;
 
 				// Table — use TableGrid style only, no custom border overrides
@@ -439,7 +445,36 @@
 				});
 
 				bodyXml += `</w:tbl><w:p/>`;
+				// Prepared by chuchu
 
+				// Signature table (2 columns, 3 rows, no visible borders)
+				bodyXml += `<w:tbl>`;
+				bodyXml += `<w:tblPr>`;
+				bodyXml += `<w:tblW w:w="5000" w:type="pct"/>`;
+				bodyXml += `<w:tblBorders>`;
+				bodyXml += `<w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/>`;
+				bodyXml += `</w:tblBorders>`;
+				bodyXml += `</w:tblPr>`;
+
+				// Header Row (Prepared by: | Approved:)
+				bodyXml += `<w:tr>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>${xmlEscape('Prepared by:')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>${xmlEscape('Approved:')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `</w:tr>`;
+
+				// Name/Signature Row
+				bodyXml += `<w:tr>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<NAME & Signature of Chairperson>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<NAME & Signature of Dean>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `</w:tr>`;
+
+				// Designation Row
+				bodyXml += `<w:tr>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `</w:tr>`;
+
+				bodyXml += `</w:tbl>`;
 				// Page break between rooms (except last)
 				if (roomIndex < rooms.length - 1) {
 					bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
