@@ -240,7 +240,7 @@
 				<Tabs.Content value="about" class="pt-4">
 					<div class="space-y-4 text-sm text-muted-foreground">
 						<p>
-							<strong>SmartSched v1.0.0 (Thesis Edition)</strong>
+							<strong>smart-sched v1.0.1 (Thesis Edition)</strong>
 						</p>
 						<p>
 							This application is developed as a thesis project for Bohol Island State University -
