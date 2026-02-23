@@ -290,10 +290,13 @@
 			// Cell shading
 			const shading = (fill: string) => `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>`;
 
+			// Document-wide default font (applied to all generated runs)
+			const fontXml = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>';
+
 			// Cell width (dxa units, 9072 = ~100% of A4 landscape body)
 			// 6 columns: Time=8%, Days=18.4% each -> use pct (5000ths of 100%)
-			const timeCellW = 800; // 8%
-			const dayCellW = 1840; // ~18.4%
+			const timeCellW = 500; // 8%
+			const dayCellW = 900; // ~18.4%
 
 			// Build a single w:tc (table cell) OOXML string
 			function makeCell(
@@ -310,6 +313,7 @@
 				} = {}
 			) {
 				const rPr = [
+					fontXml,
 					opts.bold ? '<w:b/>' : '',
 					opts.italic ? '<w:i/>' : '',
 					opts.color ? `<w:color w:val="${opts.color}"/>` : '',
@@ -318,7 +322,8 @@
 					.filter(Boolean)
 					.join('');
 
-				const para = `<w:p><w:pPr>${opts.center ? '<w:jc w:val="center"/>' : ''}</w:pPr><w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ''}<w:t xml:space="preserve">${xmlEscape(content)}</w:t></w:r></w:p>`;
+				const pPrContent = `${opts.center ? '<w:jc w:val="center"/>' : ''}<w:spacing w:after="0"/>`;
+				const para = `<w:p><w:pPr>${pPrContent}</w:pPr><w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ''}<w:t xml:space="preserve">${xmlEscape(content)}</w:t></w:r></w:p>`;
 
 				const vMergeXml =
 					opts.vMerge === 'restart'
@@ -364,21 +369,20 @@
 				});
 
 				// Below the header idk what it's called
-				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`College of <College>`)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/>${fontXml}<w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`College of <College>`)}</w:t></w:r></w:p>`;
 
-				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`Department of <Department>`)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:b/>${fontXml}<w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(`Department of <Department>`)}</w:t></w:r></w:p>`;
 
-				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(` ${data.timetable.semester}, A.Y. ${data.timetable.academic_year}`)}</w:t></w:r></w:p>`;
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/>${fontXml}<w:color w:val="000000"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(` ${data.timetable.semester}, A.Y. ${data.timetable.academic_year}`)}</w:t></w:r></w:p>`;
 
-				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(roomName + ' & Room In-charge: <Name>')}</w:t></w:r></w:p>`;
-
+				bodyXml += `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr>${fontXml}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>${xmlEscape(roomName + ' & Room In-charge: <Name>')}</w:t></w:r></w:p>`;
 				// bodyXml += `<w:p/>`;
 
 				// Table — use TableGrid style only, no custom border overrides
 				bodyXml += `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/></w:tblPr>`;
 
 				// Header row
-				bodyXml += `<w:tr><w:trPr><w:tblHeader/><w:trHeight w:val="140" w:hRule="atLeast"/></w:trPr>`;
+				bodyXml += `<w:tr><w:trPr><w:spacing w:after="0"/><w:tblHeader/><w:trHeight w:val="280" w:hRule="atLeast"/></w:trPr>`;
 				bodyXml += makeCell('Time', {
 					fill: '1F3864',
 					bold: true,
@@ -401,7 +405,7 @@
 
 				// Data rows
 				slots.forEach((slotLabel, slotIdx) => {
-					bodyXml += `<w:tr><w:trPr><w:trHeight w:val="200" w:hRule="atLeast"/></w:trPr>`;
+					bodyXml += `<w:tr><w:trPr><w:spacing w:after="0"/><w:trHeight w:val="280" w:hRule="atLeast"/></w:trPr>`;
 					// Time column
 					bodyXml += makeCell(slotLabel, {
 						fill: 'F2F2F2',
@@ -424,9 +428,9 @@
 							const instr = s.classes.instructors?.name || 'Unassigned';
 
 							// Multi-paragraph cell via manual XML for subject, block, instructor
-							const rPrSubj = `<w:rPr><w:b/><w:spacing w:after="0"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
-							const rPrBlock = `<w:rPr><w:color w:val="444444"/><w:spacing w:after="0"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
-							const rPrInstr = `<w:rPr><w:i/><w:color w:val="777777"/><w:spacing w:after="0"/><w:sz w:val="14"/><w:szCs w:val="14"/></w:rPr>`;
+							const rPrSubj = `<w:rPr>${fontXml}<w:b/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
+							const rPrBlock = `<w:rPr>${fontXml}<w:color w:val="444444"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
+							const rPrInstr = `<w:rPr>${fontXml}<w:i/><w:color w:val="777777"/><w:sz w:val="14"/><w:szCs w:val="14"/></w:rPr>`;
 							const pCenter = `<w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr>`;
 
 							const cellContent =
@@ -458,20 +462,20 @@
 
 				// Header Row (Prepared by: | Approved:)
 				bodyXml += `<w:tr>`;
-				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>${xmlEscape('Prepared by:')}</w:t></w:r></w:p></w:tc>`;
-				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>${xmlEscape('Approved:')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${fontXml}</w:rPr><w:t>${xmlEscape('Prepared by:')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${fontXml}</w:rPr><w:t>${xmlEscape('Approved:')}</w:t></w:r></w:p></w:tc>`;
 				bodyXml += `</w:tr>`;
 
 				// Name/Signature Row
 				bodyXml += `<w:tr>`;
-				bodyXml += `<w:tc><w:tcPr><w:b/><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<NAME & Signature of Chairperson>')}</w:t></w:r></w:p></w:tc>`;
-				bodyXml += `<w:tc><w:tcPr><w:b/><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<NAME & Signature of Dean>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:spacing w:after="0"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/>${fontXml}</w:rPr><w:t>${xmlEscape('<NAME & Signature of Chairperson>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:b/><w:spacing w:after="0"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/>${fontXml}</w:rPr><w:t>${xmlEscape('<NAME & Signature of Dean>')}</w:t></w:r></w:p></w:tc>`;
 				bodyXml += `</w:tr>`;
 
 				// Designation Row
 				bodyXml += `<w:tr>`;
-				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
-				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>${fontXml}</w:rPr><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
+				bodyXml += `<w:tc><w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>${fontXml}</w:rPr><w:t>${xmlEscape('<Designation>')}</w:t></w:r></w:p></w:tc>`;
 				bodyXml += `</w:tr>`;
 
 				bodyXml += `</w:tbl>`;
