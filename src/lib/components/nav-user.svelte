@@ -7,7 +7,14 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 
-	import { SunIcon, MoonIcon, Settings, LogOutIcon, ChevronsUpDownIcon } from '@lucide/svelte';
+	import {
+		SunIcon,
+		MoonIcon,
+		Settings,
+		LogOutIcon,
+		ChevronsUpDownIcon,
+		Info
+	} from '@lucide/svelte';
 	import { settingsModalOpen } from '$lib/stores/modalStore.js';
 
 	import { toast } from 'svelte-sonner';
@@ -97,6 +104,7 @@
 				</DropdownMenu.Group>
 
 				<DropdownMenu.Group>
+					<DropdownMenu.Item><Info />User Manual</DropdownMenu.Item>
 					<DropdownMenu.Item
 						onclick={() => {
 							settingsModalOpen.set(true);
@@ -106,6 +114,7 @@
 						Settings
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
+
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item onclick={handleSignOut}>
 					<LogOutIcon />

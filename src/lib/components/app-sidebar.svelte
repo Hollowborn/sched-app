@@ -50,7 +50,6 @@
 	</Sidebar.Content>
 
 	<Sidebar.Footer class="p-2">
-		<Sidebar.MenuSubButton href="/menu/help"><Info />User Manual</Sidebar.MenuSubButton>
 		{#if user}
 			<NavUser {user} />
 		{/if}
