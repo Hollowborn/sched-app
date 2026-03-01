@@ -124,3 +124,60 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		uniqueBlocks: uniqueBlocksData || []
 	};
 };
+
+export const actions = {
+	publishTimetable: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const timetableId = formData.get('timetableId');
+
+		if (!timetableId) {
+			return error(400, 'Timetable ID is required.');
+		}
+
+		// 1. Fetch the timetable to get its context (semester, year, college, program)
+		const { data: timetable, error: fetchError } = await locals.supabase
+			.from('timetables')
+			.select('*')
+			.eq('id', timetableId)
+			.single();
+
+		if (fetchError || !timetable) {
+			console.error('Error fetching timetable for publish:', fetchError);
+			return error(404, 'Timetable not found.');
+		}
+
+		// 2. Archive any currently published timetables for the SAME context
+		let archiveQuery = locals.supabase
+			.from('timetables')
+			.update({ status: 'archived' })
+			.eq('status', 'published')
+			.eq('academic_year', timetable.academic_year)
+			.eq('semester', timetable.semester);
+
+		if (timetable.college_id) {
+			archiveQuery = archiveQuery.eq('college_id', timetable.college_id);
+		}
+		if (timetable.program_id) {
+			archiveQuery = archiveQuery.eq('program_id', timetable.program_id);
+		}
+
+		const { error: archiveError } = await archiveQuery;
+		if (archiveError) {
+			console.error('Error archiving previous timetables:', archiveError);
+			return error(500, 'Failed to archive previous timetables.');
+		}
+
+		// 3. Publish the target timetable
+		const { error: publishError } = await locals.supabase
+			.from('timetables')
+			.update({ status: 'published' })
+			.eq('id', timetableId);
+
+		if (publishError) {
+			console.error('Error publishing timetable:', publishError);
+			return error(500, 'Failed to publish timetable.');
+		}
+
+		return { success: true, message: 'Timetable published successfully!' };
+	}
+};
