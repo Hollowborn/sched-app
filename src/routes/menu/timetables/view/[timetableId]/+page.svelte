@@ -8,7 +8,8 @@
 
 	import PizZip from 'pizzip';
 	import Docxtemplater from 'docxtemplater';
-	import { saveAs } from 'file-saver';
+	import pkg from 'file-saver';
+
 	import {
 		Document,
 		Paragraph,
@@ -24,6 +25,8 @@
 		Packer
 	} from 'docx';
 	import { toast } from 'svelte-sonner';
+	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
@@ -41,7 +44,9 @@
 		CircleCheck,
 		UserCheck,
 		Grid2X2Check,
-		MapPinCheck
+		MapPinCheck,
+		ChevronsUpDown,
+		Check
 	} from '@lucide/svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
@@ -49,6 +54,9 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
+	import { cn } from '$lib/utils';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -81,11 +89,14 @@
 
 	let { data } = $props<{ data: PageData }>();
 
-	// --- State ---
 	let viewBy = $state<'room' | 'instructor' | 'block'>('room');
 	let currentItemIndex = $state(0);
 	let isExporting = $state(false);
-
+	let publishOpen = $state(false);
+	let isPublishing = $state(false);
+	let jumpToOpen = $state(false);
+	// file-saver variable for saving
+	const { saveAs } = pkg;
 	// --- Time Grid Setup ---
 	const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 	const timeInterval = 60; // 1-hour intervals
@@ -515,18 +526,75 @@
 	}
 
 	// --- Derived State (The core logic) ---
+	const itemClassCounts = $derived.by(() => {
+		const counts: Record<string, Set<number>> = {};
 
+		data.schedules.forEach((s) => {
+			const classId = s.classes.id;
+			if (s.room_id) {
+				const key = s.room_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
+			}
+			if (s.classes.instructor_id) {
+				const key = s.classes.instructor_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
+			}
+			if (s.classes.block_id) {
+				const key = s.classes.block_id.toString();
+				if (!counts[key]) counts[key] = new Set();
+				counts[key].add(classId);
+			}
+		});
+
+		const result: Record<string, number> = {};
+		for (const [key, set] of Object.entries(counts)) {
+			result[key] = set.size;
+		}
+		return result;
+	});
+
+	// Filters listSource to ONLY include items that actually have scheduled classes
 	const listSource = $derived.by(() => {
+		let items: any[] = [];
 		switch (viewBy) {
 			case 'room':
-				return data.uniqueRooms;
+				items = data.uniqueRooms;
+				break;
 			case 'instructor':
-				return data.uniqueInstructors;
+				items = data.uniqueInstructors;
+				break;
 			case 'block':
-				return data.uniqueBlocks;
-			default:
-				return [];
+				items = data.uniqueBlocks;
+				break;
 		}
+		// Only return items with a count > 0
+		return items.filter((item) => (itemClassCounts[item.id.toString()] || 0) > 0);
+	});
+
+	// Grouping Logic for the Combobox
+	const groupedItems = $derived.by(() => {
+		const groups = new Map<string, any[]>();
+		listSource.forEach((item) => {
+			let groupName = 'Other';
+			if (viewBy === 'room') {
+				groupName = item.colleges?.college_name || 'General Use';
+			} else if (viewBy === 'instructor') {
+				groupName = item.colleges?.college_name || 'Unknown College';
+			} else if (viewBy === 'block') {
+				groupName = item.programs?.program_name || 'Unknown Program';
+			}
+			
+			if (!groups.has(groupName)) {
+				groups.set(groupName, []);
+			}
+			groups.get(groupName)!.push(item);
+		});
+		
+		// Sort groups alphabetically, but put "General Use" or "Other" at the end if desired
+		const sortedGroups = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+		return sortedGroups;
 	});
 
 	const currentItem = $derived(listSource[currentItemIndex]);
@@ -570,35 +638,6 @@
 			default:
 				return [];
 		}
-	});
-
-	const itemClassCounts = $derived.by(() => {
-		const counts: Record<string, Set<number>> = {};
-
-		data.schedules.forEach((s) => {
-			const classId = s.classes.id;
-			if (s.room_id) {
-				const key = s.room_id.toString();
-				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
-			}
-			if (s.classes.instructor_id) {
-				const key = s.classes.instructor_id.toString();
-				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
-			}
-			if (s.classes.block_id) {
-				const key = s.classes.block_id.toString();
-				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
-			}
-		});
-
-		const result: Record<string, number> = {};
-		for (const [key, set] of Object.entries(counts)) {
-			result[key] = set.size;
-		}
-		return result;
 	});
 
 	// --- Navigation ---
@@ -853,6 +892,13 @@
 						</Button>
 					{/if}
 
+					<!-- Publish Button -->
+					{#if data.timetable.status === 'draft'}
+						<Button variant="default" size="sm" onclick={() => (publishOpen = true)}>
+							Publish
+						</Button>
+					{/if}
+
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							<Button variant="outline" size="sm" disabled={isExporting}>
@@ -932,59 +978,62 @@
 								</Select.Content>
 							</Select.Root>
 
-							<!-- Dynamic "Jump To" Filter -->
-							<Select.Root
-								type="single"
-								value={currentItem?.id.toString()}
-								onValueChange={(v) => {
-									if (!v) return;
-									const newIndex = listSource.findIndex((item) => item.id.toString() === v);
-									if (newIndex !== -1) {
-										currentItemIndex = newIndex;
-									}
-								}}
-							>
-								<Select.Trigger class="w-[200px] h-9">
-									<span class="truncate">{gridHeader.title || 'Select an item'}</span>
-								</Select.Trigger>
-								<Select.Content>
-									{#if listSource.length === 0}
-										<p class="p-2 text-sm text-muted-foreground text-center">No items to display</p>
-									{:else if viewBy === 'room'}
-										{#each listSource as room (room.id)}
-											<Select.Item
-												value={room.id.toString()}
-												class="flex items-center justify-between"
-											>
-												<span>{room.room_name}</span>
-												<Badge variant="outline">{itemClassCounts[room.id.toString()] || 0}</Badge>
-											</Select.Item>
-										{/each}
-									{:else if viewBy === 'instructor'}
-										{#each listSource as instructor (instructor.id)}
-											<Select.Item
-												value={instructor.id.toString()}
-												class="flex items-center justify-between"
-											>
-												<span>{instructor.name}</span>
-												<Badge variant="outline"
-													>{itemClassCounts[instructor.id.toString()] || 0}</Badge
-												>
-											</Select.Item>
-										{/each}
-									{:else if viewBy === 'block'}
-										{#each listSource as block (block.id)}
-											<Select.Item
-												value={block.id.toString()}
-												class="flex items-center justify-between"
-											>
-												<span>{block.block_name}</span>
-												<Badge variant="outline">{itemClassCounts[block.id.toString()] || 0}</Badge>
-											</Select.Item>
-										{/each}
-									{/if}
-								</Select.Content>
-							</Select.Root>
+							<!-- Dynamic "Jump To" Combobox -->
+							<Popover.Root bind:open={jumpToOpen}>
+								<Popover.Trigger>
+									{#snippet child({ props })}
+										<Button
+											variant="outline"
+											role="combobox"
+											aria-expanded={jumpToOpen}
+											class="w-[280px] h-9 justify-between"
+											{...props}
+										>
+											<span class="truncate">{gridHeader.title || 'Select an item...'}</span>
+											<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+										</Button>
+									{/snippet}
+								</Popover.Trigger>
+								<Popover.Content class="w-[280px] p-0" align="end">
+									<Command.Root>
+										<Command.Input placeholder={`Search ${viewBy}...`} />
+										<Command.List class="max-h-[300px]">
+											<Command.Empty>No items found.</Command.Empty>
+											{#each groupedItems as [groupName, items]}
+												<Command.Group heading={groupName}>
+													{#each items as item}
+														{@const itemName = viewBy === 'room' ? item.room_name : viewBy === 'instructor' ? item.name : item.block_name}
+														<Command.Item
+															value={itemName}
+															onSelect={() => {
+																const newIndex = listSource.findIndex((i) => i.id === item.id);
+																if (newIndex !== -1) {
+																	currentItemIndex = newIndex;
+																}
+																jumpToOpen = false;
+															}}
+															class="flex items-center justify-between cursor-pointer"
+														>
+															<div class="flex items-center gap-2 truncate">
+																<Check
+																	class={cn(
+																		'h-4 w-4 shrink-0',
+																		currentItem?.id === item.id ? 'opacity-100' : 'opacity-0'
+																	)}
+																/>
+																<span class="truncate">{itemName}</span>
+															</div>
+															<Badge variant="secondary" class="font-mono text-[10px] ml-2 shrink-0">
+																{itemClassCounts[item.id.toString()]}
+															</Badge>
+														</Command.Item>
+													{/each}
+												</Command.Group>
+											{/each}
+										</Command.List>
+									</Command.Root>
+								</Popover.Content>
+							</Popover.Root>
 						{:else}
 							<!-- Agenda View Search -->
 							<div class="relative w-[250px]">
@@ -1328,3 +1377,50 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Publish Dialog -->
+<Dialog.Root bind:open={publishOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Publish Timetable?</Dialog.Title>
+			<Dialog.Description>
+				Are you sure you want to publish this timetable? This will make it the active schedule for
+				the indicated academic year and semester. Any currently published timetable for the same
+				term and college/program will be automatically archived.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/publishTimetable"
+			use:enhance={() => {
+				isPublishing = true;
+				const toastId = toast.loading('Publishing timetable...');
+				return async ({ update, result }) => {
+					isPublishing = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						publishOpen = false;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update({ reset: false });
+				};
+			}}
+		>
+			<input type="hidden" name="timetableId" value={data.timetable.id} />
+			<Dialog.Footer class="gap-2">
+				<Button variant="outline" type="button" onclick={() => (publishOpen = false)}>Cancel</Button
+				>
+				<Button type="submit" disabled={isPublishing}>
+					{#if isPublishing}
+						<Spinner class="mr-2 h-4 w-4" />
+						Publishing...
+					{:else}
+						Publish
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
