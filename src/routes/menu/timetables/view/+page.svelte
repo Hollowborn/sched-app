@@ -29,7 +29,8 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { cn } from '$lib/utils';
-	import { Action } from '$lib/components/ui/alert-dialog';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 
 	let { data } = $props<{ data: PageData; form: ActionData }>();
 
@@ -40,7 +41,8 @@
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let yearOpen = $state(false);
 	let semOpen = $state(false);
-
+	let archiveOpen = $state(false);
+	let timetableToArchiveId = $state<number | null>(null);
 	// --- DataTable Columns ---
 	const columns: ColumnDef<any>[] = [
 		{
@@ -114,30 +116,19 @@
 
 {#snippet actionsCell({ row }: { row: any })}
 	<div class="flex justify-end gap-2">
-		{#if row.status !== 'archived'}
-			<form
-				method="POST"
-				action="?/archiveTimetable"
-				use:enhance={() => {
-					isSubmitting = true;
-					const toastId = toast.loading('Archiving timetable...');
-					return async ({ update, result }) => {
-						isSubmitting = false;
-						if (result.type === 'success') {
-							toast.success(result.data?.message, { id: toastId });
-							await invalidateAll();
-						} else if (result.type === 'failure') {
-							toast.error(result.data?.message, { id: toastId });
-						}
-						await update({ reset: false });
-					};
+		{#if row.status.toLowerCase() !== 'archived'}
+			<Button
+				variant="ghost"
+				size="icon"
+				onclick={() => {
+					timetableToArchiveId = row.id;
+					archiveOpen = true;
 				}}
+				disabled={isSubmitting}
+				title="Archive"
 			>
-				<input type="hidden" name="timetableId" value={row.id} />
-				<Button type="submit" variant="ghost" size="icon" disabled={isSubmitting} title="Archive">
-					<Archive class="h-4 w-4" />
-				</Button>
-			</form>
+				<Archive class="h-4 w-4" />
+			</Button>
 		{/if}
 		<Button href="/menu/timetables/view/{row.id}" variant="ghost" size="icon" title="View">
 			<Eye class="h-4 w-4" />
@@ -312,37 +303,20 @@
 								<div
 									class="flex justify-end items-center gap-1 group-hover:opacity-100 transition-opacity duration-200"
 								>
-									{#if tt.status !== 'archived'}
-										<form
-											method="POST"
-											action="?/archiveTimetable"
-											use:enhance={() => {
-												isSubmitting = true;
-												const toastId = toast.loading('Archiving timetable...');
-												return async ({ update, result }) => {
-													isSubmitting = false;
-													if (result.type === 'success') {
-														toast.success(result.data?.message, { id: toastId });
-														await invalidateAll();
-													} else if (result.type === 'failure') {
-														toast.error(result.data?.message, { id: toastId });
-													}
-													await update({ reset: false });
-												};
+									{#if tt.status.toLowerCase() !== 'archived'}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="h-8 w-8 text-muted-foreground hover:text-destructive"
+											disabled={isSubmitting}
+											title="Archive"
+											onclick={() => {
+												timetableToArchiveId = tt.id;
+												archiveOpen = true;
 											}}
 										>
-											<input type="hidden" name="timetableId" value={tt.id} />
-											<Button
-												type="submit"
-												variant="ghost"
-												size="icon"
-												class="h-8 w-8 text-muted-foreground hover:text-destructive"
-												disabled={isSubmitting}
-												title="Archive"
-											>
-												<Archive class="h-4 w-4" />
-											</Button>
-										</form>
+											<Archive class="h-4 w-4" />
+										</Button>
 									{/if}
 									<Button
 										href="/menu/timetables/view/{tt.id}"
@@ -374,3 +348,48 @@
 		<DataTable data={data.timetables} {columns} />
 	{/if}
 </div>
+
+<Dialog.Root bind:open={archiveOpen}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Archive Timetable?</Dialog.Title>
+			<Dialog.Description>
+				Are you sure you want to archive this timetable? It will no longer be active or easily visible by default. 
+				This action can be undone later by restoring it.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/archiveTimetable"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Archiving timetable...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success(result.data?.message, { id: toastId });
+						archiveOpen = false;
+						timetableToArchiveId = null;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.message, { id: toastId });
+					}
+					await update({ reset: false });
+				};
+			}}
+		>
+			<input type="hidden" name="timetableId" value={timetableToArchiveId} />
+			<Dialog.Footer class="gap-2">
+				<Button variant="outline" type="button" onclick={() => { archiveOpen = false; timetableToArchiveId = null; }}>Cancel</Button>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Archiving...
+					{:else}
+						Archive
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
