@@ -14,7 +14,8 @@
 		List,
 		Check,
 		ChevronsUpDown,
-		Filter
+		Filter,
+		Star
 	} from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card';
 	import * as Item from '$lib/components/ui/item';
@@ -111,7 +112,12 @@
 {/snippet}
 
 {#snippet statusCell({ status }: { status: string })}
-	<Badge variant={getStatusVariant(status)}>{status}</Badge>
+	<Badge variant={getStatusVariant(status)}>
+		{#if status == 'published'}
+			<Star />
+		{/if}
+		{status}</Badge
+	>
 {/snippet}
 
 {#snippet actionsCell({ row }: { row: any })}
@@ -249,8 +255,8 @@
 			>
 				<Tabs.List>
 					<Tabs.Trigger value="All">All</Tabs.Trigger>
-					<Tabs.Trigger value="draft">Drafts</Tabs.Trigger>
 					<Tabs.Trigger value="published">Published</Tabs.Trigger>
+					<Tabs.Trigger value="draft">Drafts</Tabs.Trigger>
 					<Tabs.Trigger value="archived">Archived</Tabs.Trigger>
 				</Tabs.List>
 			</Tabs.Root>
@@ -354,8 +360,8 @@
 		<Dialog.Header>
 			<Dialog.Title>Archive Timetable?</Dialog.Title>
 			<Dialog.Description>
-				Are you sure you want to archive this timetable? It will no longer be active or easily visible by default. 
-				This action can be undone later by restoring it.
+				Are you sure you want to archive this timetable? It will no longer be active or easily
+				visible by default. This action can be undone later by restoring it.
 			</Dialog.Description>
 		</Dialog.Header>
 		<form
@@ -380,7 +386,14 @@
 		>
 			<input type="hidden" name="timetableId" value={timetableToArchiveId} />
 			<Dialog.Footer class="gap-2">
-				<Button variant="outline" type="button" onclick={() => { archiveOpen = false; timetableToArchiveId = null; }}>Cancel</Button>
+				<Button
+					variant="outline"
+					type="button"
+					onclick={() => {
+						archiveOpen = false;
+						timetableToArchiveId = null;
+					}}>Cancel</Button
+				>
 				<Button type="submit" disabled={isSubmitting}>
 					{#if isSubmitting}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
