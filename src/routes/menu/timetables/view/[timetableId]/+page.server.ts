@@ -110,7 +110,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const [{ data: uniqueRoomsData }, { data: uniqueBlocksData }] = await Promise.all([
 		locals.supabase
 			.from('rooms')
-			.select('id, room_name, building, type')
+			.select('id, room_name, building, type, owner_college_id, colleges(college_name)')
 			.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`)
 			.order('room_name'),
 		blocksQuery
