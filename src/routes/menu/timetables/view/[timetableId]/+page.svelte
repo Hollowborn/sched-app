@@ -60,6 +60,7 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 
 	interface GenerationMetadata {
 		status: 'Generating' | 'Completed';
@@ -95,6 +96,13 @@
 	let publishOpen = $state(false);
 	let isPublishing = $state(false);
 	let jumpToOpen = $state(false);
+
+	// Export Modal State
+	let exportModalOpen = $state(false);
+	let exportType = $state<'workload' | 'room'>('workload');
+	let exportScope = $state<'current' | 'selected'>('current');
+	let exportSelectedIds = $state<number[]>([]);
+
 	// file-saver variable for saving
 	const { saveAs } = pkg;
 	// --- Time Grid Setup ---
@@ -117,122 +125,199 @@
 
 	// --- Export Logic ---
 
-	async function exportAsDOCX() {
-		if (isExporting) return;
-
-		// Validations
-		if (viewBy !== 'instructor' || !currentItem) {
-			alert('Please select an Instructor view to export a workload document.');
-			return;
+	function openExportModal(type: 'workload' | 'room') {
+		exportType = type;
+		
+		// If the user's current view matches the export type, default to "current", else default to "selected"
+		if ((type === 'workload' && viewBy === 'instructor') || (type === 'room' && viewBy === 'room')) {
+			exportScope = 'current';
+		} else {
+			exportScope = 'selected';
 		}
+		
+		exportSelectedIds = [];
+		exportModalOpen = true;
+	}
 
+	function toggleExportSelection(id: number) {
+		if (exportSelectedIds.includes(id)) {
+			exportSelectedIds = exportSelectedIds.filter((i) => i !== id);
+		} else {
+			exportSelectedIds = [...exportSelectedIds, id];
+		}
+	}
+
+	function selectAllExport() {
+		if (exportType === 'workload') {
+			exportSelectedIds = data.uniqueInstructors
+				.filter((i) => itemClassCounts[i.id.toString()] > 0)
+				.map((i) => i.id);
+		} else {
+			exportSelectedIds = data.uniqueRooms
+				.filter((r) => itemClassCounts[r.id.toString()] > 0)
+				.map((r) => r.id);
+		}
+	}
+
+	function handleExportSubmit() {
+		if (exportType === 'workload') {
+			let ids = [];
+			if (exportScope === 'current') {
+				if (viewBy !== 'instructor' || !currentItem) {
+					toast.error("Please navigate to an Instructor view to export the current workload.");
+					return;
+				}
+				ids = [currentItem.id];
+			} else {
+				ids = exportSelectedIds;
+			}
+
+			if (ids.length === 0) {
+				toast.error('Please select at least one instructor.');
+				return;
+			}
+			exportModalOpen = false;
+			exportAsDOCX(ids);
+		} else {
+			let ids = [];
+			if (exportScope === 'current') {
+				if (viewBy !== 'room' || !currentItem) {
+					toast.error("Please navigate to a Room view to export the current room schedule.");
+					return;
+				}
+				ids = [currentItem.id];
+			} else {
+				ids = exportSelectedIds;
+			}
+
+			if (ids.length === 0) {
+				toast.error('Please select at least one room.');
+				return;
+			}
+			exportModalOpen = false;
+			exportRoomScheduleDOCX(ids);
+		}
+	}
+
+	async function exportAsDOCX(instructorIds: number[]) {
+		if (isExporting) return;
 		isExporting = true;
 
 		try {
-			// 1. Prepare Data
-			// Filter schedules for this instructor
-			const instructorSchedules = data.schedules.filter(
-				(s) => s.classes.instructor_id === currentItem.id
-			);
-
-			// Group by Subject Code + Block
-			const groupedCourses = new Map<string, any[]>();
-			instructorSchedules.forEach((s) => {
-				const key = `${s.classes.subjects.subject_code}-${s.classes.blocks.block_name}`;
-				if (!groupedCourses.has(key)) {
-					groupedCourses.set(key, []);
-				}
-				groupedCourses.get(key).push(s);
-			});
-
-			// Transform to template format
-			const coursesData = Array.from(groupedCourses.values()).map((group) => {
-				// Sort entries within the group by day/time
-				group.sort((a, b) => {
-					const dayOrder = {
-						Monday: 1,
-						Tuesday: 2,
-						Wednesday: 3,
-						Thursday: 4,
-						Friday: 5,
-						Saturday: 6,
-						Sunday: 7
-					};
-					const dDiff = (dayOrder[a.day_of_week] || 99) - (dayOrder[b.day_of_week] || 99);
-					if (dDiff !== 0) return dDiff;
-					return a.start_time.localeCompare(b.start_time);
-				});
-
-				const totalHours = group.reduce((sum, s) => {
-					const lec = s.classes.subjects.lecture_hours || 0;
-					const lab = s.classes.subjects.lab_hours || 0;
-					return sum + lec + lab;
-				}, 0);
-
-				const first = group[0];
-
-				return {
-					subject_code: first.classes.subjects.subject_code,
-					subject_title: first.classes.subjects.subject_name.replace(/&/g, '&amp;'),
-					block: first.classes.blocks.block_name,
-					units_lec: first.classes.subjects.lecture_hours || 0,
-					units_lab: first.classes.subjects.lab_hours || 0,
-					num_hours: first.classes.subjects.lecture_hours + first.classes.subjects.lab_hours || 0,
-					// Join details with newlines
-					day: group.map((s) => s.day_of_week.substring(0, 3)).join(',\n'),
-					time: group
-						.map((s) => `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`)
-						.join('\n'),
-					room: group.map((s) => s.rooms.room_name).join(',\n')
-				};
-			});
-
-			// Map to template structure
-			const sortedCourses = coursesData.sort((a, b) =>
-				a.subject_code.localeCompare(b.subject_code)
-			);
-
-			const total_lec = sortedCourses.reduce((sum, c) => sum + Number(c.units_lec), 0);
-			const total_lab = sortedCourses.reduce((sum, c) => sum + Number(c.units_lab), 0);
-			const total_hours = total_lec + total_lab;
-
-			const templateData = {
-				instructor_name: currentItem.name,
-				academic_year: data.timetable.academic_year,
-				semester: data.timetable.semester,
-				college: currentItem.colleges?.college_name || 'N/A',
-				total_lec,
-				total_lab,
-				total_hours,
-				num_classes: sortedCourses.length,
-				courses: sortedCourses
-			};
-
-			// 2. Load Template
+			// 1. Load Template once
 			const response = await fetch('/templates/workload_template.docx');
 			if (!response.ok) {
 				throw new Error(`Could not find template: ${response.statusText}`);
 			}
-			const content = await response.arrayBuffer();
+			const templateContent = await response.arrayBuffer();
 
-			const zip = new PizZip(content);
-			const doc = new Docxtemplater(zip, {
-				paragraphLoop: true,
-				linebreaks: true
-			});
+			// If multiple, prepare a master zip archive
+			const isMultiple = instructorIds.length > 1;
+			const masterZip = isMultiple ? new PizZip() : null;
 
-			// 3. Render
-			doc.render(templateData);
+			// Generate DOCX for each instructor
+			for (const instrId of instructorIds) {
+				// Filter schedules for this instructor
+				const instructorSchedules = data.schedules.filter(
+					(s) => s.classes.instructor_id === instrId
+				);
+				if (instructorSchedules.length === 0) continue;
 
-			// 4. Output
-			const out = doc.getZip().generate({
-				type: 'blob',
-				mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-			});
+				// Group by Subject Code + Block
+				const groupedCourses = new Map<string, any[]>();
+				instructorSchedules.forEach((s) => {
+					const key = `${s.classes.subjects.subject_code}-${s.classes.blocks.block_name}`;
+					if (!groupedCourses.has(key)) {
+						groupedCourses.set(key, []);
+					}
+					groupedCourses.get(key).push(s);
+				});
 
-			// 5. Save
-			toast.success('Workload exported successfully!');
-			saveAs(out, `Workload_${currentItem.name.replace(/ /g, '_')}.docx`);
+				// Transform to template format
+				const coursesData = Array.from(groupedCourses.values()).map((group) => {
+					// Sort entries within the group by day/time
+					group.sort((a, b) => {
+						const dayOrder = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
+						const dDiff = (dayOrder[a.day_of_week] || 99) - (dayOrder[b.day_of_week] || 99);
+						if (dDiff !== 0) return dDiff;
+						return a.start_time.localeCompare(b.start_time);
+					});
+
+					const first = group[0];
+
+					return {
+						subject_code: first.classes.subjects.subject_code,
+						subject_title: first.classes.subjects.subject_name.replace(/&/g, '&amp;'),
+						block: first.classes.blocks.block_name,
+						units_lec: first.classes.subjects.lecture_hours || 0,
+						units_lab: first.classes.subjects.lab_hours || 0,
+						num_hours: first.classes.subjects.lecture_hours + first.classes.subjects.lab_hours || 0,
+						// Join details with newlines
+						day: group.map((s) => s.day_of_week.substring(0, 3)).join(',\n'),
+						time: group
+							.map((s) => `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`)
+							.join('\n'),
+						room: group.map((s) => s.rooms.room_name).join(',\n')
+					};
+				});
+
+				// Find instructor details
+				const targetInstr = data.uniqueInstructors.find(i => i.id === instrId);
+				const instrName = targetInstr?.name || 'Unknown';
+				
+				// Map to template structure
+				const sortedCourses = coursesData.sort((a, b) =>
+					a.subject_code.localeCompare(b.subject_code)
+				);
+
+				const total_lec = sortedCourses.reduce((sum, c) => sum + Number(c.units_lec), 0);
+				const total_lab = sortedCourses.reduce((sum, c) => sum + Number(c.units_lab), 0);
+				const total_hours = total_lec + total_lab;
+
+				const templateData = {
+					instructor_name: instrName,
+					academic_year: data.timetable.academic_year,
+					semester: data.timetable.semester,
+					college: targetInstr?.colleges?.college_name || 'N/A',
+					total_lec,
+					total_lab,
+					total_hours,
+					num_classes: sortedCourses.length,
+					courses: sortedCourses
+				};
+
+				// Clone template buffer
+				const zip = new PizZip(templateContent.slice(0));
+				const doc = new Docxtemplater(zip, {
+					paragraphLoop: true,
+					linebreaks: true
+				});
+
+				// Render
+				doc.render(templateData);
+
+				if (isMultiple) {
+					// Add to master zip
+					const fileBuf = doc.getZip().generate({ type: 'arraybuffer' });
+					masterZip!.file(`Workload_${instrName.replace(/ /g, '_')}.docx`, fileBuf);
+				} else {
+					// Single download
+					const out = doc.getZip().generate({
+						type: 'blob',
+						mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+					});
+					toast.success('Workload exported successfully!');
+					saveAs(out, `Workload_${instrName.replace(/ /g, '_')}.docx`);
+				}
+			}
+
+			// Output ZIP if multiple
+			if (isMultiple && masterZip) {
+				const zipBlob = masterZip.generate({ type: 'blob' });
+				toast.success('Workloads exported successfully as ZIP!');
+				saveAs(zipBlob, `Workloads_${data.timetable.name.replace(/ /g, '_')}.zip`);
+			}
+
 		} catch (error) {
 			console.error('Error in export DOCX:', error);
 			toast.error('Error generating document. Please check console for details.');
@@ -242,7 +327,7 @@
 	}
 
 	// --- Room Schedule Grid Export (Template-based) ---
-	async function exportRoomScheduleDOCX() {
+	async function exportRoomScheduleDOCX(roomIds: number[]) {
 		if (isExporting) return;
 		isExporting = true;
 
@@ -277,9 +362,13 @@
 			const slots: string[] = [];
 			for (let i = 0; i < slotCount; i++) slots.push(toTimeStr(startMins + i * SLOT_MINUTES));
 
-			// --- Group schedules by room ---
+			// --- Filter & Group schedules by room ---
 			const schedulesByRoom = new Map<number, typeof data.schedules>();
-			data.schedules.forEach((s) => {
+			
+			// Only keep schedules whose room is in the selected IDs
+			const filteredSchedules = data.schedules.filter(s => roomIds.includes(s.room_id));
+			
+			filteredSchedules.forEach((s) => {
 				if (!schedulesByRoom.has(s.room_id)) schedulesByRoom.set(s.room_id, []);
 				schedulesByRoom.get(s.room_id)!.push(s);
 			});
@@ -911,10 +1000,10 @@
 							</Button>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
-							<DropdownMenu.Item onclick={exportAsDOCX} disabled={viewBy !== 'instructor'}>
+							<DropdownMenu.Item onclick={() => openExportModal('workload')}>
 								As Workload (DOCX)
 							</DropdownMenu.Item>
-							<DropdownMenu.Item onclick={exportRoomScheduleDOCX}>
+							<DropdownMenu.Item onclick={() => openExportModal('room')}>
 								As Room Schedule (DOCX)
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
@@ -1429,5 +1518,115 @@
 				</Button>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Export Dialog -->
+<Dialog.Root bind:open={exportModalOpen}>
+	<Dialog.Content class="max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>
+				Export {exportType === 'workload' ? 'Workload(s)' : 'Room Schedule(s)'}
+			</Dialog.Title>
+			<Dialog.Description>
+				Select whether to export just the current item or multiple selected items.
+			</Dialog.Description>
+		</Dialog.Header>
+
+		<div class="flex flex-col gap-4 py-4">
+			<!-- Scope Selection Buttons -->
+			<div class="grid grid-cols-2 gap-2">
+				<Button
+					variant={exportScope === 'current' ? 'default' : 'outline'}
+					class="w-full justify-center"
+					onclick={() => (exportScope = 'current')}
+					disabled={(exportType === 'workload' && viewBy !== 'instructor') || (exportType === 'room' && viewBy !== 'room')}
+				>
+					Current Item Only
+				</Button>
+				<Button
+					variant={exportScope === 'selected' ? 'default' : 'outline'}
+					class="w-full justify-center"
+					onclick={() => (exportScope = 'selected')}
+				>
+					Select Multiple
+				</Button>
+			</div>
+
+			{#if exportScope === 'selected'}
+				<div class="flex flex-col mt-2">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-sm font-medium">Items to export ({exportSelectedIds.length}):</span>
+						<Button variant="ghost" size="sm" class="h-8 text-xs" onclick={selectAllExport}>
+							Select All
+						</Button>
+					</div>
+
+					<!-- Scrollable List of Items -->
+					<div class="max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-2">
+						{#if exportType === 'workload'}
+							{#each data.uniqueInstructors.filter((i) => itemClassCounts[i.id.toString()] > 0) as instructor (instructor.id)}
+								<div class="flex items-center space-x-2">
+									<Checkbox 
+										id={`export-instr-${instructor.id}`} 
+										checked={exportSelectedIds.includes(instructor.id)}
+										onCheckedChange={() => toggleExportSelection(instructor.id)}
+									/>
+									<label
+										for={`export-instr-${instructor.id}`}
+										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 py-1"
+									>
+										{instructor.name}
+									</label>
+								</div>
+							{/each}
+						{:else}
+							{#each data.uniqueRooms.filter((r) => itemClassCounts[r.id.toString()] > 0) as room (room.id)}
+								<div class="flex items-center space-x-2">
+									<Checkbox 
+										id={`export-room-${room.id}`} 
+										checked={exportSelectedIds.includes(room.id)}
+										onCheckedChange={() => toggleExportSelection(room.id)}
+									/>
+									<label
+										for={`export-room-${room.id}`}
+										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 py-1"
+									>
+										{room.room_name} 
+										<span class="text-xs text-muted-foreground ml-2">({room.colleges?.college_name || 'General Use'})</span>
+									</label>
+								</div>
+							{/each}
+						{/if}
+						
+						{#if (exportType === 'workload' ? data.uniqueInstructors : data.uniqueRooms).filter((item) => itemClassCounts[item.id.toString()] > 0).length === 0}
+							<div class="p-4 text-center text-sm text-muted-foreground">
+								No items currently have generated schedules.
+							</div>
+						{/if}
+					</div>
+				</div>
+				
+				{#if exportType === 'workload' && exportSelectedIds.length > 1}
+					<div class="text-xs bg-amber-50 text-amber-900 border border-amber-200 p-2 rounded flex gap-2 items-start mt-2">
+						<span class="text-amber-500">⚠️</span>
+						<p>Selecting multiple workloads will pack them into a single <strong>.zip file</strong> containing an individual Workload document for each instructor.</p>
+					</div>
+				{/if}
+			{/if}
+		</div>
+
+		<Dialog.Footer>
+			<div class="flex items-center gap-2 justify-end w-full">
+				<Button variant="outline" onclick={() => (exportModalOpen = false)}>Cancel</Button>
+				<Button disabled={isExporting || (exportScope === 'selected' && exportSelectedIds.length === 0)} onclick={handleExportSubmit}>
+					{#if isExporting}
+						<Spinner class="mr-2 h-4 w-4" /> Generating...
+					{:else}
+						<FileDown class="mr-2 w-4 h-4" /> Export
+					{/if}
+				</Button>
+			</div>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
