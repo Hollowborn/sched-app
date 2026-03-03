@@ -530,21 +530,20 @@
 		const counts: Record<string, Set<number>> = {};
 
 		data.schedules.forEach((s) => {
-			const classId = s.classes.id;
 			if (s.room_id) {
 				const key = s.room_id.toString();
 				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
+				counts[key].add(s.id);
 			}
 			if (s.classes.instructor_id) {
 				const key = s.classes.instructor_id.toString();
 				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
+				counts[key].add(s.id);
 			}
 			if (s.classes.block_id) {
 				const key = s.classes.block_id.toString();
 				if (!counts[key]) counts[key] = new Set();
-				counts[key].add(classId);
+				counts[key].add(s.id);
 			}
 		});
 
@@ -569,8 +568,8 @@
 				items = data.uniqueBlocks;
 				break;
 		}
-		// Only return items with a count > 0
-		return items.filter((item) => (itemClassCounts[item.id.toString()] || 0) > 0);
+		// Only return items with strictly greater than 0 occurrences
+		return items.filter((item) => (itemClassCounts[item.id.toString()] !== undefined && itemClassCounts[item.id.toString()] > 0));
 	});
 
 	// Grouping Logic for the Combobox
@@ -585,13 +584,13 @@
 			} else if (viewBy === 'block') {
 				groupName = item.programs?.program_name || 'Unknown Program';
 			}
-			
+
 			if (!groups.has(groupName)) {
 				groups.set(groupName, []);
 			}
 			groups.get(groupName)!.push(item);
 		});
-		
+
 		// Sort groups alphabetically, but put "General Use" or "Other" at the end if desired
 		const sortedGroups = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 		return sortedGroups;
@@ -1002,7 +1001,12 @@
 											{#each groupedItems as [groupName, items]}
 												<Command.Group heading={groupName}>
 													{#each items as item}
-														{@const itemName = viewBy === 'room' ? item.room_name : viewBy === 'instructor' ? item.name : item.block_name}
+														{@const itemName =
+															viewBy === 'room'
+																? item.room_name
+																: viewBy === 'instructor'
+																	? item.name
+																	: item.block_name}
 														<Command.Item
 															value={itemName}
 															onSelect={() => {
@@ -1023,7 +1027,10 @@
 																/>
 																<span class="truncate">{itemName}</span>
 															</div>
-															<Badge variant="secondary" class="font-mono text-[10px] ml-2 shrink-0">
+															<Badge
+																variant="secondary"
+																class="font-mono text-[10px] ml-2 shrink-0"
+															>
 																{itemClassCounts[item.id.toString()]}
 															</Badge>
 														</Command.Item>
@@ -1057,7 +1064,7 @@
 		{#if viewMode === 'grid'}
 			<div id="grid-view-content">
 				<Card.Root>
-					<Card.Header class="flex flex-row items-center justify-between p-2">
+					<Card.Header class="flex flex-row items-center justify-between p-2 md:pl-8 md:pr-8">
 						<div class="flex items-center gap-3">
 							{#if gridHeader.icon}
 								<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
