@@ -119,6 +119,13 @@
 						? 'text-primary'
 						: 'text-muted-foreground'}">How it Works</a
 				>
+				<a
+					href="/schedules"
+					class="hidden md:flex text-sm font-medium transition-colors hover:text-primary {activeSectionId ===
+					'view-published-timetables'
+						? 'text-primary'
+						: 'text-muted-foreground'}">View Published Timetables</a
+				>
 
 				<Button onclick={toggleMode} variant="outline" size="icon">
 					<SunIcon
