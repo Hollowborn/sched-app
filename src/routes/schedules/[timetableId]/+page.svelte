@@ -36,6 +36,8 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { Input } from '$lib/components/ui/input';
 	import { cn } from '$lib/utils';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -71,9 +73,6 @@
 
 	let viewBy = $state<'room' | 'instructor' | 'block'>('room');
 	let currentItemIndex = $state(0);
-	let isExporting = $state(false);
-	let publishOpen = $state(false);
-	let isPublishing = $state(false);
 	let jumpToOpen = $state(false);
 	// file-saver variable for saving
 
@@ -202,11 +201,11 @@
 		if (!currentItem) return [];
 		switch (viewBy) {
 			case 'room':
-				return data.schedules.filter((s) => s.room_id === currentItem.id);
+				return data.schedules.filter((s: any) => s.room_id === currentItem.id);
 			case 'instructor':
-				return data.schedules.filter((s) => s.classes.instructor_id === currentItem.id);
+				return data.schedules.filter((s: any) => s.classes.instructor_id === currentItem.id);
 			case 'block':
-				return data.schedules.filter((s) => s.classes.block_id === currentItem.id);
+				return data.schedules.filter((s: any) => s.classes.block_id === currentItem.id);
 			default:
 				return [];
 		}
@@ -236,15 +235,15 @@
 		if (listSearch.trim() !== '') {
 			const q = listSearch.toLowerCase();
 			items = items.filter(
-				(s) =>
+				(s: any) =>
 					s.classes.subjects.subject_name.toLowerCase().includes(q) ||
 					s.classes.subjects.subject_code.toLowerCase().includes(q) ||
 					s.classes.blocks.block_name.toLowerCase().includes(q) ||
-					s.classes.instructors?.name.toLowerCase().includes(q) ||
+					(s.classes.instructors?.name || '').toLowerCase().includes(q) ||
 					s.rooms.room_name.toLowerCase().includes(q)
 			);
 		}
-		return items.sort((a, b) => {
+		return items.sort((a: any, b: any) => {
 			const dayDiff = days.indexOf(a.day_of_week) - days.indexOf(b.day_of_week);
 			if (dayDiff !== 0) return dayDiff;
 			return a.start_time.localeCompare(b.start_time);
@@ -427,74 +426,47 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-<div class="h-full flex flex-col p-6 md:p-12">
+<div class="h-full flex flex-col p-4 md:p-8 lg:p-12 bg-muted/10 max-w-[1600px] mx-auto w-full">
 	<!-- Sticky Header -->
 	<div
-		class="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2 border-b"
+		class="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 border-b border-border/50 mb-6 px-2 md:px-4 rounded-xl shadow-sm"
 	>
 		<!-- Header & Controls -->
-		<header class="flex flex-col gap-4">
+		<header class="flex flex-col gap-6">
 			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-4">
-					<Button variant="outline" size="icon" class="shrink-0" href="/schedules">
-						<ChevronLeft class="h-4 w-4" />
+				<div class="flex items-center gap-5">
+					<Button variant="outline" size="icon" class="shrink-0 h-10 w-10 rounded-full hover:bg-muted/80 shadow-sm" href="/schedules">
+						<ChevronLeft class="h-5 w-5" />
 					</Button>
 					<div>
-						<h1 class="text-xl font-bold tracking-tight">{data.timetable.name}</h1>
-						<p class="text-xs text-muted-foreground mt-0.5">
-							{data.timetable.academic_year}, {data.timetable.semester}
-						</p>
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">{data.timetable.name}</h1>
+						<div class="flex items-center gap-2 mt-1.5 opacity-90">
+							<Badge variant="secondary" class="font-medium rounded-md px-2 py-0.5 text-xs">{data.timetable.academic_year}</Badge>
+							<span class="text-xs text-muted-foreground">•</span>
+							<span class="text-xs font-medium text-muted-foreground">{data.timetable.semester}</span>
+						</div>
 					</div>
-				</div>
-				<div class="flex items-center gap-2">
-					<!-- Report Button -->
 				</div>
 			</div>
 
 			<!-- Toolbar -->
-			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-				<!-- View Mode Switcher -->
-				<div class="flex items-center bg-muted/50 p-1 rounded-lg border w-fit">
-					<Button
-						variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-						size="sm"
-						class="h-8 px-3 rounded-md transition-all"
-						onclick={() => (viewMode = 'grid')}
-					>
-						Grid
-					</Button>
-					<Button
-						variant={viewMode === 'transposed' ? 'secondary' : 'ghost'}
-						size="sm"
-						class="h-8 px-3 rounded-md transition-all"
-						onclick={() => (viewMode = 'transposed')}
-					>
-						Timeline
-					</Button>
-					<Button
-						variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
-						size="sm"
-						class="h-8 px-3 rounded-md transition-all"
-						onclick={() => (viewMode = 'agenda')}
-					>
-						Agenda
-					</Button>
-					<Button
-						variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-						size="sm"
-						class="h-8 px-3 rounded-md transition-all"
-						onclick={() => (viewMode = 'list')}
-					>
-						List
-					</Button>
-				</div>
+			<div class="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-card/50 p-1.5 rounded-lg">
+				<!-- View Mode Switcher via Tabs -->
+				<Tabs.Root bind:value={viewMode} class="w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+					<Tabs.List class="grid w-full grid-cols-4 md:w-auto h-10 min-w-[340px]">
+						<Tabs.Trigger value="grid" class="text-sm">Grid</Tabs.Trigger>
+						<Tabs.Trigger value="transposed" class="text-sm">Timeline</Tabs.Trigger>
+						<Tabs.Trigger value="agenda" class="text-sm">Agenda</Tabs.Trigger>
+						<Tabs.Trigger value="list" class="text-sm">List</Tabs.Trigger>
+					</Tabs.List>
+				</Tabs.Root>
 
 				<!-- Filters (Only for non-list views) -->
 				{#if viewMode !== 'list'}
-					<div class="flex items-center gap-2 flex-1 md:justify-end">
+					<div class="flex flex-col sm:flex-row items-center gap-3 flex-1 md:justify-end w-full md:w-auto">
 						{#if viewMode === 'grid' || viewMode === 'transposed'}
 							<Select.Root type="single" bind:value={viewBy}>
-								<Select.Trigger class="w-[160px] h-9">
+								<Select.Trigger class="w-full sm:w-[180px] h-10 shadow-sm bg-background">
 									<span> {'View by ' + viewBy.charAt(0).toUpperCase() + viewBy.slice(1)}</span>
 								</Select.Trigger>
 								<Select.Content>
@@ -514,10 +486,10 @@
 											variant="outline"
 											role="combobox"
 											aria-expanded={jumpToOpen}
-											class="w-[280px] h-9 justify-between"
+											class="w-full sm:w-[280px] h-10 shadow-sm bg-background justify-between"
 											{...props}
 										>
-											<span class="truncate">{gridHeader.title || 'Select an item...'}</span>
+											<span class="truncate font-medium">{gridHeader.title || 'Select an item...'}</span>
 											<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 										</Button>
 									{/snippet}
@@ -551,14 +523,14 @@
 																<Check
 																	class={cn(
 																		'h-4 w-4 shrink-0',
-																		currentItem?.id === item.id ? 'opacity-100' : 'opacity-0'
+																		currentItem?.id === item.id ? 'opacity-100 text-primary' : 'opacity-0'
 																	)}
 																/>
 																<span class="truncate">{itemName}</span>
 															</div>
 															<Badge
 																variant="secondary"
-																class="font-mono text-[10px] ml-2 shrink-0"
+																class="font-mono text-[10px] ml-2 shrink-0 bg-muted/50"
 															>
 																{itemClassCounts[item.id.toString()]}
 															</Badge>
@@ -572,12 +544,12 @@
 							</Popover.Root>
 						{:else}
 							<!-- Agenda View Search -->
-							<div class="relative w-[250px]">
-								<ClockFading class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-								<input
+							<div class="relative w-full sm:w-[320px]">
+								<ClockFading class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+								<Input
 									type="text"
 									placeholder="Search agenda..."
-									class="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+									class="pl-9 h-10 shadow-sm bg-background transition-shadow focus-visible:ring-1"
 									bind:value={listSearch}
 								/>
 							</div>
@@ -592,42 +564,47 @@
 	<div class="flex-1 overflow-y-auto py-6">
 		{#if viewMode === 'grid'}
 			<div id="grid-view-content">
-				<Card.Root>
-					<Card.Header class="flex flex-row items-center justify-between p-2 md:pl-8 md:pr-8">
-						<div class="flex items-center gap-3">
+				<Card.Root class="shadow-sm border-border/50 overflow-hidden">
+					<Card.Header class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50">
+						<div class="flex items-center gap-4 mb-3 sm:mb-0">
 							{#if gridHeader.icon}
-								<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
+								<div class="p-2.5 bg-primary/10 rounded-lg shrink-0">
+									<svelte:component this={gridHeader.icon} class="h-6 w-6 text-primary" />
+								</div>
 							{/if}
-							<div>
-								<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
-								<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
+							<div class="min-w-0">
+								<h2 class="text-xl font-bold truncate">{gridHeader.title || 'Select a view'}</h2>
+								<div class="flex items-center mt-1">
+									<p class="text-sm font-medium text-muted-foreground truncate">{gridHeader.subtitle}</p>
+									{#if gridHeader.badge}
+										<span class="mx-2 text-muted-foreground">•</span>
+										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0">{gridHeader.badge}</Badge>
+									{/if}
+								</div>
 							</div>
-							{#if gridHeader.badge}
-								<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
-							{/if}
 						</div>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center justify-end gap-2 isolate">
 							<Button
 								variant="outline"
 								size="icon"
-								class="h-8 w-8"
+								class="h-9 w-9 shadow-sm"
 								onclick={goToPrev}
 								disabled={listSource.length < 2}
 							>
-								<ChevronLeft class="h-4 w-4" />
+								<ChevronLeft class="h-5 w-5" />
 							</Button>
 							<Button
 								variant="outline"
 								size="icon"
-								class="h-8 w-8"
+								class="h-9 w-9 shadow-sm"
 								onclick={goToNext}
 								disabled={listSource.length < 2}
 							>
-								<ChevronRight class="h-4 w-4" />
+								<ChevronRight class="h-5 w-5" />
 							</Button>
 						</div>
 					</Card.Header>
-					<Card.Content class="p-0">
+					<Card.Content class="p-0 bg-background">
 						<div class="border-t overflow-x-auto">
 							<div
 								class="grid min-w-[800px]"
@@ -739,42 +716,47 @@
 		{:else if viewMode === 'transposed'}
 			<!-- Transposed Timeline View -->
 			<div id="transposed-view-content">
-				<Card.Root>
-					<Card.Header class="flex flex-row items-center justify-between p-2">
-						<div class="flex items-center gap-3">
+				<Card.Root class="shadow-sm border-border/50 overflow-hidden">
+					<Card.Header class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50">
+						<div class="flex items-center gap-4 mb-3 sm:mb-0">
 							{#if gridHeader.icon}
-								<svelte:component this={gridHeader.icon} class="h-5 w-5 text-muted-foreground" />
+								<div class="p-2.5 bg-primary/10 rounded-lg shrink-0">
+									<svelte:component this={gridHeader.icon} class="h-6 w-6 text-primary" />
+								</div>
 							{/if}
-							<div>
-								<h2 class="text-lg font-semibold">{gridHeader.title || 'Select a view'}</h2>
-								<p class="text-xs text-muted-foreground">{gridHeader.subtitle}</p>
+							<div class="min-w-0">
+								<h2 class="text-xl font-bold truncate">{gridHeader.title || 'Select a view'}</h2>
+								<div class="flex items-center mt-1">
+									<p class="text-sm font-medium text-muted-foreground truncate">{gridHeader.subtitle}</p>
+									{#if gridHeader.badge}
+										<span class="mx-2 text-muted-foreground">•</span>
+										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0">{gridHeader.badge}</Badge>
+									{/if}
+								</div>
 							</div>
-							{#if gridHeader.badge}
-								<Badge variant="outline" class="ml-2">{gridHeader.badge}</Badge>
-							{/if}
 						</div>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center justify-end gap-2 isolate">
 							<Button
 								variant="outline"
 								size="icon"
-								class="h-8 w-8"
+								class="h-9 w-9 shadow-sm"
 								onclick={goToPrev}
 								disabled={listSource.length < 2}
 							>
-								<ChevronLeft class="h-4 w-4" />
+								<ChevronLeft class="h-5 w-5" />
 							</Button>
 							<Button
 								variant="outline"
 								size="icon"
-								class="h-8 w-8"
+								class="h-9 w-9 shadow-sm"
 								onclick={goToNext}
 								disabled={listSource.length < 2}
 							>
-								<ChevronRight class="h-4 w-4" />
+								<ChevronRight class="h-5 w-5" />
 							</Button>
 						</div>
 					</Card.Header>
-					<Card.Content class="p-0">
+					<Card.Content class="p-0 bg-background">
 						<div class="border-t overflow-x-auto">
 							<div class="min-w-[1000px]">
 								<!-- Header Row (Times) -->
@@ -845,56 +827,52 @@
 			</div>
 		{:else if viewMode === 'agenda'}
 			<!-- Grouped Agenda View -->
-			<div id="agenda-view-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+			<div id="agenda-view-content" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 				{#each days as day (day)}
-					{@const dayItems = listFilteredSchedule.filter((s) => s.day_of_week === day)}
+					{@const dayItems = listFilteredSchedule.filter((s: any) => s.day_of_week === day)}
 					{#if dayItems.length > 0}
-						<Card.Root class="overflow-hidden bg-muted/30">
-							<Card.Header class=" py-3 px-4 border-b">
-								<h3 class="font-semibold flex items-center gap-2">
+						<Card.Root class="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+							<Card.Header class="py-4 px-5 border-b bg-card/50">
+								<h3 class="font-bold flex items-center justify-between text-lg text-foreground/90">
 									{day}
+									<Badge variant="secondary" class="rounded-full px-2 py-0.5">{dayItems.length}</Badge>
 								</h3>
 							</Card.Header>
-							<Card.Content class="p-0">
-								<div class="divide-y">
-									{#each dayItems as item (item.id)}
-										<div class="p-4 flex gap-4 hover:bg-muted/20 transition-colors">
-											<div class="flex flex-col items-center justify-center w-16 shrink-0">
-												<span class="text-sm font-bold">{item.start_time.substring(0, 5)}</span>
-												<div class="h-8 w-0.5 bg-border my-1"></div>
-												<span class="text-xs text-muted-foreground"
+							<Card.Content class="p-0 bg-background">
+								<div class="flex flex-col">
+									{#each dayItems as item, idx (item.id)}
+										{#if idx > 0}<Separator />{/if}
+										<div class="p-5 flex gap-5 hover:bg-muted/10 transition-colors">
+											<div class="flex flex-col items-center justify-center w-16 shrink-0 bg-muted/20 rounded-lg p-2.5">
+												<span class="text-sm font-bold text-primary">{item.start_time.substring(0, 5)}</span>
+												<div class="h-5 w-px bg-border my-1.5"></div>
+												<span class="text-xs font-semibold text-muted-foreground"
 													>{item.end_time.substring(0, 5)}</span
 												>
 											</div>
-											<div class="flex-1 space-y-1">
-												<div class="flex items-start justify-between">
-													<h4 class="font-semibold text-sm">
+											<div class="flex-1 space-y-2 py-0.5">
+												<div class="flex items-start justify-between gap-2">
+													<h4 class="font-bold text-sm leading-tight text-foreground/90 mix-blend-luminosity">
 														{item.classes.subjects.subject_name}
 													</h4>
-													{#if item.course_type === 'Lecture'}
-														<Badge variant="default" class="text-[10px] h-5 px-1 ml-1 shrink-0">
-															Lec
-														</Badge>
-													{:else}
-														<Badge variant="destructive" class="text-[10px] h-5 px-1 ml-1 shrink-0">
-															Lab
-														</Badge>
-													{/if}
+													<Badge variant={item.course_type === 'Lecture' ? 'default' : 'secondary'} class="text-[10px] uppercase font-bold tracking-wider rounded-sm shrink-0 ml-auto whitespace-nowrap px-1.5 h-5 shadow-none border-transparent">
+														{item.course_type === 'Lecture' ? 'Lec' : 'Lab'}
+													</Badge>
 												</div>
 
-												<div class="flex items-center gap-4 text-xs text-muted-foreground">
-													<span class="flex items-center gap-1">
-														<Building class="h-3 w-3" />
-														{item.rooms.room_name}
-													</span>
-													<span class="flex items-center gap-1">
-														<UserIcon class="h-3 w-3" />
-														{item.classes.instructors?.name || 'Unassigned'}
-													</span>
-													<span class="flex items-center gap-1">
-														<Users class="h-3 w-3" />
-														{item.classes.blocks.block_name}
-													</span>
+												<div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-2 text-xs text-muted-foreground mt-3">
+													<div class="flex items-center gap-1.5" title="Room">
+														<Building class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
+														<span class="truncate font-medium">{item.rooms.room_name}</span>
+													</div>
+													<div class="flex items-center gap-1.5" title="Instructor">
+														<UserIcon class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
+														<span class="truncate font-medium">{item.classes.instructors?.name || 'Unassigned'}</span>
+													</div>
+													<div class="flex items-center gap-1.5 sm:col-span-2" title="Section/Block">
+														<Users class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
+														<span class="truncate font-medium">{item.classes.blocks.block_name}</span>
+													</div>
 												</div>
 											</div>
 										</div>
@@ -914,49 +892,4 @@
 	</div>
 </div>
 
-<!-- Publish Dialog -->
-<Dialog.Root bind:open={publishOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Publish Timetable?</Dialog.Title>
-			<Dialog.Description>
-				Are you sure you want to publish this timetable? This will make it the active schedule for
-				the indicated academic year and semester. Any currently published timetable for the same
-				term and college/program will be automatically archived.
-			</Dialog.Description>
-		</Dialog.Header>
-		<form
-			method="POST"
-			action="?/publishTimetable"
-			use:enhance={() => {
-				isPublishing = true;
-				const toastId = toast.loading('Publishing timetable...');
-				return async ({ update, result }) => {
-					isPublishing = false;
-					if (result.type === 'success') {
-						toast.success(result.data?.message, { id: toastId });
-						publishOpen = false;
-						await invalidateAll();
-					} else if (result.type === 'failure') {
-						toast.error(result.data?.message, { id: toastId });
-					}
-					await update({ reset: false });
-				};
-			}}
-		>
-			<input type="hidden" name="timetableId" value={data.timetable.id} />
-			<Dialog.Footer class="gap-2">
-				<Button variant="outline" type="button" onclick={() => (publishOpen = false)}>Cancel</Button
-				>
-				<Button type="submit" disabled={isPublishing}>
-					{#if isPublishing}
-						<Spinner class="mr-2 h-4 w-4" />
-						Publishing...
-					{:else}
-						Publish
-					{/if}
-				</Button>
-			</Dialog.Footer>
-		</form>
-	</Dialog.Content>
-</Dialog.Root>
+
