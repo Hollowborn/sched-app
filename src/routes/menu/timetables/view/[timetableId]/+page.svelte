@@ -28,6 +28,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 
+	// Import shadcn-svelte components
 	import DataTable from '$lib/components/data-table/data-table.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
@@ -46,8 +47,10 @@
 		Grid2X2Check,
 		MapPinCheck,
 		ChevronsUpDown,
-		Check
+		Check,
+		AlertTriangle
 	} from '@lucide/svelte';
+	import * as Item from '$lib/components/ui/item/index.js';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -127,14 +130,17 @@
 
 	function openExportModal(type: 'workload' | 'room') {
 		exportType = type;
-		
+
 		// If the user's current view matches the export type, default to "current", else default to "selected"
-		if ((type === 'workload' && viewBy === 'instructor') || (type === 'room' && viewBy === 'room')) {
+		if (
+			(type === 'workload' && viewBy === 'instructor') ||
+			(type === 'room' && viewBy === 'room')
+		) {
 			exportScope = 'current';
 		} else {
 			exportScope = 'selected';
 		}
-		
+
 		exportSelectedIds = [];
 		exportModalOpen = true;
 	}
@@ -164,7 +170,7 @@
 			let ids = [];
 			if (exportScope === 'current') {
 				if (viewBy !== 'instructor' || !currentItem) {
-					toast.error("Please navigate to an Instructor view to export the current workload.");
+					toast.error('Please navigate to an Instructor view to export the current workload.');
 					return;
 				}
 				ids = [currentItem.id];
@@ -182,7 +188,7 @@
 			let ids = [];
 			if (exportScope === 'current') {
 				if (viewBy !== 'room' || !currentItem) {
-					toast.error("Please navigate to a Room view to export the current room schedule.");
+					toast.error('Please navigate to a Room view to export the current room schedule.');
 					return;
 				}
 				ids = [currentItem.id];
@@ -237,7 +243,15 @@
 				const coursesData = Array.from(groupedCourses.values()).map((group) => {
 					// Sort entries within the group by day/time
 					group.sort((a, b) => {
-						const dayOrder = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
+						const dayOrder = {
+							Monday: 1,
+							Tuesday: 2,
+							Wednesday: 3,
+							Thursday: 4,
+							Friday: 5,
+							Saturday: 6,
+							Sunday: 7
+						};
 						const dDiff = (dayOrder[a.day_of_week] || 99) - (dayOrder[b.day_of_week] || 99);
 						if (dDiff !== 0) return dDiff;
 						return a.start_time.localeCompare(b.start_time);
@@ -262,9 +276,9 @@
 				});
 
 				// Find instructor details
-				const targetInstr = data.uniqueInstructors.find(i => i.id === instrId);
+				const targetInstr = data.uniqueInstructors.find((i) => i.id === instrId);
 				const instrName = targetInstr?.name || 'Unknown';
-				
+
 				// Map to template structure
 				const sortedCourses = coursesData.sort((a, b) =>
 					a.subject_code.localeCompare(b.subject_code)
@@ -317,7 +331,6 @@
 				toast.success('Workloads exported successfully as ZIP!');
 				saveAs(zipBlob, `Workloads_${data.timetable.name.replace(/ /g, '_')}.zip`);
 			}
-
 		} catch (error) {
 			console.error('Error in export DOCX:', error);
 			toast.error('Error generating document. Please check console for details.');
@@ -364,10 +377,10 @@
 
 			// --- Filter & Group schedules by room ---
 			const schedulesByRoom = new Map<number, typeof data.schedules>();
-			
+
 			// Only keep schedules whose room is in the selected IDs
-			const filteredSchedules = data.schedules.filter(s => roomIds.includes(s.room_id));
-			
+			const filteredSchedules = data.schedules.filter((s) => roomIds.includes(s.room_id));
+
 			filteredSchedules.forEach((s) => {
 				if (!schedulesByRoom.has(s.room_id)) schedulesByRoom.set(s.room_id, []);
 				schedulesByRoom.get(s.room_id)!.push(s);
@@ -658,7 +671,10 @@
 				break;
 		}
 		// Only return items with strictly greater than 0 occurrences
-		return items.filter((item) => (itemClassCounts[item.id.toString()] !== undefined && itemClassCounts[item.id.toString()] > 0));
+		return items.filter(
+			(item) =>
+				itemClassCounts[item.id.toString()] !== undefined && itemClassCounts[item.id.toString()] > 0
+		);
 	});
 
 	// Grouping Logic for the Combobox
@@ -1540,7 +1556,8 @@
 					variant={exportScope === 'current' ? 'default' : 'outline'}
 					class="w-full justify-center"
 					onclick={() => (exportScope = 'current')}
-					disabled={(exportType === 'workload' && viewBy !== 'instructor') || (exportType === 'room' && viewBy !== 'room')}
+					disabled={(exportType === 'workload' && viewBy !== 'instructor') ||
+						(exportType === 'room' && viewBy !== 'room')}
 				>
 					Current Item Only
 				</Button>
@@ -1567,8 +1584,8 @@
 						{#if exportType === 'workload'}
 							{#each data.uniqueInstructors.filter((i) => itemClassCounts[i.id.toString()] > 0) as instructor (instructor.id)}
 								<div class="flex items-center space-x-2">
-									<Checkbox 
-										id={`export-instr-${instructor.id}`} 
+									<Checkbox
+										id={`export-instr-${instructor.id}`}
 										checked={exportSelectedIds.includes(instructor.id)}
 										onCheckedChange={() => toggleExportSelection(instructor.id)}
 									/>
@@ -1583,8 +1600,8 @@
 						{:else}
 							{#each data.uniqueRooms.filter((r) => itemClassCounts[r.id.toString()] > 0) as room (room.id)}
 								<div class="flex items-center space-x-2">
-									<Checkbox 
-										id={`export-room-${room.id}`} 
+									<Checkbox
+										id={`export-room-${room.id}`}
 										checked={exportSelectedIds.includes(room.id)}
 										onCheckedChange={() => toggleExportSelection(room.id)}
 									/>
@@ -1592,13 +1609,15 @@
 										for={`export-room-${room.id}`}
 										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 py-1"
 									>
-										{room.room_name} 
-										<span class="text-xs text-muted-foreground ml-2">({room.colleges?.college_name || 'General Use'})</span>
+										{room.room_name}
+										<span class="text-xs text-muted-foreground ml-2"
+											>({room.colleges?.college_name || 'General Use'})</span
+										>
 									</label>
 								</div>
 							{/each}
 						{/if}
-						
+
 						{#if (exportType === 'workload' ? data.uniqueInstructors : data.uniqueRooms).filter((item) => itemClassCounts[item.id.toString()] > 0).length === 0}
 							<div class="p-4 text-center text-sm text-muted-foreground">
 								No items currently have generated schedules.
@@ -1606,12 +1625,25 @@
 						{/if}
 					</div>
 				</div>
-				
+
 				{#if exportType === 'workload' && exportSelectedIds.length > 1}
-					<div class="text-xs bg-amber-50 text-amber-900 border border-amber-200 p-2 rounded flex gap-2 items-start mt-2">
+					<Item.Root variant="outline" size="sm">
+						<Item.Media>
+							<AlertTriangle class="size-5" />
+						</Item.Media>
+						<Item.Content>
+							<Item.Description
+								>Selecting multiple workloads will pack them into a single <strong>.zip file</strong
+								> containing an individual Workload document for each instructor.</Item.Description
+							>
+						</Item.Content>
+					</Item.Root>
+					<!-- <div
+						class="text-xs bg-amber-50 text-amber-900 border border-amber-200 p-2 rounded flex gap-2 items-start mt-2"
+					>
 						<span class="text-amber-500">⚠️</span>
-						<p>Selecting multiple workloads will pack them into a single <strong>.zip file</strong> containing an individual Workload document for each instructor.</p>
-					</div>
+						<p></p>
+					</div> -->
 				{/if}
 			{/if}
 		</div>
@@ -1619,7 +1651,10 @@
 		<Dialog.Footer>
 			<div class="flex items-center gap-2 justify-end w-full">
 				<Button variant="outline" onclick={() => (exportModalOpen = false)}>Cancel</Button>
-				<Button disabled={isExporting || (exportScope === 'selected' && exportSelectedIds.length === 0)} onclick={handleExportSubmit}>
+				<Button
+					disabled={isExporting || (exportScope === 'selected' && exportSelectedIds.length === 0)}
+					onclick={handleExportSubmit}
+				>
 					{#if isExporting}
 						<Spinner class="mr-2 h-4 w-4" /> Generating...
 					{:else}
