@@ -51,5 +51,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw redirect(303, '/menu/dashboard');
 	}
 
-	return { url };
+	return {};
 };
