@@ -992,7 +992,7 @@
 							{#if report?.failedClasses?.length > 0}
 								<span class="mr-2">⚠️</span>
 							{/if}
-							Report
+							Details
 						</Button>
 					{/if}
 
