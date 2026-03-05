@@ -21,6 +21,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	let workloadData: { name: string; value: number }[] = [];
 	let scheduleStatusData: { name: string; value: number }[] = [];
 	let actionItems: any[] = [];
+	let publishedTimetable: any = null;
 
 	// Base query for schedule status & action items
 	let scheduleQuery = locals.supabase
@@ -39,7 +40,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			{ count: program_count },
 			{ data: instructors },
 			{ data: assigned_classes },
-			{ data: schedule_classes }
+			{ data: schedule_classes },
+			{ data: published_timetables }
 		] = await Promise.all([
 			locals.supabase.from('instructors').select('*', { count: 'exact', head: true }),
 			locals.supabase.from('rooms').select('*', { count: 'exact', head: true }),
@@ -52,7 +54,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				.eq('academic_year', academic_year)
 				.eq('semester', semester)
 				.not('instructor_id', 'is', null),
-			scheduleQuery
+			scheduleQuery,
+			locals.supabase
+				.from('timetables')
+				.select('*')
+				.eq('academic_year', academic_year)
+				.eq('semester', semester)
+				.eq('status', 'published')
+				.order('created_at', { ascending: false })
+				.limit(1)
 		]);
 
 		stats = {
@@ -61,6 +71,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			subjectCount: subject_count ?? 0,
 			programCount: program_count ?? 0
 		};
+
+		publishedTimetable = published_timetables?.[0] || null;
 
 		// --- OPTIMIZED WORKLOAD CALCULATION ---
 		// 1. Create a map of instructor loads for efficient lookup
@@ -120,7 +132,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			{ count: program_count },
 			{ data: instructors },
 			{ data: assigned_classes },
-			{ data: schedule_classes }
+			{ data: schedule_classes },
+			{ data: published_timetables }
 		] = await Promise.all([
 			locals.supabase
 				.from('instructors')
@@ -145,7 +158,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				.eq('academic_year', academic_year)
 				.eq('semester', semester)
 				.not('instructor_id', 'is', null),
-			scheduleQuery
+			scheduleQuery,
+			locals.supabase
+				.from('timetables')
+				.select('*')
+				.eq('academic_year', academic_year)
+				.eq('semester', semester)
+				.eq('status', 'Published')
+				.eq('college_id', collegeId)
+				.order('created_at', { ascending: false })
+				.limit(1)
 		]);
 
 		stats = {
@@ -154,6 +176,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			subjectCount: subject_count ?? 0,
 			programCount: program_count ?? 0
 		};
+
+		publishedTimetable = published_timetables?.[0] || null;
 
 		// --- OPTIMIZED WORKLOAD CALCULATION ---
 		// 1. Create a map of instructor loads for efficient lookup
@@ -201,6 +225,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		workloadData,
 		scheduleStatusData,
 		actionItems,
+		publishedTimetable,
 		academic_year,
 		semester
 	};

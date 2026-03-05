@@ -2,10 +2,18 @@
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
 
-	import { Users, Building, BookCopy, GraduationCap, Calendar, BookOpen } from 'lucide-svelte';
+	import {
+		Users,
+		Building,
+		BookCopy,
+		GraduationCap,
+		Calendar,
+		BookOpen,
+		FileText,
+		ArrowRight
+	} from 'lucide-svelte';
 	import ChartBarDefault from '$lib/components/charts/chart-bar-default.svelte';
 	import PieChartInteractive from '$lib/components/charts/pie-chart-interactive.svelte';
-	import ActionItemsTable from '$lib/components/dashboard/action-items-table.svelte';
 
 	// shadcn-svelte components
 	import * as Card from '$lib/components/ui/card';
@@ -16,8 +24,16 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 
 	let { data } = $props<{ data: PageData }>();
-	const { profile, stats, workloadData, scheduleStatusData, actionItems, academic_year, semester } =
-		data;
+	const {
+		profile,
+		stats,
+		workloadData,
+		scheduleStatusData,
+		actionItems,
+		publishedTimetable,
+		academic_year,
+		semester
+	} = data;
 
 	const scopeText =
 		profile?.role === 'Admin' || profile?.role === 'Registrar'
@@ -105,6 +121,52 @@
 		</div>
 	</div>
 	<Separator class="md:mt-12 " />
+
+	<!-- Published Timetable Card -->
+	<div class="mb-6">
+		{#if publishedTimetable}
+			<Card.Root class="border-primary/50 bg-primary/5">
+				<Card.Header>
+					<div class="flex items-center justify-between">
+						<div>
+							<Card.Title class="flex items-center gap-2 text-xl">
+								<FileText class="h-5 w-5 text-primary" />
+								{publishedTimetable.name}
+							</Card.Title>
+							<Card.Description>Published Timetable for {semester} {academic_year}</Card.Description
+							>
+						</div>
+						<Badge variant="default" class="bg-primary text-primary-foreground">Published</Badge>
+					</div>
+				</Card.Header>
+				<Card.Content>
+					<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+						<div class="text-sm text-muted-foreground">
+							Generated on: {new Date(publishedTimetable.created_at).toLocaleDateString()}
+						</div>
+						<Button href={`/menu/timetables/view/${publishedTimetable.id}`} class="gap-2">
+							View Full Schedule <ArrowRight class="h-4 w-4" />
+						</Button>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<Card.Root class="border-dashed border-muted bg-muted/20">
+				<Card.Header>
+					<Card.Title class="text-xl text-muted-foreground">No Published Timetable</Card.Title>
+					<Card.Description
+						>There is currently no published timetable for {semester}
+						{academic_year}.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="flex gap-4">
+					<Button variant="default" href="/menu/timetables/generate">Generate New Timetable</Button>
+					<Button variant="outline" href="/menu/timetables/view">View Drafts</Button>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+	</div>
+
 	<!-- Main content grid -->
 	<div class="grid grid-cols-12 gap-6">
 		<!-- Stat Cards -->
@@ -195,27 +257,39 @@
 			</Card.Content>
 		</Card.Root>
 
-		<!-- Action Items Table -->
-		<!-- <div class="col-span-12">
-			<Card.Root>
-				<Card.Header>
-					<Card.Title>Assign Instructors</Card.Title>
-					<Card.Description>
-						The following classes are offered but still need an instructor.
-					</Card.Description>
-				</Card.Header>
-				<Card.Content>
-					{#if actionItems.length > 0}
-						<ActionItemsTable data={actionItems} />
-					{:else}
-						<div class="flex h-24 items-center justify-center rounded-md border">
-							<p class="text-muted-foreground">
-								All classes have an instructor assigned. Great work!
-							</p>
+		<!-- Data Readiness Status -->
+		<Card.Root class="col-span-12 lg:col-span-4">
+			<Card.Header>
+				<Card.Title>Data Readiness Check</Card.Title>
+				<Card.Description>Review pending data entries before generation.</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<div class="space-y-4">
+					<div>
+						<div class="flex items-center justify-between text-sm">
+							<span class="font-medium">Unassigned Classes</span>
+							<Badge variant={actionItems.length === 0 ? 'secondary' : 'destructive'}>
+								{actionItems.length}
+							</Badge>
 						</div>
-					{/if}
-				</Card.Content>
-			</Card.Root>
-		</div> -->
+						{#if actionItems.length > 0}
+							<p class="text-xs text-muted-foreground mt-1">
+								{actionItems.length} class(es) need an instructor assignment.
+							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full mt-2"
+								href="/menu/academics/assignments"
+							>
+								Assign Instructors
+							</Button>
+						{:else}
+							<p class="text-xs mt-1 text-green-600">All classes have an instructor assigned!</p>
+						{/if}
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
 	</div>
 </div>
