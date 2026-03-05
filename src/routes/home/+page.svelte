@@ -440,7 +440,7 @@
 					timetables.
 				</p>
 				<div data-animate>
-					<Button href="#features" class="bg-white/45">Explore Options</Button>
+					<Button href="/schedules" class="bg-white/45">Explore Published Schedules</Button>
 					<Button
 						size="lg"
 						variant="secondary"
