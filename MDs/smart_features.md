@@ -32,7 +32,7 @@ Instead of making users sift through a long list of rooms, the system can recomm
   3.  Sufficient `capacity` (not too big, not too small).
   4.  Ownership by the class's college (`owner_college_id`).
 
-### 4. The Auto-Scheduler (Constraint-Based Generation)
+### 4. The Auto-Scheduler (Constraint-Based Generation) -- done
 
 This is the ultimate smart feature, turning weeks of manual work into a single click.
 
