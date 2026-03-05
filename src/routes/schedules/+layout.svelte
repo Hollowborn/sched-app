@@ -4,6 +4,9 @@
 	}
 	import { GalleryVerticalEndIcon } from '@lucide/svelte';
 	let { children }: Props = $props();
+	import { SunIcon, MoonIcon } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { toggleMode } from 'mode-watcher';
 </script>
 
 <div class="min-h-screen bg-background flex flex-col">
@@ -28,10 +31,22 @@
 					>
 				</h1>
 			</a>
+
 			<div class="flex items-center gap-4">
 				<a href="/login" class="text-sm font-medium hover:underline underline-offset-4">
 					Instructor / Admin Login
 				</a>
+			</div>
+			<div class="flex items-center justify-center">
+				<Button onclick={toggleMode} variant="outline" size="icon">
+					<SunIcon
+						class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 !transition-all dark:-rotate-90 dark:scale-0"
+					/>
+					<MoonIcon
+						class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 !transition-all dark:rotate-0 dark:scale-100"
+					/>
+					<span class="sr-only">Toggle theme</span>
+				</Button>
 			</div>
 		</div>
 	</header>
