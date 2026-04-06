@@ -95,11 +95,11 @@
 
 	function getStatusVariant(status: string): 'default' | 'secondary' | 'outline' | 'destructive' {
 		switch (status) {
-			case 'Published':
+			case 'published':
 				return 'default';
-			case 'Draft':
+			case 'draft':
 				return 'secondary';
-			case 'Archived':
+			case 'archived':
 				return 'outline';
 			default:
 				return 'secondary';
@@ -291,18 +291,29 @@
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 			{#if data.timetables.length > 0}
 				{#each data.timetables as tt (tt.id)}
-					<Item.Root variant="outline"
-						><Item.Header class="flex">
-							<Item.Title class="text-2xl flex-1 leading-tight tracking-tight "
-								>{tt.name}</Item.Title
+					<Item.Root
+						variant="outline"
+						class={tt.status === 'published' ? 'border-primary/50 bg-primary/5 shadow-md' : ''}
+					>
+						<Item.Header class="flex">
+							<Item.Title
+								class={cn(
+									'text-2xl flex-1 leading-tight tracking-tight text-outline',
+									tt.status === 'published' ? 'text-primary' : ''
+								)}
 							>
+								{tt.name}
+							</Item.Title>
 							<Item.Actions></Item.Actions>
 							<Item.Description class="flex gap-2 items-center"
 								><Calendar class="h-3.5 w-3.5" />{tt.academic_year} • {tt.semester}</Item.Description
 							>
 						</Item.Header>
 						<Item.Content>
-							<Badge variant="outline" class="shrink-0 capitalize shadow-sm ">
+							<Badge variant={getStatusVariant(tt.status)} class="shrink-0 capitalize shadow-sm ">
+								{#if tt.status === 'published'}
+									<Star class="mr-1 h-3.5 w-3.5" />
+								{/if}
 								{tt.status}
 							</Badge>
 							<Item.Actions class="flex md:justify-end">
@@ -373,12 +384,12 @@
 				return async ({ update, result }) => {
 					isSubmitting = false;
 					if (result.type === 'success') {
-						toast.success(result.data?.message, { id: toastId });
+						toast.success(result.data?.message as string, { id: toastId });
 						archiveOpen = false;
 						timetableToArchiveId = null;
 						await invalidateAll();
 					} else if (result.type === 'failure') {
-						toast.error(result.data?.message, { id: toastId });
+						toast.error(result.data?.message as string, { id: toastId });
 					}
 					await update({ reset: false });
 				};
