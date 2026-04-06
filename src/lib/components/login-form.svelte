@@ -75,6 +75,7 @@
 				type="email"
 				placeholder="dean@university.edu"
 				bind:value={email}
+				maxlength={40}
 				disabled={isSubmitting}
 				required
 				class={formErrors.email ? 'border-destructive' : ''}
@@ -95,6 +96,7 @@
 				name="password"
 				type="password"
 				bind:value={password}
+				maxlength={40}
 				disabled={isSubmitting}
 				class={formErrors.password ? 'border-destructive' : ''}
 			/>

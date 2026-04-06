@@ -99,9 +99,9 @@
 	};
 
 	const workloadData = [
-		{ name: 'Dr. Smith', load: 18, max_load: 18 },
-		{ name: 'Prof. Jones', load: 15, max_load: 18 },
-		{ name: 'Dr. Williams', load: 21, max_load: 18 }
+		{ name: 'Dr. Juan', load: 18, max_load: 18 },
+		{ name: 'Prof. Maria', load: 15, max_load: 18 },
+		{ name: 'Dr. Sanchez', load: 21, max_load: 18 }
 	];
 
 	const scheduleStatusData = [
@@ -121,8 +121,8 @@
 		},
 		{
 			id: 2,
-			subjects: { subject_code: 'ENG102', subject_name: 'Technical Writing' },
-			blocks: { block_name: 'BSIT-1B' }
+			subjects: { subject_code: 'MATH1', subject_name: 'Calculus 1' },
+			blocks: { block_name: 'BSED-1B' }
 		}
 	];
 
@@ -305,7 +305,7 @@
 								</div>
 							</Card.Content>
 						</Card.Root>
-						<Card.Root class="xl:col-span-1">
+						<Card.Root class="xl:col-span-2">
 							<Card.Header class="p-4">
 								<Card.Title class="text-sm">Assignment Status</Card.Title>
 							</Card.Header>
@@ -456,7 +456,7 @@
 										Role
 									</div>
 								</div>
-								{#each [{ n: 'Alice Johnson', r: 'Admin', c: 'blue' }, { n: 'Bob Williams', r: 'Dean', c: 'green' }, { n: 'Clara Zeta', r: 'Registrar', c: 'orange' }] as mockUser}
+								{#each [{ n: 'Juan de la Cruz', r: 'Admin', c: 'blue' }, { n: 'Maria Santos', r: 'Dean', c: 'green' }, { n: 'Pedro Garcia', r: 'Registrar', c: 'orange' }] as mockUser}
 									<div
 										class="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors"
 									>
