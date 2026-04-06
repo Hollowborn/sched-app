@@ -11,10 +11,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(403, 'Forbidden: You do not have permission to access instructors.');
 	}
 
-	const academic_year =
-		url.searchParams.get('year') || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-	const semester = url.searchParams.get('semester') || '1st Semester';
+	const now = new Date();
+	const currentMonth = now.getMonth(); // 0-based
+	const currentYear = now.getFullYear();
 
+	let defaultSemester = '1st Semester';
+	let defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+
+	if (currentMonth >= 0 && currentMonth <= 4) {
+		// Jan to May
+		defaultSemester = '2nd Semester';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	} else if (currentMonth === 5 || currentMonth === 6) {
+		// Jun to Jul (Summer)
+		defaultSemester = 'Summer';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	}
+
+	const academic_year = url.searchParams.get('academic_year') || defaultAcademicYear;
+	const semester = url.searchParams.get('semester') || defaultSemester;
 	// Base query for instructors, now joining with colleges via the link table
 	let query = locals.supabase.from('instructors').select(`
 		*,
