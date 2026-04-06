@@ -77,7 +77,7 @@
 
 	function handleFilterChange() {
 		const params = new URLSearchParams();
-		params.set('year', academicYear);
+		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 		params.set('status', status);
 		goto(`?${params.toString()}`, { invalidateAll: true, noScroll: true });
