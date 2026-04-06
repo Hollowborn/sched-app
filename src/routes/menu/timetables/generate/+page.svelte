@@ -88,8 +88,8 @@
 		enforceInstructor: true,
 		enforceBlock: true
 	});
-	let startTime = $state('07:30');
-	let endTime = $state('17:30');
+	let startTime = $state('08:00');
+	let endTime = $state('18:00');
 	let breakTime = $state('12:00-13:00');
 	let algorithm = $state<'memetic' | 'cp' | 'smart_cp'>('smart_cp');
 

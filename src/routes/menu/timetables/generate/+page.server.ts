@@ -138,8 +138,8 @@ export const actions: Actions = {
 		const excluded_days = formData.getAll('excluded_days').map(String);
 
 		// New inputs from the refactored UI
-		const scheduleStartTime = formData.get('scheduleStartTime')?.toString() || '07:30';
-		const scheduleEndTime = formData.get('scheduleEndTime')?.toString() || '17:30';
+		const scheduleStartTime = formData.get('scheduleStartTime')?.toString() || '08:00';
+		const scheduleEndTime = formData.get('scheduleEndTime')?.toString() || '18:00';
 		const breakTime = formData.get('breakTime')?.toString() || 'none'; // e.g., '12:00-13:00'
 		const algorithm = formData.get('algorithm')?.toString() || 'memetic'; // 'memetic' or 'cp'
 		const custom_name = formData.get('custom_name')?.toString();
