@@ -298,8 +298,10 @@
 						<Item.Header class="flex">
 							<Item.Title
 								class={cn(
-									'text-2xl flex-1 leading-tight tracking-tight text-outline',
-									tt.status === 'published' ? 'text-primary' : ''
+									'text-2xl flex-1 leading-tight tracking-tight',
+									tt.status === 'published'
+										? 'font-semibold text-foreground dark:text-primary'
+										: 'text-foreground'
 								)}
 							>
 								{tt.name}
