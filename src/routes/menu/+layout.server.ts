@@ -39,6 +39,13 @@ const ALL_NAV_ITEMS_DATA: NavItem[] = [
 				icon: 'Users',
 				description: 'Manage student blocks and program sections.',
 				roles: ['Admin', 'Registrar', 'Chairperson']
+			},
+			{
+				title: 'Curriculums',
+				url: '/menu/resources/curriculums',
+				icon: 'Network',
+				description: 'Manage program curricula and subject blueprints.',
+				roles: ['Admin', 'Dean', 'Registrar', 'Chairperson']
 			}
 		]
 	},
