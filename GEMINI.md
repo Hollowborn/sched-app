@@ -248,7 +248,24 @@ CREATE TABLE IF NOT EXISTS classes (
 
 
 
--- 10. SCHEDULES TABLE (The Time Slots)
+-- 10. CURRICULUMS AND SUBJECTS (The Blueprints)
+CREATE TABLE IF NOT EXISTS curriculums (
+    id SERIAL PRIMARY KEY,
+    program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+    revision_year VARCHAR(20) NOT NULL,
+    year_level INTEGER NOT NULL CHECK (year_level BETWEEN 1 AND 5),
+    semester course_offering_semester NOT NULL,
+    UNIQUE(program_id, revision_year, year_level, semester)
+);
+
+CREATE TABLE IF NOT EXISTS curriculum_subjects (
+    curriculum_id INTEGER REFERENCES curriculums(id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
+    is_major BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (curriculum_id, subject_id)
+);
+
+-- 11. SCHEDULES TABLE (The Time Slots)
 DROP TABLE IF EXISTS public.schedules;
 CREATE TABLE schedules (
     id SERIAL PRIMARY KEY,
@@ -286,6 +303,8 @@ CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id);
 CREATE INDEX IF NOT EXISTS idx_classes_block_id ON classes(block_id);
 CREATE INDEX IF NOT EXISTS idx_classes_term ON classes(academic_year, semester);
 CREATE INDEX IF NOT EXISTS idx_timetables_term ON timetables(academic_year, semester);
+CREATE INDEX IF NOT EXISTS idx_curriculum_program ON curriculums(program_id);
+CREATE INDEX IF NOT EXISTS idx_curriculum_subjects_curriculum ON curriculum_subjects(curriculum_id);
 
 
 ## 10. Development Log & Future Work

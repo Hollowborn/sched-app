@@ -139,7 +139,42 @@ CREATE TABLE IF NOT EXISTS classes (
     UNIQUE(subject_id, block_id, semester, academic_year)
 );
 
--- 10. SCHEDULES TABLE (The Time Slots)
+create table public.instructor_colleges (
+  instructor_id integer not null,
+  college_id integer not null,
+  constraint instructor_colleges_pkey primary key (instructor_id, college_id),
+  constraint instructor_colleges_college_id_fkey foreign KEY (college_id) references colleges (id) on delete CASCADE,
+  constraint instructor_colleges_instructor_id_fkey foreign KEY (instructor_id) references instructors (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.instructor_subjects (
+  id serial not null,
+  instructor_id integer not null,
+  subject_id integer not null,
+  constraint instructor_subjects_pkey primary key (id),
+  constraint instructor_subjects_instructor_id_subject_id_key unique (instructor_id, subject_id),
+  constraint instructor_subjects_instructor_id_fkey foreign KEY (instructor_id) references instructors (id) on update CASCADE on delete CASCADE,
+  constraint instructor_subjects_subject_id_fkey foreign KEY (subject_id) references subjects (id) on update CASCADE on delete CASCADE
+) TABLESPACE pg_default;
+
+-- 10. CURRICULUMS AND SUBJECTS (The Blueprints)
+CREATE TABLE IF NOT EXISTS curriculums (
+    id SERIAL PRIMARY KEY,
+    program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+    revision_year VARCHAR(20) NOT NULL,
+    year_level INTEGER NOT NULL CHECK (year_level BETWEEN 1 AND 5),
+    semester course_offering_semester NOT NULL,
+    UNIQUE(program_id, revision_year, year_level, semester)
+);
+
+CREATE TABLE IF NOT EXISTS curriculum_subjects (
+    curriculum_id INTEGER REFERENCES curriculums(id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
+    is_major BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (curriculum_id, subject_id)
+);
+
+-- 11. SCHEDULES TABLE (The Time Slots)
 -- Drop table if it exists to ensure constraints are updated correctly
 DROP TABLE IF EXISTS public.schedules;
 CREATE TABLE schedules (
@@ -206,6 +241,8 @@ CREATE TABLE IF NOT EXISTS instructor_subjects (
     PRIMARY KEY (instructor_id, subject_id)
 );
 
+
+
 -- Add indexes for common query columns to improve performance
 CREATE INDEX IF NOT EXISTS idx_schedules_timetable_id ON schedules(timetable_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_class_id ON schedules(class_id);
@@ -215,6 +252,8 @@ CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id);
 CREATE INDEX IF NOT EXISTS idx_classes_block_id ON classes(block_id);
 CREATE INDEX IF NOT EXISTS idx_classes_term ON classes(academic_year, semester);
 CREATE INDEX IF NOT EXISTS idx_timetables_term ON timetables(academic_year, semester);
+CREATE INDEX IF NOT EXISTS idx_curriculum_program ON curriculums(program_id);
+CREATE INDEX IF NOT EXISTS idx_curriculum_subjects_curriculum ON curriculum_subjects(curriculum_id);
 
 -- RPC Functions for conflict checking when adding schedule entries
 CREATE OR REPLACE FUNCTION check_room_conflict(
