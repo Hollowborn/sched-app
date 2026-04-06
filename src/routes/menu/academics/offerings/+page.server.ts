@@ -399,6 +399,7 @@ export const actions: Actions = {
 		const block_ids = block_ids_str ? block_ids_str.split(',').map(Number).filter(Boolean) : [];
         const academic_year = formData.get('academic_year')?.toString();
 		const semester = formData.get('semester')?.toString();
+		const split_lecture_flag = formData.get('split_lecture') === 'true';
 
 		if (!curriculum_id || block_ids.length === 0 || !academic_year || !semester) {
 			return fail(400, { message: 'Curriculum, Blocks, Academic Year, and Semester are required.' });
@@ -434,7 +435,7 @@ export const actions: Actions = {
                         block_id: block_id,
                         academic_year,
                         semester,
-			            split_lecture: false,
+			            split_lecture: split_lecture_flag && (cs.subjects?.lecture_hours || 0) > 0,
 			            lecture_days: [],
 			            room_preferences: { priority: null, options: [] }
                     });

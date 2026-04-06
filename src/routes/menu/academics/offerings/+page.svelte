@@ -100,6 +100,7 @@
 	let curriculumLoadOpen = $state(false);
 	let currId = $state('');
 	let currBlockIds = $state<number[]>([]);
+	let currSplitLecture = $state(true);
 	let currOpen = $state(false);
 	let currBlockOpen = $state(false);
 
@@ -285,6 +286,7 @@
 	function resetCurriculumForm() {
 		currId = '';
 		currBlockIds = [];
+		currSplitLecture = true;
 	}
 
 	$effect(() => {
@@ -1465,6 +1467,7 @@
 			<input type="hidden" name="semester" value={semester} />
 			<input type="hidden" name="curriculum_id" value={currId} />
 			<input type="hidden" name="block_ids" value={currBlockIds.join(',')} />
+			<input type="hidden" name="split_lecture" value={currSplitLecture} />
 			<div class="space-y-4 py-4">
 				<div class="space-y-2 flex flex-col">
 					<Label>Blueprint</Label>
@@ -1599,6 +1602,16 @@
 							{/if}
 						{/each}
 					</div>
+				</div>
+
+				<div class="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm w-full">
+					<div class="space-y-0.5">
+						<Label>Split Lecture</Label>
+						<p class="text-xs text-muted-foreground">
+							Automatically split lecture hours ≥ 3 into two 1.5-hour sessions.
+						</p>
+					</div>
+					<Switch bind:checked={currSplitLecture} />
 				</div>
 			</div>
 			<Dialog.Footer>
