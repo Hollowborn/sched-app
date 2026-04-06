@@ -97,6 +97,26 @@
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 </script>
 
+<!-- {#snippet collegesBadges({ rowData }: { rowData: Subject })}
+	<div class="flex flex-wrap gap-1">
+		{#each rowData.colleges as college}
+			<Badge variant="outline" class="flex gap-2 items-center">
+				{#if college.college_name == 'College of Fisheries'}
+					<div class="bg-cyan-500 size-2 rounded-full"></div>
+				{:else if college.college_name == 'College of Midwifery'}
+					<div class="bg-blue-100 size-2 rounded-full"></div>
+				{:else if college.college_name == 'College of Teacher Education'}
+					<div class="bg-blue-400 size-2 rounded-full"></div>
+				{:else}
+					<div class="bg-slate-600 size-2 rounded-full"></div>
+				{/if}
+
+				{college.college_name}</Badge
+			>
+		{/each}
+	</div>
+{/snippet} -->
+
 {#snippet programBadge({ programName }: { programName: string })}
 	{@const chartColors = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5']}
 	{@const getProgramColorVar = (name: string) => {
@@ -108,10 +128,8 @@
 		return chartColors[index];
 	}}
 	{@const colorVar = getProgramColorVar(programName)}
-	<Badge
-		variant="outline"
-		style={`background-color: oklch(from var(${colorVar}) l c h / 0.15); color: var(${colorVar}); border-color: oklch(from var(${colorVar}) l c h / 0.2);`}
-	>
+	<Badge variant="outline" class="flex gap-2 items-center">
+		<div class="size-2 rounded-full" style={`background-color: var(${colorVar})`}></div>
 		{programName}
 	</Badge>
 {/snippet}

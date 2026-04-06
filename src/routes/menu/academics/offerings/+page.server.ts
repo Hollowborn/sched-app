@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	let blocksQuery = locals.supabase
 		.from('blocks')
-		.select('id, block_name, year_level, programs!inner(id, college_id)')
+		.select('id, block_name, year_level, programs!inner(id, college_id, program_name)')
 		.order('block_name');
 
 	if (role === 'Chairperson') {
@@ -133,6 +133,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			c.lecture_days && typeof c.lecture_days === 'string' ? JSON.parse(c.lecture_days) : []
 	}));
 
+	// --- 4. Fetch Curriculums for Bulk Load ---
+    let curriculumsQuery = locals.supabase
+        .from('curriculums')
+        .select('id, revision_year, year_level, semester, program_id, programs(program_name)')
+        .eq('semester', semester);
+        
+    if (role === 'Chairperson' && user_program_id) {
+        curriculumsQuery = curriculumsQuery.eq('program_id', user_program_id);
+    } else if (effective_college_id) {
+        curriculumsQuery = locals.supabase
+        .from('curriculums')
+        .select('id, revision_year, year_level, semester, program_id, programs!inner(program_name, college_id)')
+        .eq('semester', semester)
+        .eq('programs.college_id', effective_college_id);
+    }
+    
+    const { data: curriculums } = await curriculumsQuery;
+
 	return {
 		classes: processedClasses,
 		subjects: subjects || [],
@@ -141,6 +159,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		colleges: colleges || [],
 		programs: programs || [],
 		rooms: rooms || [],
+        curriculums: curriculums || [],
 		profile: profile,
 		userCollegeId: effective_college_id, // Pass the determined college ID to the frontend
 		filters: { academic_year, semester, college: college_id_param }
@@ -366,5 +385,77 @@ export const actions: Actions = {
 		}
 
 		return { status: 200, message: 'Class offering deleted successfully.' };
-	}
+	},
+
+    bulkGenerateFromCurriculum: async ({ request, locals }) => {
+		const profile = locals.profile;
+		if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
+			return fail(403, { message: 'Forbidden' });
+		}
+
+		const formData = await request.formData();
+		const curriculum_id = Number(formData.get('curriculum_id'));
+		const block_ids_str = formData.get('block_ids')?.toString();
+		const block_ids = block_ids_str ? block_ids_str.split(',').map(Number).filter(Boolean) : [];
+        const academic_year = formData.get('academic_year')?.toString();
+		const semester = formData.get('semester')?.toString();
+
+		if (!curriculum_id || block_ids.length === 0 || !academic_year || !semester) {
+			return fail(400, { message: 'Curriculum, Blocks, Academic Year, and Semester are required.' });
+		}
+
+        // Fetch subjects for this curriculum
+        const { data: curriculumSubjects, error: curriculumError } = await locals.supabase
+            .from('curriculum_subjects')
+            .select('subject_id, subjects(lecture_hours)')
+            .eq('curriculum_id', curriculum_id);
+            
+        if (curriculumError || !curriculumSubjects || curriculumSubjects.length === 0) {
+            return fail(404, { message: 'Curriculum not found or has no subjects mapped.' });
+        }
+
+        let offeringsToInsert = [];
+        
+        for (const block_id of block_ids) {
+            // Find existing classes for this block
+            const { data: existingClasses } = await locals.supabase
+                .from('classes')
+                .select('subject_id')
+                .eq('block_id', block_id)
+                .eq('academic_year', academic_year)
+                .eq('semester', semester);
+                
+            const existingSubjectIds = new Set((existingClasses || []).map(c => c.subject_id));
+            
+            for (const cs of curriculumSubjects) {
+                if (!existingSubjectIds.has(cs.subject_id)) {
+                    offeringsToInsert.push({
+                        subject_id: cs.subject_id,
+                        block_id: block_id,
+                        academic_year,
+                        semester,
+			            split_lecture: false,
+			            lecture_days: [],
+			            room_preferences: { priority: null, options: [] }
+                    });
+                }
+            }
+        }
+        
+        if (offeringsToInsert.length === 0) {
+            return fail(409, { message: 'All subjects are already offered for the selected blocks.' });
+        }
+        
+        const { data: insertedData, error: insertError } = await locals.supabase
+			.from('classes')
+			.insert(offeringsToInsert)
+			.select('id');
+
+		if (insertError) {
+			console.error('Error bulk creating class offerings from curriculum:', insertError);
+			return fail(500, { message: 'An error occurred while creating new offerings.' });
+		}
+        
+        return { status: 201, message: `Successfully created ${insertedData.length} class offering(s) from curriculum blueprint.` };
+    }
 };

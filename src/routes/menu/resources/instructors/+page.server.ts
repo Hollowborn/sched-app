@@ -30,12 +30,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const academic_year = url.searchParams.get('academic_year') || defaultAcademicYear;
 	const semester = url.searchParams.get('semester') || defaultSemester;
-	// Base query for instructors, now joining with colleges via the link table
-	let query = locals.supabase.from('instructors').select(`
+	let selectQuery = `
 		*,
 		colleges ( id, college_name ),
 		instructor_subjects ( subject_id )
-	`);
+	`;
+
+	if (profile.role === 'Dean' && profile.college_id) {
+		selectQuery += `, instructor_colleges!inner ( college_id )`;
+	}
+
+	let query = locals.supabase.from('instructors').select(selectQuery);
 
 	// If the user is a Dean, filter to only show instructors from their college
 	if (profile.role === 'Dean' && profile.college_id) {
