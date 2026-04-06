@@ -299,19 +299,19 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			// --- NEW: Block Schedule Optimization (Gap Minimization & Grouping) ---
 			// Group genes by block_id
 			const blockSchedule = new Map<number, { day: string; start: number; end: number }[]>();
-			
+
 			for (const gene of genes) {
 				const task = tasks.find((t) => t.id === gene.taskId)!;
 				const blockId = task.classData.block_id;
-				
+
 				if (!blockSchedule.has(blockId)) {
 					blockSchedule.set(blockId, []);
 				}
-				
+
 				const start = gene.startTimeIndex; // Using index as proxy for time (assuming linear slots)
 				const durationSlots = task.slotsNeeded;
 				const end = start + durationSlots;
-				
+
 				blockSchedule.get(blockId)?.push({ day: gene.day, start, end });
 			}
 
@@ -338,13 +338,13 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 						if (gap === 0) {
 							score += 10; // Bonus for back-to-back classes
 						} else if (gap > 0) {
-							// Penalty for gaps. 
-							// Assuming 30min slots. 
+							// Penalty for gaps.
+							// Assuming 30min slots.
 							// 1 slot gap (30 mins) -> small penalty
 							// Large gaps -> larger penalty
 							// However, we might want to allow a lunch break (e.g. around 12:00).
 							// For simplicity, just penalize all gaps for now to encourage compaction.
-							score -= gap * 5; 
+							score -= gap * 5;
 						}
 					}
 				}

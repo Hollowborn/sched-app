@@ -130,8 +130,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 				hours: Number(cls.subjects.lab_hours),
 				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
 				possibleRooms: rooms.filter((r) => {
-					const capOk =
-						!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+					const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
 					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
 					return capOk && typeOk;
 				}),
@@ -274,7 +273,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 								score += 75; // Option match
 							}
 						}
-						
+
 						// Room Ownership Bonus/Penalty
 						if (task.classData.college_id) {
 							if (room.owner_college_id === task.classData.college_id) {
@@ -300,21 +299,23 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 
 						for (const assignedTaskId in assignments) {
 							const assignedTask = tasks.find((t) => t.id === assignedTaskId);
-							if (
-								assignedTask &&
-								assignedTask.classData.block_id === task.classData.block_id
-							) {
+							if (assignedTask && assignedTask.classData.block_id === task.classData.block_id) {
 								const assignedEntries = assignments[assignedTaskId];
 								for (const entry of assignedEntries) {
 									if (entry.day_of_week === day) {
 										hasClassesOnDay = true;
 										// Calculate gap
-										const entryStartMinutes = timeSlots.indexOf(entry.start_time.substring(0, 5)) * 30;
+										const entryStartMinutes =
+											timeSlots.indexOf(entry.start_time.substring(0, 5)) * 30;
 										const entryEndMinutes = timeSlots.indexOf(entry.end_time.substring(0, 5)) * 30;
 
 										// Gap = distance between intervals
 										// If overlap (shouldn't happen due to isConsistent), gap is 0
-										const gap = Math.max(0, startMinutes - entryEndMinutes, entryStartMinutes - endMinutes);
+										const gap = Math.max(
+											0,
+											startMinutes - entryEndMinutes,
+											entryStartMinutes - endMinutes
+										);
 										if (gap < minGap) {
 											minGap = gap;
 										}
@@ -331,10 +332,10 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 								score -= minGap;
 							}
 						} else {
-							// No classes on this day yet. 
+							// No classes on this day yet.
 							// Maybe prefer earlier slots? Or just neutral.
 							// Let's slightly prefer earlier slots to compact the day
-							score -= i; 
+							score -= i;
 						}
 
 						moves.push({ room, day, timeIndex: i, score });

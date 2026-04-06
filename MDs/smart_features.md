@@ -18,7 +18,7 @@ This helps administrators distribute work more effectively and fairly.
 
 - **What it is:** Enhance the instructor assignment process by displaying their current workload in real-time.
 - **Smart aspect:**
-  - In the dropdown menu for assigning an instructor, each name could have a visual indicator next to it (e.g., `Prof. Doe (15/18 units)`).
+  - In the dropdown menu instrucfor assigning an tor, each name could have a visual indicator next to it (e.g., `Prof. Doe (15/18 units)`).
   - The system could color-code or sort instructors, automatically prioritizing those who are underloaded and de-emphasizing those who are already at their maximum load.
 
 ### 3. "Best Fit" Room Suggestions

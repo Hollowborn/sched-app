@@ -435,22 +435,37 @@
 		<header class="flex flex-col gap-6">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-5">
-					<Button variant="outline" size="icon" class="shrink-0 h-10 w-10 rounded-full hover:bg-muted/80 shadow-sm" href="/schedules">
+					<Button
+						variant="outline"
+						size="icon"
+						class="shrink-0 h-10 w-10 rounded-full hover:bg-muted/80 shadow-sm"
+						href="/schedules"
+					>
 						<ChevronLeft class="h-5 w-5" />
 					</Button>
 					<div>
-						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">{data.timetable.name}</h1>
+						<h1
+							class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent"
+						>
+							{data.timetable.name}
+						</h1>
 						<div class="flex items-center gap-2 mt-1.5 opacity-90">
-							<Badge variant="secondary" class="font-medium rounded-md px-2 py-0.5 text-xs">{data.timetable.academic_year}</Badge>
+							<Badge variant="secondary" class="font-medium rounded-md px-2 py-0.5 text-xs"
+								>{data.timetable.academic_year}</Badge
+							>
 							<span class="text-xs text-muted-foreground">•</span>
-							<span class="text-xs font-medium text-muted-foreground">{data.timetable.semester}</span>
+							<span class="text-xs font-medium text-muted-foreground"
+								>{data.timetable.semester}</span
+							>
 						</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- Toolbar -->
-			<div class="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-card/50 p-1.5 rounded-lg">
+			<div
+				class="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-card/50 p-1.5 rounded-lg"
+			>
 				<!-- View Mode Switcher via Tabs -->
 				<Tabs.Root bind:value={viewMode} class="w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
 					<Tabs.List class="grid w-full grid-cols-4 md:w-auto h-10 min-w-[340px]">
@@ -463,7 +478,9 @@
 
 				<!-- Filters (Only for non-list views) -->
 				{#if viewMode !== 'list'}
-					<div class="flex flex-col sm:flex-row items-center gap-3 flex-1 md:justify-end w-full md:w-auto">
+					<div
+						class="flex flex-col sm:flex-row items-center gap-3 flex-1 md:justify-end w-full md:w-auto"
+					>
 						{#if viewMode === 'grid' || viewMode === 'transposed'}
 							<Select.Root type="single" bind:value={viewBy}>
 								<Select.Trigger class="w-full sm:w-[180px] h-10 shadow-sm bg-background">
@@ -489,7 +506,9 @@
 											class="w-full sm:w-[280px] h-10 shadow-sm bg-background justify-between"
 											{...props}
 										>
-											<span class="truncate font-medium">{gridHeader.title || 'Select an item...'}</span>
+											<span class="truncate font-medium"
+												>{gridHeader.title || 'Select an item...'}</span
+											>
 											<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 										</Button>
 									{/snippet}
@@ -523,7 +542,9 @@
 																<Check
 																	class={cn(
 																		'h-4 w-4 shrink-0',
-																		currentItem?.id === item.id ? 'opacity-100 text-primary' : 'opacity-0'
+																		currentItem?.id === item.id
+																			? 'opacity-100 text-primary'
+																			: 'opacity-0'
 																	)}
 																/>
 																<span class="truncate">{itemName}</span>
@@ -565,7 +586,9 @@
 		{#if viewMode === 'grid'}
 			<div id="grid-view-content">
 				<Card.Root class="shadow-sm border-border/50 overflow-hidden">
-					<Card.Header class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50">
+					<Card.Header
+						class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50"
+					>
 						<div class="flex items-center gap-4 mb-3 sm:mb-0">
 							{#if gridHeader.icon}
 								<div class="p-2.5 bg-primary/10 rounded-lg shrink-0">
@@ -575,10 +598,14 @@
 							<div class="min-w-0">
 								<h2 class="text-xl font-bold truncate">{gridHeader.title || 'Select a view'}</h2>
 								<div class="flex items-center mt-1">
-									<p class="text-sm font-medium text-muted-foreground truncate">{gridHeader.subtitle}</p>
+									<p class="text-sm font-medium text-muted-foreground truncate">
+										{gridHeader.subtitle}
+									</p>
 									{#if gridHeader.badge}
 										<span class="mx-2 text-muted-foreground">•</span>
-										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0">{gridHeader.badge}</Badge>
+										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0"
+											>{gridHeader.badge}</Badge
+										>
 									{/if}
 								</div>
 							</div>
@@ -717,7 +744,9 @@
 			<!-- Transposed Timeline View -->
 			<div id="transposed-view-content">
 				<Card.Root class="shadow-sm border-border/50 overflow-hidden">
-					<Card.Header class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50">
+					<Card.Header
+						class="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:px-8 border-b bg-card/50"
+					>
 						<div class="flex items-center gap-4 mb-3 sm:mb-0">
 							{#if gridHeader.icon}
 								<div class="p-2.5 bg-primary/10 rounded-lg shrink-0">
@@ -727,10 +756,14 @@
 							<div class="min-w-0">
 								<h2 class="text-xl font-bold truncate">{gridHeader.title || 'Select a view'}</h2>
 								<div class="flex items-center mt-1">
-									<p class="text-sm font-medium text-muted-foreground truncate">{gridHeader.subtitle}</p>
+									<p class="text-sm font-medium text-muted-foreground truncate">
+										{gridHeader.subtitle}
+									</p>
 									{#if gridHeader.badge}
 										<span class="mx-2 text-muted-foreground">•</span>
-										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0">{gridHeader.badge}</Badge>
+										<Badge variant="secondary" class="font-normal rounded-sm text-xs px-1.5 py-0"
+											>{gridHeader.badge}</Badge
+										>
 									{/if}
 								</div>
 							</div>
@@ -835,7 +868,9 @@
 							<Card.Header class="py-4 px-5 border-b bg-card/50">
 								<h3 class="font-bold flex items-center justify-between text-lg text-foreground/90">
 									{day}
-									<Badge variant="secondary" class="rounded-full px-2 py-0.5">{dayItems.length}</Badge>
+									<Badge variant="secondary" class="rounded-full px-2 py-0.5"
+										>{dayItems.length}</Badge
+									>
 								</h3>
 							</Card.Header>
 							<Card.Content class="p-0 bg-background">
@@ -843,8 +878,12 @@
 									{#each dayItems as item, idx (item.id)}
 										{#if idx > 0}<Separator />{/if}
 										<div class="p-5 flex gap-5 hover:bg-muted/10 transition-colors">
-											<div class="flex flex-col items-center justify-center w-16 shrink-0 bg-muted/20 rounded-lg p-2.5">
-												<span class="text-sm font-bold text-primary">{item.start_time.substring(0, 5)}</span>
+											<div
+												class="flex flex-col items-center justify-center w-16 shrink-0 bg-muted/20 rounded-lg p-2.5"
+											>
+												<span class="text-sm font-bold text-primary"
+													>{item.start_time.substring(0, 5)}</span
+												>
 												<div class="h-5 w-px bg-border my-1.5"></div>
 												<span class="text-xs font-semibold text-muted-foreground"
 													>{item.end_time.substring(0, 5)}</span
@@ -852,26 +891,40 @@
 											</div>
 											<div class="flex-1 space-y-2 py-0.5">
 												<div class="flex items-start justify-between gap-2">
-													<h4 class="font-bold text-sm leading-tight text-foreground/90 mix-blend-luminosity">
+													<h4
+														class="font-bold text-sm leading-tight text-foreground/90 mix-blend-luminosity"
+													>
 														{item.classes.subjects.subject_name}
 													</h4>
-													<Badge variant={item.course_type === 'Lecture' ? 'default' : 'secondary'} class="text-[10px] uppercase font-bold tracking-wider rounded-sm shrink-0 ml-auto whitespace-nowrap px-1.5 h-5 shadow-none border-transparent">
+													<Badge
+														variant={item.course_type === 'Lecture' ? 'default' : 'secondary'}
+														class="text-[10px] uppercase font-bold tracking-wider rounded-sm shrink-0 ml-auto whitespace-nowrap px-1.5 h-5 shadow-none border-transparent"
+													>
 														{item.course_type === 'Lecture' ? 'Lec' : 'Lab'}
 													</Badge>
 												</div>
 
-												<div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-2 text-xs text-muted-foreground mt-3">
+												<div
+													class="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-2 text-xs text-muted-foreground mt-3"
+												>
 													<div class="flex items-center gap-1.5" title="Room">
 														<Building class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
 														<span class="truncate font-medium">{item.rooms.room_name}</span>
 													</div>
 													<div class="flex items-center gap-1.5" title="Instructor">
 														<UserIcon class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
-														<span class="truncate font-medium">{item.classes.instructors?.name || 'Unassigned'}</span>
+														<span class="truncate font-medium"
+															>{item.classes.instructors?.name || 'Unassigned'}</span
+														>
 													</div>
-													<div class="flex items-center gap-1.5 sm:col-span-2" title="Section/Block">
+													<div
+														class="flex items-center gap-1.5 sm:col-span-2"
+														title="Section/Block"
+													>
 														<Users class="h-3.5 w-3.5 shrink-0 opacity-70 text-foreground" />
-														<span class="truncate font-medium">{item.classes.blocks.block_name}</span>
+														<span class="truncate font-medium"
+															>{item.classes.blocks.block_name}</span
+														>
 													</div>
 												</div>
 											</div>
@@ -891,5 +944,3 @@
 		{/if}
 	</div>
 </div>
-
-

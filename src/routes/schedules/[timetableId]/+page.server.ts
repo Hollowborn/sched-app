@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 
 	// 1. Fetch the main timetable details
-    // The RLS policy we created will automatically block this if status is 'Draft'
+	// The RLS policy we created will automatically block this if status is 'Draft'
 	const { data: timetable, error: timetableError } = await locals.supabase
 		.from('timetables')
 		.select('*, colleges(college_name)')

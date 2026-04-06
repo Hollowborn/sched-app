@@ -484,8 +484,7 @@
 								<Select.Content>
 									<Select.Item value={undefined}>N/A</Select.Item>
 									{#each availablePrograms as program (program.id)}
-										<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item
-										>
+										<Select.Item value={program.id.toString()}>{program.program_name}</Select.Item>
 									{/each}
 								</Select.Content>
 							</Select.Root>

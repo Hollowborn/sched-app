@@ -368,3 +368,4 @@ This session focused on enhancing the "Auto-Scheduler" with "Smart" features to 
     *   Created and ran a test script to verify the Smart CP solver.
     *   **Results:** The solver successfully prioritized preferred rooms (100% success) and minimized gaps (scheduled classes back-to-back) in the test scenarios.
 
+```

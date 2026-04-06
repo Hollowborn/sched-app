@@ -11,8 +11,8 @@ The initial implementation of a single `pref_room_id` on the `classes` table, wh
 - **Too Constraining:** It forces a Chairperson to select exactly one preferred room for every class offering. In reality, multiple rooms might be equally suitable.
 - **Inefficient Workflow:** This becomes a bottleneck for bulk-adding class offerings, as a specific room must be chosen for each one, slowing down the data entry process.
 - **A False Dilemma:** It forces a choice between two valid user needs:
-    1.  The need for **flexibility** (providing a pool of acceptable rooms).
-    2.  The need for **specificity** (identifying a single, truly preferred room).
+  1.  The need for **flexibility** (providing a pool of acceptable rooms).
+  2.  The need for **specificity** (identifying a single, truly preferred room).
 
 ## 2. The Solution: A `room_preferences` JSONB Column
 
@@ -39,20 +39,22 @@ The JSON object will support two optional keys:
 
 #### Example Use Cases:
 
--   **A strong, single preference:** A specialized engineering class requires a specific lab (ID: 101).
-    ```json
-    { "priority": 101 }
-    ```
+- **A strong, single preference:** A specialized engineering class requires a specific lab (ID: 101).
 
--   **A flexible pool of rooms:** A generic lecture can be held in any of several similar halls (IDs: 201, 202, 203). This is ideal for bulk-adding.
-    ```json
-    { "options": [201, 202, 203] }
-    ```
+  ```json
+  { "priority": 101 }
+  ```
 
--   **A hybrid preference:** A chairperson prefers the newest lab (ID: 301) but knows two older labs (302, 303) are also perfectly fine.
-    ```json
-    { "priority": 301, "options": [302, 303] }
-    ```
+- **A flexible pool of rooms:** A generic lecture can be held in any of several similar halls (IDs: 201, 202, 203). This is ideal for bulk-adding.
+
+  ```json
+  { "options": [201, 202, 203] }
+  ```
+
+- **A hybrid preference:** A chairperson prefers the newest lab (ID: 301) but knows two older labs (302, 303) are also perfectly fine.
+  ```json
+  { "priority": 301, "options": [302, 303] }
+  ```
 
 ### c. Benefits of this Approach
 
@@ -69,7 +71,7 @@ The JSON object will support two optional keys:
 This change will **significantly improve** the effectiveness and quality of the generated schedules.
 
 - **Richer Information:** The algorithms (CP and Memetic) thrive on detailed information. This provides a weighted preference system that they can use to make more intelligent decisions.
-- **Better Optimization:** The goal moves from simply finding a *valid* schedule to finding a *good* schedule that aligns with user intent. The solver's cost function can be updated to heavily reward satisfying a `priority` preference and moderately reward satisfying an `options` preference.
+- **Better Optimization:** The goal moves from simply finding a _valid_ schedule to finding a _good_ schedule that aligns with user intent. The solver's cost function can be updated to heavily reward satisfying a `priority` preference and moderately reward satisfying an `options` preference.
 - **Improved Search:** The algorithm can search for rooms more intelligently: `priority` first, then `options`, then any other valid room.
 
 ### b. The Role of the "Step 2: Select Rooms" UI
