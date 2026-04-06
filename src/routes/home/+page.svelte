@@ -65,6 +65,45 @@
 	});
 
 	let activeSectionId = $state<string | null>(null);
+
+	type FeatureKey = 'role' | 'resources' | 'planning' | 'users' | 'output';
+	let selectedFeature = $state<FeatureKey>('resources');
+
+	const featuresList = [
+		{
+			id: 'role',
+			title: 'Role-Based Access',
+			icon: ShieldCheck,
+			desc: 'Secure access for Admins, Deans, and Registrars with tailored permissions ensuring data integrity.'
+		},
+		{
+			id: 'resources',
+			title: 'Centralized Resources',
+			icon: Database,
+			desc: 'Manage subjects, instructors, rooms, programs, and blocks effortlessly in one unified system.'
+		},
+		{
+			id: 'planning',
+			title: 'Academic Planning',
+			icon: Workflow,
+			desc: 'Define class offerings and assign instructors with real-time workload tracking for optimal distribution.'
+		},
+		{
+			id: 'users',
+			title: 'User Management',
+			icon: Users,
+			desc: 'Admin console for managing user accounts, roles, and access across different colleges.'
+		},
+		{
+			id: 'output',
+			title: 'Conflict-Free Output',
+			icon: CheckCircle2,
+			desc: 'Generate and publish error-free timetables, minimizing manual revisions.'
+		}
+	] as const;
+
+	import AppPreviewCard from '$lib/components/app-preview-card.svelte';
+	import { cn } from '$lib/utils';
 </script>
 
 <svelte:head>
@@ -149,7 +188,7 @@
 			class="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden px-4 py-16 md:py-24"
 			use:animateInView
 			use:viewport={{ threshold: 0.4 }}
-			on:enterViewport={() => (activeSectionId = null)}
+			onenterViewport={() => (activeSectionId = null)}
 		>
 			<!-- Grid background with radial gradient -->
 			<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-background"></div>
@@ -250,113 +289,63 @@
 			id="features"
 			use:animateInView
 			use:viewport={{ threshold: 0.4 }}
-			on:enterViewport={() => (activeSectionId = 'features')}
+			onenterViewport={() => (activeSectionId = 'features')}
 		>
-			<div class="container mx-auto px-4 max-w-6xl text-center">
-				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
-					>Core Capabilities</Badge
-				>
-				<h2
-					class="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-12"
-					data-animate
-				>
-					Intelligent Features for Seamless Scheduling
-				</h2>
+			<div class="container mx-auto px-4 max-w-6xl">
+				<div class="text-center mb-12">
+					<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
+						>Core Capabilities</Badge
+					>
+					<h2 class="text-3xl md:text-4xl font-bold tracking-tight text-foreground" data-animate>
+						Intelligent Features for Seamless Scheduling
+					</h2>
+				</div>
 
-				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-					<Card.Root
-						class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300"
+				<div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-stretch pt-4">
+					<!-- Left: Interactive UI Preview -->
+					<div
+						class="order-2 lg:order-1 relative rounded-xl border bg-background shadow-xl overflow-hidden h-[450px] sm:h-[550px] lg:h-auto"
 						data-animate
 					>
-						<div class="flex items-center gap-3">
-							<ShieldCheck class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">Role-Based Access</h3>
+						<div class="absolute inset-0">
+							<AppPreviewCard activeFeature={selectedFeature} />
 						</div>
-						<Separator class="" />
-						<p class="text-muted-foreground">
-							Secure access for Admins, Deans, and Registrars with tailored permissions ensuring
-							data integrity and control.
-						</p>
-						<!-- <img src={featuresImage1} alt="Role-based access" class="rounded-md mt-4" /> --></Card.Root
-					>
+					</div>
 
-					<Card.Root
-						class="text-left p-6  hover:shadow-md hover:scale-105 transition duration-300"
-						data-animate
-					>
-						<div class="flex items-center gap-3">
-							<Database class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">Centralized Resources</h3>
-						</div>
-						<Separator />
-						<p class="text-muted-foreground">
-							Manage subjects, instructors, rooms, programs, and blocks effortlessly in one unified
-							system.
-						</p>
-						<!-- <img src={featuresImage2} alt="Resource management" class="rounded-md mt-4" /> --></Card.Root
-					>
-
-					<Card.Root
-						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
-						data-animate
-					>
-						<div class="flex items-center gap-3">
-							<Workflow class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">Academic Planning</h3>
-						</div>
-						<Separator />
-						<p class="text-muted-foreground">
-							Define class offerings and assign instructors with real-time workload tracking for
-							optimal distribution.
-						</p>
-						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
-					>
-
-					<Card.Root
-						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
-						data-animate
-					>
-						<div class="flex items-center gap-3">
-							<Laptop class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">Intuitive Scheduler</h3>
-						</div>
-						<Separator />
-						<p class="text-muted-foreground">
-							Drag-and-drop interface with instant conflict detection for rooms, instructors, and
-							blocks.
-						</p>
-						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
-					>
-
-					<Card.Root
-						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
-						data-animate
-					>
-						<div class="flex items-center gap-3">
-							<Users class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">User Management</h3>
-						</div>
-						<Separator />
-						<p class="text-muted-foreground">
-							Admin console for managing user accounts, roles, and access with ease.
-						</p>
-						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
-					>
-
-					<Card.Root
-						class="text-left p-6 hover:shadow-md hover:scale-105 transition duration-300"
-						data-animate
-					>
-						<div class="flex items-center gap-3">
-							<CheckCircle2 class="h-8 w-8 text-primary" />
-							<h3 class="text-xl font-semibold text-foreground">Conflict-Free Output</h3>
-						</div>
-						<Separator />
-						<p class="text-muted-foreground">
-							Generate and publish error-free timetables, minimizing manual revisions and stress.
-						</p>
-						<!-- <img src={featuresImage3} alt="Academic planning" class="rounded-md mt-4" /> --></Card.Root
-					>
+					<!-- Right: Feature List -->
+					<div class="order-1 lg:order-2 space-y-4 flex flex-col justify-center" data-animate>
+						{#each featuresList as feature (feature.id)}
+							{@const Icon = feature.icon}
+							<button
+								class={cn(
+									'text-left p-4 sm:p-6 rounded-xl border transition-all duration-300 w-full',
+									selectedFeature === feature.id
+										? 'bg-primary/5 border-primary shadow-sm scale-[1.02] transform'
+										: 'bg-background hover:bg-muted/50 border-transparent hover:border-border'
+								)}
+								onclick={() => (selectedFeature = feature.id)}
+							>
+								<div class="flex items-start gap-4">
+									<div
+										class={cn(
+											'p-2 rounded-lg shrink-0 transition-colors duration-300',
+											selectedFeature === feature.id
+												? 'bg-primary text-primary-foreground'
+												: 'bg-muted text-muted-foreground'
+										)}
+									>
+										<Icon class="h-6 w-6" />
+									</div>
+									<div>
+										<h3 class="text-base sm:text-lg font-semibold text-foreground mb-1">
+											{feature.title}
+										</h3>
+										<p class="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+									</div>
+								</div>
+							</button>
+						{/each}
+					</div>
 				</div>
 			</div>
 		</section>
@@ -367,7 +356,7 @@
 			id="how-it-works"
 			use:animateInView
 			use:viewport={{ threshold: 0.4 }}
-			on:enterViewport={() => (activeSectionId = 'how-it-works')}
+			onenterViewport={() => (activeSectionId = 'how-it-works')}
 		>
 			<div class="container mx-auto px-4 max-w-6xl text-center">
 				<Badge variant="outline" class="text-primary border-primary mb-3" data-animate
