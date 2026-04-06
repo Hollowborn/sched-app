@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './[timetableId]/$types';
+import type { PageServerLoad } from './$types';
 
 // --- LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -107,12 +107,36 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		a.name.localeCompare(b.name)
 	);
 
+	// Determine the relevant room IDs to display
+	let validRoomIds: number[] = [];
+	
+	// First try to extract the exact rooms configured during generation
+	const genParamsRoomIds = timetable.metadata?.generation_params?.room_ids;
+	if (Array.isArray(genParamsRoomIds) && genParamsRoomIds.length > 0) {
+		validRoomIds = genParamsRoomIds;
+	} else if (schedules && schedules.length > 0) {
+		// Fallback: extract the unique rooms that were actually assigned classes
+		const assignedRoomIds = new Set<number>();
+		for (const s of schedules) {
+			if (s.room_id) assignedRoomIds.add(s.room_id);
+		}
+		validRoomIds = Array.from(assignedRoomIds);
+	}
+
+	let roomsQuery = locals.supabase
+		.from('rooms')
+		.select('id, room_name, building, type, owner_college_id, colleges(college_name)')
+		.order('room_name');
+
+	if (validRoomIds.length > 0) {
+		roomsQuery = roomsQuery.in('id', validRoomIds);
+	} else {
+		// Ultimate fallback if it's completely empty
+		roomsQuery = roomsQuery.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`);
+	}
+
 	const [{ data: uniqueRoomsData }, { data: uniqueBlocksData }] = await Promise.all([
-		locals.supabase
-			.from('rooms')
-			.select('id, room_name, building, type, owner_college_id, colleges(college_name)')
-			.or(`owner_college_id.eq.${timetable.college_id},is_general_use.eq.true`)
-			.order('room_name'),
+		roomsQuery,
 		blocksQuery
 	]);
 
