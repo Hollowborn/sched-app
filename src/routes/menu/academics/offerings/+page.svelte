@@ -13,8 +13,9 @@
 		Filter,
 		Check,
 		ChevronsUpDown,
-		CopyPlus
-	} from '@lucide/svelte';
+		CopyPlus,
+		Network
+	} from 'lucide-svelte';
 	import type { ColumnDef, RowSelectionState } from '@tanstack/table-core';
 	import { renderSnippet } from '$lib/components/ui/data-table';
 	import DataTable from '$lib/components/data-table/data-table.svelte';
@@ -95,6 +96,13 @@
 	let bulkOptionRoomOpen = $state(false);
 	let bulkPriorityRoomOpen = $state(false);
 
+	// --- Curriculum Form State ---
+	let curriculumLoadOpen = $state(false);
+	let currId = $state('');
+	let currBlockIds = $state<number[]>([]);
+	let currOpen = $state(false);
+	let currBlockOpen = $state(false);
+
 	// --- Derived State ---
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 
@@ -119,6 +127,19 @@
 	const bulkBlockName = $derived(
 		data.blocks.find((b) => b.id.toString() === bulkBlockId)?.block_name
 	);
+
+	// --- Curriculum Modal Derived Logic ---
+	const currAvailableBlocks = $derived.by(() => {
+		if (!currId) return [];
+		const selCurriculum = data.curriculums?.find((c) => c.id.toString() === currId);
+		if (!selCurriculum) return [];
+
+		return data.blocks.filter(
+			(b) =>
+				b.programs?.program_name === selCurriculum.programs?.program_name &&
+				b.year_level === selCurriculum.year_level
+		);
+	});
 
 	const bulkAvailableSubjects = $derived.by(() => {
 		if (!bulkCollegeId) return [];
@@ -210,7 +231,7 @@
 	// --- Event Handlers ---
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
-		params.set('year', academicYear);
+		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 		if (collegeFilterId) {
 			params.set('college', collegeFilterId);
@@ -259,6 +280,11 @@
 		bulkSplitLecture = false;
 		bulkDefaultOptionRoomIds = [];
 		bulkPriorityRoomId = '';
+	}
+
+	function resetCurriculumForm() {
+		currId = '';
+		currBlockIds = [];
 	}
 
 	$effect(() => {
@@ -502,14 +528,23 @@
 			</Button>
 
 			<ButtonGroup.Root>
-				<Button variant="default" onclick={() => (createOpen = true)} disabled={isSubmitting}>
+				<!-- <Button variant="default" onclick={() => (createOpen = true)} disabled={isSubmitting}>
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Create
 				</Button>
-				<ButtonGroup.Separator />
+				<ButtonGroup.Separator /> -->
 				<Button onclick={() => (bulkCreateOpen = true)} variant="default" disabled={isSubmitting}>
 					<CopyPlus class="mr-2 h-4 w-4" />
 					Bulk Create
+				</Button>
+				<ButtonGroup.Separator />
+				<Button
+					onclick={() => (curriculumLoadOpen = true)}
+					variant="default"
+					disabled={isSubmitting}
+				>
+					<Network class="mr-2 h-4 w-4" />
+					Load Curriculum
 				</Button>
 			</ButtonGroup.Root>
 		</div>
@@ -1156,10 +1191,9 @@
 					<Switch id="bulk-split-lecture" bind:checked={bulkSplitLecture} />
 					<input type="hidden" name="split_lecture" value={bulkSplitLecture} />
 					<Label for="bulk-split-lecture" class="ml-2 space-y-1">
-						<span class="font-medium">Split lectures for all applicable subjects</span>
+						<span class="font-medium">Split lecture hours</span>
 						<p class="text-xs text-muted-foreground">
-							Only applies to selected subjects with lecture units. The scheduler will auto-assign
-							days.
+							Splits the selected subjects lecture hours to two sessions.
 						</p>
 					</Label>
 				</div>
@@ -1387,6 +1421,190 @@
 				>
 					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
 					Create {bulkSubjectIds.length} Offering(s)
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- === CURRICULUM LOAD MODAL === -->
+<Dialog.Root
+	bind:open={curriculumLoadOpen}
+	onOpenChange={(open) => {
+		!open && resetCurriculumForm();
+	}}
+>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Load from Curriculum</Dialog.Title>
+			<Dialog.Description>
+				Automatically generate class offerings based on a curriculum blueprint for {academicYear}, {semester}.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/bulkGenerateFromCurriculum"
+			use:enhance={() => {
+				isSubmitting = true;
+				const toastId = toast.loading('Generating offerings...');
+				return async ({ update, result }) => {
+					isSubmitting = false;
+					if (result.type === 'success') {
+						toast.success((result.data as any)?.message, { id: toastId });
+						curriculumLoadOpen = false;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						toast.error((result.data as any)?.message, { id: toastId });
+					}
+					await update();
+				};
+			}}
+			class="space-y-4"
+		>
+			<input type="hidden" name="academic_year" value={academicYear} />
+			<input type="hidden" name="semester" value={semester} />
+			<input type="hidden" name="curriculum_id" value={currId} />
+			<input type="hidden" name="block_ids" value={currBlockIds.join(',')} />
+			<div class="space-y-4 py-4">
+				<div class="space-y-2 flex flex-col">
+					<Label>Blueprint</Label>
+					<Popover.Root bind:open={currOpen}>
+						<Popover.Trigger>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={currOpen}
+								>
+									<span class="truncate">
+										{#if currId && data.curriculums}
+											{@const c = data.curriculums.find((cur: any) => cur.id.toString() === currId)}
+											{c?.programs?.program_name} - {c?.year_level} Year ({c?.revision_year})
+										{:else}
+											Select a curriculum
+										{/if}
+									</span>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search curriculum..." />
+								<Command.List>
+									<Command.Empty>No curriculum found.</Command.Empty>
+									<Command.Group>
+										{#each data.curriculums || [] as c}
+											<Command.Item
+												value={`${c.programs?.program_name} ${c.year_level}`}
+												onSelect={() => {
+													currId = c.id.toString();
+													currBlockIds = [];
+													currOpen = false;
+												}}
+											>
+												<Check
+													class={cn(
+														'mr-2 h-4 w-4',
+														currId === c.id.toString() ? 'opacity-100' : 'opacity-0'
+													)}
+												/>
+												{c.programs?.program_name} - {c.year_level} Year ({c.revision_year})
+											</Command.Item>
+										{/each}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+				</div>
+
+				<div class="space-y-2 flex flex-col">
+					<Label>Target Block Sections</Label>
+					<Popover.Root bind:open={currBlockOpen}>
+						<Popover.Trigger disabled={!currId}>
+							{#snippet child({ props })}
+								<Button
+									variant="outline"
+									class="w-full justify-between"
+									{...props}
+									role="combobox"
+									aria-expanded={currBlockOpen}
+									disabled={!currId}
+								>
+									<span class="truncate">
+										{#if currBlockIds.length === 0}
+											Select blocks
+										{:else}
+											{currBlockIds.length} blocks selected
+										{/if}
+									</span>
+									<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							{/snippet}
+						</Popover.Trigger>
+						<Popover.Content class="w-[400px] p-0">
+							<Command.Root>
+								<Command.Input placeholder="Search block..." />
+								<Command.List>
+									<Command.Empty>No block found.</Command.Empty>
+									<Command.Group>
+										{#if currAvailableBlocks.length === 0}
+											<div class="p-2 text-sm text-muted-foreground text-center">
+												No qualifying blocks found for this curriculum.
+											</div>
+										{:else}
+											{#each currAvailableBlocks as block}
+												<Command.Item
+													value={block.block_name}
+													onSelect={() => {
+														if (currBlockIds.includes(block.id)) {
+															currBlockIds = currBlockIds.filter((id) => id !== block.id);
+														} else {
+															currBlockIds = [...currBlockIds, block.id];
+														}
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 h-4 w-4',
+															currBlockIds.includes(block.id) ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{block.block_name}
+												</Command.Item>
+											{/each}
+										{/if}
+									</Command.Group>
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+					<div class="flex flex-wrap gap-1 mt-2">
+						{#each currBlockIds as optId}
+							{@const r = currAvailableBlocks.find((rm: any) => rm.id === optId)}
+							{#if r}
+								<Badge variant="secondary" class="text-xs">
+									{r.block_name}
+									<button
+										type="button"
+										class="ml-1 hover:text-destructive"
+										onclick={() => (currBlockIds = currBlockIds.filter((id) => id !== optId))}
+									>
+										×
+									</button>
+								</Badge>
+							{/if}
+						{/each}
+					</div>
+				</div>
+			</div>
+			<Dialog.Footer>
+				<Button type="submit" disabled={isSubmitting || !currId || currBlockIds.length === 0}>
+					{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
+					Load Template
 				</Button>
 			</Dialog.Footer>
 		</form>

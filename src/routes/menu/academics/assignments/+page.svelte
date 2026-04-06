@@ -104,7 +104,7 @@
 
 	function handleFilterChange() {
 		const params = new URLSearchParams(window.location.search);
-		params.set('year', academicYear);
+		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 		if (collegeFilterId) {
 			params.set('college', collegeFilterId);
