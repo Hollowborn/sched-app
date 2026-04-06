@@ -102,7 +102,7 @@
 		}
 	] as const;
 
-	import AppPreviewCard from '$lib/components/app-preview-card.svelte';
+	import FeaturePreviewCard from '$lib/components/feature-preview-card.svelte';
 	import { cn } from '$lib/utils';
 </script>
 
@@ -308,7 +308,7 @@
 						data-animate
 					>
 						<div class="absolute inset-0">
-							<AppPreviewCard activeFeature={selectedFeature} />
+							<FeaturePreviewCard activeFeature={selectedFeature} />
 						</div>
 					</div>
 
