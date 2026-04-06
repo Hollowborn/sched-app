@@ -11,10 +11,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw error(403, 'Forbidden: You do not have permission to view this page.');
 	}
 
-	const academic_year =
-		url.searchParams.get('academic_year') ||
-		`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-	const semester = url.searchParams.get('semester') || '1st Semester';
+	const now = new Date();
+	const currentMonth = now.getMonth(); // 0-based
+	const currentYear = now.getFullYear();
+
+	let defaultSemester = '1st Semester';
+	let defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+
+	if (currentMonth >= 0 && currentMonth <= 4) {
+		// Jan to May
+		defaultSemester = '2nd Semester';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	} else if (currentMonth === 5 || currentMonth === 6) {
+		// Jun to Jul (Summer)
+		defaultSemester = 'Summer';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	}
+
+	const academic_year = url.searchParams.get('academic_year') || defaultAcademicYear;
+	const semester = url.searchParams.get('semester') || defaultSemester;
 
 	// --- Define queries ---
 	let stats = { instructorCount: 0, roomCount: 0, subjectCount: 0, programCount: 0 };

@@ -12,12 +12,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Get filters from URL, providing sensible defaults
-	const currentYear = new Date().getFullYear();
-	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
-	const semester = (url.searchParams.get('semester') || '1st Semester') as
-		| '1st Semester'
-		| '2nd Semester'
-		| 'Summer';
+	const now = new Date();
+	const currentMonth = now.getMonth(); // 0-based
+	const currentYear = now.getFullYear();
+
+	let defaultSemester = '1st Semester';
+	let defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+
+	if (currentMonth >= 0 && currentMonth <= 4) {
+		// Jan to May
+		defaultSemester = '2nd Semester';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	} else if (currentMonth === 5 || currentMonth === 6) {
+		// Jun to Jul (Summer)
+		defaultSemester = 'Summer';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	}
+
+	const academic_year = url.searchParams.get('academic_year') || defaultAcademicYear;
+	const semester = url.searchParams.get('semester') || defaultSemester;
 	const status = url.searchParams.get('status') || 'All';
 
 	// Build the query for timetables

@@ -13,9 +13,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const { role, college_id: user_college_id, program_id: user_program_id } = profile;
 
-	const currentYear = new Date().getFullYear();
-	const academic_year = url.searchParams.get('year') || `${currentYear}-${currentYear + 1}`;
-	const semester = url.searchParams.get('semester') || '1st Semester';
+	const now = new Date();
+	const currentMonth = now.getMonth(); // 0-based
+	const currentYear = now.getFullYear();
+
+	let defaultSemester = '1st Semester';
+	let defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+
+	if (currentMonth >= 0 && currentMonth <= 4) {
+		// Jan to May
+		defaultSemester = '2nd Semester';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	} else if (currentMonth === 5 || currentMonth === 6) {
+		// Jun to Jul (Summer)
+		defaultSemester = 'Summer';
+		defaultAcademicYear = `${currentYear - 1}-${currentYear}`;
+	}
+
+	const academic_year = url.searchParams.get('academic_year') || defaultAcademicYear;
+	const semester = url.searchParams.get('semester') || defaultSemester;
+
 	const college_filter_id_param = url.searchParams.get('college');
 
 	let effective_college_id: string | number | null = null;
