@@ -73,7 +73,18 @@
 					class="underline"
 					onclick={() => {
 						toast.message('Email developer at:', {
-							description: 'charlesithan.amahan@bisu.edu.ph'
+							description: 'charlesithan.amahan@bisu.edu.ph',
+							action: {
+								label: 'Contact',
+								onClick: () => {
+									const email = 'charlesithan.amahan@bisu.edu.ph';
+									const subject = 'Hello from JavaScript';
+									const body = 'This is a test email sent using mailto in JavaScript.';
+
+									const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+									window.location.href = mailtoLink;
+								}
+							}
 						});
 					}}>contact support</a
 				>.
