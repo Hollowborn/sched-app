@@ -47,9 +47,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Apply role-based filter for Deans
-	if (userRole === 'Dean' && locals.profile.college_id) {
-		query = query.eq('college_id', locals.profile.college_id);
-	}
+	// if (userRole === 'Dean' && locals.profile.college_id) {
+	// 	query = query.eq('college_id', locals.profile.college_id);
+	// }
 
 	const { data: timetables, error: timetablesError } = await query;
 
