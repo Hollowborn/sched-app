@@ -32,19 +32,28 @@
 	let selectedSubjectIds = $state<string[]>([]);
 	let searchQuery = $state('');
 
-    let selectedProgramId = $state('');
-    let selectedProgramName = $derived(data.programs.find((p: any) => p.id.toString() === selectedProgramId)?.program_name || 'Select Program');
-    
-    let selectedYearLevel = $state('');
-    let selectedYearLevelLabel = $derived(
-        selectedYearLevel === '1' ? '1st Year' :
-        selectedYearLevel === '2' ? '2nd Year' :
-        selectedYearLevel === '3' ? '3rd Year' :
-        selectedYearLevel === '4' ? '4th Year' :
-        selectedYearLevel === '5' ? '5th Year' : 'Select Level'
-    );
-    
-    let selectedSemester = $state('');
+	let selectedProgramId = $state('');
+	let selectedProgramName = $derived(
+		data.programs.find((p: any) => p.id.toString() === selectedProgramId)?.program_name ||
+			'Select Program'
+	);
+
+	let selectedYearLevel = $state('');
+	let selectedYearLevelLabel = $derived(
+		selectedYearLevel === '1'
+			? '1st Year'
+			: selectedYearLevel === '2'
+				? '2nd Year'
+				: selectedYearLevel === '3'
+					? '3rd Year'
+					: selectedYearLevel === '4'
+						? '4th Year'
+						: selectedYearLevel === '5'
+							? '5th Year'
+							: 'Select Level'
+	);
+
+	let selectedSemester = $state('');
 
 	const columns: ColumnDef<any>[] = [
 		{
@@ -85,21 +94,20 @@
 	const selectedRowsCount = $derived(Object.keys(rowSelection).length);
 
 	const filteredSubjects = $derived(
-		data.subjects.filter(
-			(s: any) => {
-                const matchesSearch = s.subject_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+		data.subjects.filter((s: any) => {
+			const matchesSearch =
+				s.subject_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				s.subject_name.toLowerCase().includes(searchQuery.toLowerCase());
-                
-                if (!matchesSearch) return false;
-                
-                if (selectedCurriculumForSubjects?.programs?.college_id) {
-                    const reqCollegeId = selectedCurriculumForSubjects.programs.college_id;
-                    return s.subject_colleges?.some((sc: any) => sc.college_id === reqCollegeId);
-                }
-                
-                return true;
-            }
-		)
+
+			if (!matchesSearch) return false;
+
+			if (selectedCurriculumForSubjects?.programs?.college_id) {
+				const reqCollegeId = selectedCurriculumForSubjects.programs.college_id;
+				return s.subject_colleges?.some((sc: any) => sc.college_id === reqCollegeId);
+			}
+
+			return true;
+		})
 	);
 
 	function toggleSubject(id: string) {
@@ -286,25 +294,28 @@
 		</Dialog.Header>
 
 		<div class="space-y-4 py-4">
-            {#if selectedSubjectIds.length > 0}
-                <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-2">
-                    {#each selectedSubjectIds as sId}
-                        {@const s = data.subjects.find((sub: any) => sub.id.toString() === sId)}
-                        {#if s}
-                            <Badge variant="secondary" class="flex items-center gap-1 font-normal">
-                                {s.subject_code}
-                                <button 
-                                    type="button" 
-                                    class="ml-0.5 hover:text-destructive transition-colors" 
-                                    onclick={(e) => { e.preventDefault(); toggleSubject(sId); }}
-                                >
-                                    ✕
-                                </button>
-                            </Badge>
-                        {/if}
-                    {/each}
-                </div>
-            {/if}
+			{#if selectedSubjectIds.length > 0}
+				<div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-2">
+					{#each selectedSubjectIds as sId}
+						{@const s = data.subjects.find((sub: any) => sub.id.toString() === sId)}
+						{#if s}
+							<Badge variant="secondary" class="flex items-center gap-1 font-normal">
+								{s.subject_code}
+								<button
+									type="button"
+									class="ml-0.5 hover:text-destructive transition-colors"
+									onclick={(e) => {
+										e.preventDefault();
+										toggleSubject(sId);
+									}}
+								>
+									✕
+								</button>
+							</Badge>
+						{/if}
+					{/each}
+				</div>
+			{/if}
 			<Input type="search" placeholder="Search course catalog..." bind:value={searchQuery} />
 			<div class="h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
 				{#each filteredSubjects as subject}

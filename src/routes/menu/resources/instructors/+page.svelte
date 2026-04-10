@@ -368,7 +368,7 @@
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 			{#if data.instructors.length > 0}
 				{#each data.instructors as instructor (instructor.id)}
-					<Item.Root variant="outline" class=" hover-lift transition-base">
+					<Item.Root variant="outline" class=" hover-lift transition-base overflow-hidden">
 						<Item.Header class="flex flex-col">
 							<Item.Title>{instructor.name}</Item.Title>
 							<Item.Description class="flex items-center gap-2 text-sm text-muted-foreground">
@@ -380,12 +380,12 @@
 							</Item.Description>
 						</Item.Header>
 						<Separator />
-						<Item.Content class="">
+						<Item.Content>
 							<Item.Description>Affiliations:</Item.Description>
 							<div class="space-y-2">
 								<div class="flex flex-wrap gap-1 p-1">
 									{#each instructor.colleges as college}
-										<Badge variant="outline" class="gap-2 items-center">
+										<Badge variant="outline" class="gap-2 items-center justify-start truncate ">
 											{#if college.college_name == 'College of Fisheries'}
 												<div class="bg-cyan-500 size-2 rounded-full"></div>
 											{:else if college.college_name == 'College of Midwifery'}
@@ -405,16 +405,18 @@
 									>Workload ({instructor.current_load} / {instructor.max_load} units)</Label
 								>
 								<Progress
+									class=""
 									value={(instructor.current_load / instructor.max_load) * 100}
 									style="--indicator-color: {getLoadColor(
 										instructor.current_load,
 										instructor.max_load
-									)};"
+									)}; width: 80%;"
 								/>
 							</div>
 						</Item.Content>
 						<Item.Footer class="flex justify-end gap-2">
 							<Button
+								class="truncate"
 								variant="outline"
 								size="sm"
 								onclick={() => openQualificationsModal(instructor)}>Qualifications</Button
