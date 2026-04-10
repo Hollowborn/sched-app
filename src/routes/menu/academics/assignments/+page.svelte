@@ -153,7 +153,7 @@
 	const columns: ColumnDef<ClassOffering>[] = [
 		{
 			accessorKey: 'subjects',
-			accessorFn: (d) => d.subjects?.subject_name,
+			accessorFn: (d) => `${d.subjects?.subject_code} ${d.subjects?.subject_name}`,
 			header: 'Subject',
 			cell: ({ row }) => renderSnippet(subjectCell, { rowData: row.original })
 		},
@@ -161,11 +161,12 @@
 			accessorFn: (d) => d.blocks?.block_name,
 			header: 'Block'
 		},
-		{
-			accessorFn: (d) => d.blocks?.programs?.colleges?.college_name,
-			header: 'College',
-			cell: ({ row }) => renderSnippet(collegeCell, { rowData: row.original })
-		},
+
+		// {
+		// 	accessorFn: (d) => d.blocks?.programs?.colleges?.college_name,
+		// 	header: 'College',
+		// 	cell: ({ row }) => renderSnippet(collegeCell, { rowData: row.original })
+		// },
 		{
 			id: 'instructor',
 			accessorFn: (d) => d.instructors?.name || '',
@@ -317,9 +318,9 @@
 	</div>
 {/snippet}
 
-{#snippet collegeCell({ rowData }: { rowData: ClassOffering })}
+<!-- {#snippet collegeCell({ rowData }: { rowData: ClassOffering })}
 	<Badge variant="outline">{rowData.blocks?.programs?.colleges?.college_name || 'N/A'}</Badge>
-{/snippet}
+{/snippet} -->
 
 {#snippet instructorCell({ rowData }: { rowData: ClassOffering })}
 	{@const qualifiedInstructors = getQualifiedInstructors(

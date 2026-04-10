@@ -309,6 +309,7 @@
 	const columns: ColumnDef<ClassOffering>[] = [
 		{
 			accessorKey: 'subjects',
+			accessorFn: (d) => d.subjects?.subject_code,
 			header: 'Code',
 			cell: ({ row }) => renderSnippet(codeBadge, { rowData: row.original })
 		},
@@ -1604,7 +1605,9 @@
 					</div>
 				</div>
 
-				<div class="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm w-full">
+				<div
+					class="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm w-full"
+				>
 					<div class="space-y-0.5">
 						<Label>Split Lecture</Label>
 						<p class="text-xs text-muted-foreground">
