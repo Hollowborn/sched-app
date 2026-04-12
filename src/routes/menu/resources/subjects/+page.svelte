@@ -175,25 +175,25 @@
 {/snippet}
 
 {#snippet actionsCell({ rowData }: { rowData: Subject })}
-	{#if data.profile?.role === 'Admin'}
-		<Button
-			onclick={() => openEditModal(rowData)}
-			variant="ghost"
-			size="icon"
-			disabled={isSubmitting}
-		>
-			<Pencil class="h-4 w-4" />
-		</Button>
-		<Button
-			onclick={() => openDeleteModal(rowData)}
-			variant="ghost"
-			size="icon"
-			class="text-destructive hover:text-destructive"
-			disabled={isSubmitting}
-		>
-			<Trash2 class="h-4 w-4" />
-		</Button>
-	{/if}
+	<!-- {#if data.profile?.role === 'Admin'} -->
+	<Button
+		onclick={() => openEditModal(rowData)}
+		variant="ghost"
+		size="icon"
+		disabled={isSubmitting}
+	>
+		<Pencil class="h-4 w-4" />
+	</Button>
+	<Button
+		onclick={() => openDeleteModal(rowData)}
+		variant="ghost"
+		size="icon"
+		class="text-destructive hover:text-destructive"
+		disabled={isSubmitting}
+	>
+		<Trash2 class="h-4 w-4" />
+	</Button>
+	<!-- {/if} -->
 {/snippet}
 
 <svelte:head>
@@ -211,7 +211,7 @@
 	<DataTable
 		data={filteredSubjects}
 		{columns}
-		showCheckbox={data.profile?.role === 'Admin'}
+		showCheckbox={true}
 		bind:rowSelection
 		bind:selectedRowsData={selectedSubjects}
 	>
@@ -231,24 +231,24 @@
 			</Select.Root>
 		</div>
 		<div slot="toolbar" class="flex items-center gap-2">
-			{#if data.profile?.role === 'Admin'}
-				<Button
-					variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
-					class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
-					disabled={isSubmitting || selectedRowsCount === 0}
-					onclick={() => {
-						selectedSubject = null; // Ensure we're in bulk delete mode
-						deleteOpen = true;
-					}}
-				>
-					<Trash2 class="mr-2 h-4 w-4" />
-					Delete ({selectedRowsCount})
-				</Button>
-				<Button onclick={openCreateModal} disabled={isSubmitting}>
-					<PlusCircle class="mr-2 h-4 w-4" />
-					Add Subject
-				</Button>
-			{/if}
+			<!-- {#if data.profile?.role === 'Admin'} -->
+			<Button
+				variant={selectedRowsCount > 0 ? 'destructive' : 'outline'}
+				class={selectedRowsCount === 0 ? 'text-muted-foreground' : ''}
+				disabled={isSubmitting || selectedRowsCount === 0}
+				onclick={() => {
+					selectedSubject = null; // Ensure we're in bulk delete mode
+					deleteOpen = true;
+				}}
+			>
+				<Trash2 class="mr-2 h-4 w-4" />
+				Delete ({selectedRowsCount})
+			</Button>
+			<Button onclick={openCreateModal} disabled={isSubmitting}>
+				<PlusCircle class="mr-2 h-4 w-4" />
+				Add Subject
+			</Button>
+			<!-- {/if} -->
 		</div>
 	</DataTable>
 </div>
