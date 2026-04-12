@@ -25,15 +25,6 @@
 		/>
 		<!-- Add inside <head> -->
 		<!-- <script src="https://tweakcn.com/live-preview.min.js"></script> -->
-		<!-- Prevent Theme Flash -->
-		<script>
-			try {
-				let theme = localStorage.getItem('app-theme');
-				if (theme && theme !== 'default') {
-					document.documentElement.setAttribute('data-theme', theme);
-				}
-			} catch (e) {}
-		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

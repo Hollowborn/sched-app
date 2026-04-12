@@ -20,11 +20,8 @@
 	import { settingsModalOpen } from '$lib/stores/modalStore.js';
 
 	import { toast } from 'svelte-sonner';
-	import { setMode, mode } from 'mode-watcher';
+	import { setMode, mode, theme, setTheme } from 'mode-watcher';
 	import { page } from '$app/stores';
-
-	// App Theme Store
-	import { appTheme } from '$lib/stores/themeStore.js';
 
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
@@ -144,26 +141,30 @@
 			<div class="space-y-4">
 				<h4 class="text-sm font-medium leading-none">Color Theme</h4>
 				<RadioGroup.Root
-					value={$appTheme}
-					onValueChange={(v) => ($appTheme = v)}
+					value={theme.current || ''}
+					onValueChange={(v) => setTheme(v)}
 					class="grid grid-cols-2 gap-4"
 				>
 					<div>
-						<RadioGroup.Item value="default" id="theme-default" class="peer sr-only" />
+						<RadioGroup.Item value="" id="theme-default" class="peer sr-only" />
 						<Label
 							for="theme-default"
-							class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+							class="flex items-center gap-3 rounded-md border-2 border-muted bg-popover px-4 py-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+							data-theme=""
 						>
-							Default (Slate)
+							<div class="h-5 w-5 shrink-0 rounded bg-primary border shadow-sm"></div>
+							<div class="font-medium">Default</div>
 						</Label>
 					</div>
 					<div>
 						<RadioGroup.Item value="modern-minimal" id="theme-oklch" class="peer sr-only" />
 						<Label
 							for="theme-oklch"
-							class="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+							class="flex items-center gap-3 rounded-md border-2 border-muted bg-popover px-4 py-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+							data-theme="modern-minimal"
 						>
-							Modern Minimal
+							<div class="h-5 w-5 shrink-0 rounded bg-primary border shadow-sm"></div>
+							<div class="font-medium">Modern Minimal</div>
 						</Label>
 					</div>
 				</RadioGroup.Root>
