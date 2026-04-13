@@ -152,10 +152,21 @@
 							class="flex items-center gap-3 rounded-md border-2 border-muted bg-popover px-4 py-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
 							data-theme=""
 						>
-							<div class="h-5 w-5 shrink-0 rounded bg-primary border shadow-sm"></div>
+							<div class="h-5 w-5 shrink-0 rounded bg-lime-200 border shadow-sm"></div>
 							<div class="font-medium">Default</div>
 						</Label>
 					</div>
+					<!-- <div>
+						<RadioGroup.Item value="black" id="theme-black" class="peer sr-only" />
+						<Label
+							for="theme-black"
+							class="flex items-center gap-3 rounded-md border-2 border-muted bg-popover px-4 py-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+							data-theme="black"
+						>
+							<div class="h-5 w-5 shrink-0 rounded bg-primary border shadow-sm"></div>
+							<div class="font-medium">Slate</div>
+						</Label>
+					</div> -->
 					<div>
 						<RadioGroup.Item value="modern-minimal" id="theme-oklch" class="peer sr-only" />
 						<Label
