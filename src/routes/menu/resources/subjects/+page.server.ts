@@ -43,9 +43,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	// CREATE ACTION
 	createSubject: async ({ request, locals }) => {
-		if (locals.profile?.role !== 'Admin') {
-			return fail(403, { message: 'Forbidden: You do not have permission to create subjects.' });
-		}
+		// if (locals.profile?.role !== 'Admin') {
+		// 	return fail(403, { message: 'Forbidden: You do not have permission to create subjects.' });
+		// }
 
 		const formData = await request.formData();
 		const subject_code = formData.get('subject_code')?.toString()?.trim();
@@ -99,9 +99,9 @@ export const actions: Actions = {
 
 	// UPDATE ACTION
 	updateSubject: async ({ request, locals }) => {
-		if (locals.profile?.role !== 'Admin') {
-			return fail(403, { message: 'Forbidden: You do not have permission to update subjects.' });
-		}
+		// if (locals.profile?.role !== 'Admin' ) {
+		// 	return fail(403, { message: 'Forbidden: You do not have permission to update subjects.' });
+		// }
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
 		const subject_code = formData.get('subject_code')?.toString()?.trim();
@@ -156,9 +156,9 @@ export const actions: Actions = {
 
 	// DELETE ACTION
 	deleteSubject: async ({ request, locals }) => {
-		if (locals.profile?.role !== 'Admin') {
-			return fail(403, { message: 'Forbidden: You do not have permission to delete subjects.' });
-		}
+		// if (locals.profile?.role !== 'Admin') {
+		// 	return fail(403, { message: 'Forbidden: You do not have permission to delete subjects.' });
+		// }
 		const formData = await request.formData();
 		const id = formData.get('id') ? Number(formData.get('id')) : null;
 		const idsString = formData.get('ids')?.toString();
