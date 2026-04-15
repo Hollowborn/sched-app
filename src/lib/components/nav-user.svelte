@@ -107,7 +107,7 @@
 				</DropdownMenu.Group>
 
 				<DropdownMenu.Group>
-					<DropdownMenu.Item><Info />User Manual</DropdownMenu.Item>
+					<!-- <DropdownMenu.Item><Info />User Manual</DropdownMenu.Item> -->
 					<DropdownMenu.Item
 						onclick={() => {
 							settingsModalOpen.set(true);

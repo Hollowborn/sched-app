@@ -126,8 +126,8 @@
 				Login with GitHub
 			</Button>
 			<FieldDescription class="text-center">
-				Don't have an account?
-				<a href="##" onclick={showToastError} class="underline underline-offset-4">Sign up</a>
+				Don't have an account? Ask the administrator to create one for you.
+				<!-- <a href="##" onclick={showToastError} class="underline underline-offset-4">Sign up</a> -->
 			</FieldDescription>
 		</Field>
 	</FieldGroup>
