@@ -108,11 +108,16 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const curriculum_id = Number(formData.get('curriculum_id'));
 		const subject_ids = formData.getAll('subject_ids').map(Number);
+        const major_subject_ids = formData.getAll('major_subject_ids').map(Number);
         
         await locals.supabase.from('curriculum_subjects').delete().eq('curriculum_id', curriculum_id);
 
 		if (subject_ids.length > 0) {
-			const newLinks = subject_ids.map((subject_id) => ({ curriculum_id, subject_id, is_major: false }));
+			const newLinks = subject_ids.map((subject_id) => ({
+                curriculum_id,
+                subject_id,
+                is_major: major_subject_ids.includes(subject_id)
+            }));
 			const { error: insertError } = await locals.supabase
 				.from('curriculum_subjects')
 				.insert(newLinks);

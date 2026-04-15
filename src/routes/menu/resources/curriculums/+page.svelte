@@ -15,6 +15,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Separator } from '$lib/components/ui/separator';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
@@ -117,6 +118,31 @@
 			selectedSubjectIds = [...selectedSubjectIds, id];
 		}
 	}
+
+	// Returns true if a subject belongs to only one college (program-specific = major)
+	function isMajorSubject(subject: any): boolean {
+		return (subject.subject_colleges?.length ?? 0) === 1;
+	}
+
+	// Subjects currently selected, sorted alphabetically by code
+	const selectedSubjects = $derived(
+		data.subjects
+			.filter((s: any) => selectedSubjectIds.includes(s.id.toString()))
+			.filter((s: any) => {
+				// also honour search query
+				if (!searchQuery) return true;
+				const q = searchQuery.toLowerCase();
+				return s.subject_code.toLowerCase().includes(q) || s.subject_name.toLowerCase().includes(q);
+			})
+			.sort((a: any, b: any) => a.subject_code.localeCompare(b.subject_code))
+	);
+
+	// Subjects not yet selected (filtered + sorted)
+	const unselectedSubjects = $derived(
+		filteredSubjects
+			.filter((s: any) => !selectedSubjectIds.includes(s.id.toString()))
+			.sort((a: any, b: any) => a.subject_code.localeCompare(b.subject_code))
+	);
 </script>
 
 {#snippet actionButtons({ row }: { row: any })}
@@ -282,69 +308,101 @@
 
 <!-- Manage Subjects Dialog -->
 <Dialog.Root bind:open={subjectsOpen}>
-	<Dialog.Content>
+	<Dialog.Content class="sm:max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title>Mapped Subjects</Dialog.Title>
 			<Dialog.Description>
 				Select the subjects required for
 				<strong class="font-medium">{selectedCurriculumForSubjects?.programs?.program_name}</strong>
-				-
+				—
 				{selectedCurriculumForSubjects?.year_level} Year, {selectedCurriculumForSubjects?.semester}.
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="space-y-4 py-4">
-			{#if selectedSubjectIds.length > 0}
-				<div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-2">
-					{#each selectedSubjectIds as sId}
-						{@const s = data.subjects.find((sub: any) => sub.id.toString() === sId)}
-						{#if s}
-							<Badge variant="secondary" class="flex items-center gap-1 font-normal">
-								{s.subject_code}
-								<button
-									type="button"
-									class="ml-0.5 hover:text-destructive transition-colors"
-									onclick={(e) => {
-										e.preventDefault();
-										toggleSubject(sId);
-									}}
-								>
-									✕
-								</button>
-							</Badge>
-						{/if}
-					{/each}
-				</div>
-			{/if}
+		<div class="space-y-3 py-4">
 			<Input type="search" placeholder="Search course catalog..." bind:value={searchQuery} />
-			<div class="h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
-				{#each filteredSubjects as subject}
-					<button
-						type="button"
-						class="w-full flex items-center justify-between p-3 rounded-md border text-left transition-colors hover:bg-muted/50 {selectedSubjectIds.includes(
-							subject.id.toString()
-						)
-							? 'border-primary bg-primary/5'
-							: 'border-transparent'}"
-						onclick={() => toggleSubject(subject.id.toString())}
-					>
-						<div>
-							<div class="font-medium font-mono text-sm">{subject.subject_code}</div>
-							<div class="text-sm text-muted-foreground truncate max-w-64">
-								{subject.subject_name}
+
+			<div class="h-[340px] overflow-y-auto border rounded-md">
+				<!-- Selected subjects pinned to top -->
+				{#if selectedSubjects.length > 0}
+					<div class="p-1 space-y-0.5">
+						{#each selectedSubjects as subject (subject.id)}
+							{@const isMajor = isMajorSubject(subject)}
+							<div
+								class="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-primary/10 border border-primary/30"
+							>
+								<div class="flex items-center gap-3 min-w-0">
+									<div class="h-2 w-2 shrink-0 rounded-full bg-primary"></div>
+									<div class="min-w-0">
+										<div class="font-mono text-sm font-medium">{subject.subject_code}</div>
+										<div class="text-xs text-muted-foreground truncate max-w-xs">{subject.subject_name}</div>
+									</div>
+								</div>
+								<div class="flex items-center gap-2 shrink-0">
+									<span class="text-xs text-muted-foreground tabular-nums">
+										{Number(subject.lecture_hours)}L/{Number(subject.lab_hours)}B
+									</span>
+									<Badge variant={isMajor ? 'default' : 'secondary'} class="text-xs px-1.5 py-0">
+										{isMajor ? 'Major' : 'GE'}
+									</Badge>
+									<button
+										type="button"
+										class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none p-0.5 rounded"
+										onclick={() => toggleSubject(subject.id.toString())}
+										aria-label="Remove {subject.subject_code}"
+									>✕</button>
+								</div>
 							</div>
-						</div>
-						<div class="text-xs text-muted-foreground w-12 text-right">
-							{Number(subject.lecture_hours)}L / {Number(subject.lab_hours)}B
-						</div>
-					</button>
-				{/each}
-				{#if filteredSubjects.length === 0}
-					<div class="p-4 text-center text-muted-foreground text-sm">No subjects found.</div>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Separator between selected and unselected -->
+				{#if selectedSubjects.length > 0 && unselectedSubjects.length > 0}
+					<div class="flex items-center gap-2 px-3 py-1">
+						<Separator class="flex-1" />
+						<span class="text-xs text-muted-foreground shrink-0">Unselected · {unselectedSubjects.length}</span>
+						<Separator class="flex-1" />
+					</div>
+				{/if}
+
+				<!-- Unselected subjects -->
+				{#if unselectedSubjects.length > 0}
+					<div class="p-1 space-y-0.5">
+						{#each unselectedSubjects as subject (subject.id)}
+							{@const isMajor = isMajorSubject(subject)}
+							<button
+								type="button"
+								class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-left transition-colors hover:bg-muted/60"
+								onclick={() => toggleSubject(subject.id.toString())}
+							>
+								<div class="flex items-center gap-3 min-w-0">
+									<div class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40"></div>
+									<div class="min-w-0">
+										<div class="font-mono text-sm font-medium">{subject.subject_code}</div>
+										<div class="text-xs text-muted-foreground truncate max-w-xs">{subject.subject_name}</div>
+									</div>
+								</div>
+								<div class="flex items-center gap-2 shrink-0">
+									<span class="text-xs text-muted-foreground tabular-nums">
+										{Number(subject.lecture_hours)}L/{Number(subject.lab_hours)}B
+									</span>
+									<Badge variant={isMajor ? 'outline' : 'secondary'} class="text-xs px-1.5 py-0">
+										{isMajor ? 'Major' : 'GE'}
+									</Badge>
+								</div>
+							</button>
+						{/each}
+					</div>
+				{/if}
+
+				{#if selectedSubjects.length === 0 && unselectedSubjects.length === 0}
+					<div class="p-8 text-center text-muted-foreground text-sm">No subjects found.</div>
 				{/if}
 			</div>
+
 			<div class="text-xs text-muted-foreground">
-				{selectedSubjectIds.length} subjects currently selected for this curriculum.
+				{selectedSubjectIds.length} subject{selectedSubjectIds.length === 1 ? '' : 's'} selected for this curriculum.
 			</div>
 		</div>
 
@@ -371,6 +429,13 @@
 			<input type="hidden" name="curriculum_id" value={selectedCurriculumForSubjects?.id} />
 			{#each selectedSubjectIds as sId}
 				<input type="hidden" name="subject_ids" value={sId} />
+			{/each}
+			<!-- Pass which subjects are inferred as major so the server can persist is_major correctly -->
+			{#each selectedSubjectIds as sId}
+				{@const subject = data.subjects.find((s: any) => s.id.toString() === sId)}
+				{#if subject && isMajorSubject(subject)}
+					<input type="hidden" name="major_subject_ids" value={sId} />
+				{/if}
 			{/each}
 
 			<Dialog.Footer>
