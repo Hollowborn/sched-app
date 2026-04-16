@@ -49,8 +49,8 @@
 
 	// Stepper State
 	const totalSteps = 4;
-	// If healthStats exist, we likely just loaded programs, so jump to step 2. Otherwise step 1.
-	let currentStep = $state(data.healthStats ? 2 : 1);
+	// If healthStats exist and > 0, jump to step 2. Otherwise step 1.
+	let currentStep = $state(data.healthStats?.totalClasses > 0 ? 2 : 1);
 
 	let failedClassesModalOpen = $state(false);
 	let reportData = $state<any>(null);
@@ -118,15 +118,30 @@
 		return years;
 	}
 
-	function loadProgramDetails() {
+	async function loadProgramDetails() {
 		if (selectedProgramIds.length === 0) return;
+		
+        const toastId = toast.loading('Loading program details...');
+		isSubmitting = true;
+
 		const params = new URLSearchParams();
 		// Use program_ids parameter
 		params.set('program_ids', selectedProgramIds.join(','));
 		params.set('academic_year', academicYear);
 		params.set('semester', semester);
 
-		goto(`?${params.toString()}`, { noScroll: true, invalidateAll: true });
+		await goto(`?${params.toString()}`, { noScroll: true, invalidateAll: true });
+		isSubmitting = false;
+
+		if (data.healthStats && data.healthStats.totalClasses === 0) {
+			toast.error('No class offerings detected for the selected programs/colleges.', { id: toastId });
+			currentStep = 1;
+		} else if (data.healthStats && data.healthStats.totalClasses > 0) {
+			toast.success(`Loaded ${data.healthStats.totalClasses} classes successfully.`, { id: toastId });
+			currentStep = 2;
+		} else {
+            toast.dismiss(toastId);
+        }
 	}
 
 	function toggleProgram(id: string, checked: boolean) {
@@ -464,8 +479,9 @@
 							variant="secondary"
 							class="w-full"
 							onclick={loadProgramDetails}
-							disabled={selectedProgramIds.length === 0}
+							disabled={selectedProgramIds.length === 0 || isSubmitting}
 						>
+							{#if isSubmitting}<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />{/if}
 							Load Program Details
 						</Button>
 					</div>

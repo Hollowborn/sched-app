@@ -100,7 +100,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			const emptyBlocks = totalBlocks - assignedBlockCount;
 
 			healthStats = { totalClasses, unassignedClasses, totalBlocks, emptyBlocks };
-		}
+		} else {
+             healthStats = { totalClasses: 0, unassignedClasses: 0, totalBlocks: 0, emptyBlocks: 0 };
+        }
 	}
 
 	// --- Fetch other necessary data ---
