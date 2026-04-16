@@ -202,7 +202,7 @@
 
 <div class="space-y-6">
 	<header>
-		<h1 class="text-3xl font-bold tracking-tight">Subject & Course Management</h1>
+		<h1 class="text-3xl font-bold tracking-tight">Course Management</h1>
 		<p class="text-muted-foreground mt-1">
 			A central hub to create, search, and manage all subjects offered by the university.
 		</p>
