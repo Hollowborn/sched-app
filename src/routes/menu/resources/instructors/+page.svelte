@@ -51,7 +51,7 @@
 	let { data } = $props<{ data: PageData; form: ActionData }>();
 
 	// --- State Management ---
-	let viewMode: 'table' | 'grid' = $state('grid');
+	let viewMode: 'table' | 'grid' = $state('table');
 	let academicYear = $state(data.filters.academic_year);
 	let semester = $state(data.filters.semester);
 	let isSubmitting = $state(false);
@@ -258,7 +258,7 @@
 				<DropdownMenu.Item
 					onclick={() => openQualificationsModal(instructor)}
 					class="focus:bg-transparent focus:text-inherit"
-					><BookMarked class="h-4 w-4" /> Change Qualifications</DropdownMenu.Item
+					><BookMarked class="h-4 w-4" /> Change Specialization</DropdownMenu.Item
 				>
 
 				<DropdownMenu.Item
@@ -419,7 +419,7 @@
 								class="truncate"
 								variant="outline"
 								size="sm"
-								onclick={() => openQualificationsModal(instructor)}>Qualifications</Button
+								onclick={() => openQualificationsModal(instructor)}>Specialization</Button
 							>
 							<Button variant="secondary" size="sm" onclick={() => openEditModal(instructor)}
 								>Edit</Button
