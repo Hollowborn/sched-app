@@ -52,6 +52,21 @@
 	let editLectureDays = $state<string[]>([]);
 	let filterOpen = $state(false);
 
+	// Track which row is currently being actively edited (any popover open)
+	let activeRowId = $state<number | null>(null);
+
+	// Apply data-active to the matching <tr> so the whole row highlights cleanly
+	$effect(() => {
+		// Clear all previously active rows
+		document.querySelectorAll('tr[data-active]').forEach((el) => el.removeAttribute('data-active'));
+		if (activeRowId !== null) {
+			// The instructor form id is a reliable anchor: assign-form-{id}
+			const form = document.getElementById(`assign-form-${activeRowId}`);
+			const tr = form?.closest('tr');
+			if (tr) tr.setAttribute('data-active', 'true');
+		}
+	});
+
 	const atEditLectureDaysLimit = $derived(editLectureDays.length >= 2);
 
 	$effect(() => {
@@ -225,13 +240,23 @@
 			</div>
 
 			{#if rowData.subjects?.lecture_hours > 0}
-				<Popover.Root>
-					<Popover.Trigger
-						class="text-muted-foreground hover:text-foreground"
-						onclick={() => {
+				<Popover.Root
+					onOpenChange={(isOpen) => {
+						if (isOpen) {
+							activeRowId = rowData.id;
 							editingClassId = rowData.id;
 							editSplitLecture = rowData.split_lecture ?? false;
 							editLectureDays = rowData.lecture_days ?? [];
+						} else {
+							activeRowId = null;
+							editingClassId = null;
+						}
+					}}
+				>
+					<Popover.Trigger
+						class="text-muted-foreground hover:text-foreground"
+						onclick={() => {
+							// state is now set by onOpenChange
 						}}
 					>
 						<Pencil class="h-4 w-4" />
@@ -397,7 +422,7 @@
 
 {#snippet roomCell({ rowData }: { rowData: ClassOffering })}
 	<div class="flex justify-center">
-		<RoomAssignmentCell {rowData} {data} />
+		<RoomAssignmentCell {rowData} {data} bind:activeRowId rowId={rowData.id} />
 	</div>
 {/snippet}
 
@@ -544,3 +569,17 @@
 		<span class="font-bold">{academicYear}</span>
 	</div>
 </div>
+
+<style>
+	/*
+	 * Whole-row active highlight via data-active attribute set imperatively by $effect.
+	 * This matches how the shadcn Table.Row hover works (targets the <tr> directly).
+	 */
+	:global(table tbody tr[data-active='true']) {
+		background-color: oklch(from var(--primary) l c h / 0.06);
+		box-shadow: inset 3px 0 0 0 var(--primary);
+		transition:
+			background-color 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+</style>

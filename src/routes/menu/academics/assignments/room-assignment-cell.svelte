@@ -12,9 +12,11 @@
 
 	type ClassOffering = PageData['classes'][number];
 
-	let { rowData, data } = $props<{
+	let { rowData, data, activeRowId = $bindable(null), rowId } = $props<{
 		rowData: ClassOffering;
 		data: PageData;
+		activeRowId?: number | null;
+		rowId: number;
 	}>();
 
 	let open = $state(false);
@@ -34,7 +36,16 @@
 	});
 </script>
 
-<Popover.Root bind:open>
+<Popover.Root
+	bind:open
+	onOpenChange={(isOpen) => {
+		if (isOpen) {
+			activeRowId = rowId;
+		} else {
+			activeRowId = null;
+		}
+	}}
+>
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<Button variant="outline" class="w-full justify-start text-left font-normal" {...props}>
