@@ -69,8 +69,21 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 			possibleDays = DAYS.filter((d) => !constraints.excludedDays?.includes(d));
 		}
 
+		const determinePossibleRooms = (targetType: 'Lecture' | 'Lab') => {
+			if (cls.is_off_campus) {
+				const offCampusRoom = rooms.find((r) => r.room_name === 'Off-Campus / Field');
+				return offCampusRoom ? [offCampusRoom] : [];
+			}
+			return rooms.filter((r) => {
+				const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+				const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === targetType : true;
+				return capOk && typeOk;
+			});
+		};
+
 		// Lecture
 		if (cls.subjects.lecture_hours > 0) {
+			const lecRooms = determinePossibleRooms('Lecture');
 			if (cls.split_lecture) {
 				const splitHours = Number(cls.subjects.lecture_hours) / 2;
 				tasks.push({
@@ -79,13 +92,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter((r) => {
-						const capOk =
-							!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-						const typeOk =
-							constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-						return capOk && typeOk;
-					}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 				tasks.push({
@@ -94,13 +101,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter((r) => {
-						const capOk =
-							!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-						const typeOk =
-							constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-						return capOk && typeOk;
-					}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			} else {
@@ -110,32 +111,54 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: Number(cls.subjects.lecture_hours),
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter((r) => {
-						const capOk =
-							!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-						const typeOk =
-							constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-						return capOk && typeOk;
-					}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			}
 		}
+
 		// Lab
 		if (cls.subjects.lab_hours > 0) {
-			tasks.push({
-				id: `${cls.id}_Lab`,
-				classData: cls,
-				type: 'Lab',
-				hours: Number(cls.subjects.lab_hours),
-				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
-				possibleRooms: rooms.filter((r) => {
-					const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
-					return capOk && typeOk;
-				}),
-				possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
-			});
+			const labHours = Number(cls.subjects.lab_hours);
+			const labRooms = determinePossibleRooms('Lab');
+
+			if (constraints.splitLongLabs && labHours >= 5) {
+				// Split into smallest number of chunks <= 4 hours
+				const numChunks = Math.ceil(labHours / 4);
+				const baseChunk = Math.floor((labHours / numChunks) * 2) / 2; // Floor to nearest 0.5
+
+				let hoursAllocated = 0;
+				for (let i = 1; i <= numChunks; i++) {
+					let chunkHours = baseChunk;
+					if (i === numChunks) {
+						chunkHours = labHours - hoursAllocated; // Last chunk takes remainder
+					} else {
+						// Adjust if necessary to ensure it's a multiple of 0.5
+						chunkHours = Math.round(chunkHours * 2) / 2;
+					}
+
+					tasks.push({
+						id: `${cls.id}_Lab_${i}`,
+						classData: cls,
+						type: 'Lab',
+						hours: chunkHours,
+						slotsNeeded: Math.ceil(chunkHours / SLOT_DURATION_HOURS),
+						possibleRooms: labRooms,
+						possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+					});
+					hoursAllocated += chunkHours;
+				}
+			} else {
+				tasks.push({
+					id: `${cls.id}_Lab`,
+					classData: cls,
+					type: 'Lab',
+					hours: labHours,
+					slotsNeeded: Math.ceil(labHours / SLOT_DURATION_HOURS),
+					possibleRooms: labRooms,
+					possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+				});
+			}
 		}
 	});
 
@@ -162,21 +185,22 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 			}
 		}
 
-		// Split Lecture Day Constraint
-		if (task.id.includes('_Lecture_')) {
+		// Split Lecture and Lab Day Constraint
+		if (task.id.includes('_Lecture_') || task.id.includes('_Lab_')) {
 			const parts = task.id.split('_');
 			const classId = parts[0];
+			const type = parts[1]; // Lecture or Lab
 			const splitPart = parts[2];
 
-			if (splitPart === '1' || splitPart === '2') {
-				const siblingSplitPart = splitPart === '1' ? '2' : '1';
-				const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-				const siblingAssignment = assignments[siblingTaskId];
-
-				if (siblingAssignment && siblingAssignment.length > 0) {
-					const siblingDay = siblingAssignment[0].day_of_week;
-					if (day === siblingDay) {
-						return false;
+			const taskPrefix = `${classId}_${type}_`;
+			for (const assignedTaskId in assignments) {
+				if (assignedTaskId.startsWith(taskPrefix) && assignedTaskId !== task.id) {
+					const siblingAssignment = assignments[assignedTaskId];
+					if (siblingAssignment && siblingAssignment.length > 0) {
+						const siblingDay = siblingAssignment[0].day_of_week;
+						if (day === siblingDay) {
+							return false; // Prevent sibling chunks matching the same day
+						}
 					}
 				}
 			}
@@ -188,7 +212,11 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 			for (const entry of assignedEntries) {
 				// Same Room Conflict
 				if (entry.room_id === room.id && entry.day_of_week === day) {
-					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
+					// Soft fallback: off-campus pseudo room handles massive overlapping correctly
+					if (room.room_name !== 'Off-Campus / Field') {
+						if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time))
+							return false;
+					}
 				}
 
 				const assignedTask = tasks.find((t) => t.id === assignedTaskId);
@@ -373,7 +401,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 		return false;
 	}
 
-	const TIMEOUT_MS = 15000; // Increased timeout for smarter solver
+	const TIMEOUT_MS = 60000; // Increased timeout for smarter solver
 	const startTime = performance.now();
 	const success = backtrack(0);
 

@@ -39,6 +39,7 @@
 	import * as Field from '$lib/components/ui/field';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 
 	type Program = PageData['programs'][number];
 
@@ -54,6 +55,9 @@
 
 	let failedClassesModalOpen = $state(false);
 	let reportData = $state<any>(null);
+
+	let generationWarningOpen = $state(false);
+	let skipWarnings = $state(false);
 
 	// --- Form State ---
 	const urlParams = $page.url.searchParams;
@@ -86,7 +90,8 @@
 		enforceCapacity: true,
 		roomTypeConstraint: 'soft',
 		enforceInstructor: true,
-		enforceBlock: true
+		enforceBlock: true,
+		splitLongLabs: true
 	});
 	let startTime = $state('08:00');
 	let endTime = $state('18:00');
@@ -261,8 +266,20 @@
 	</header>
 
 	<form
+		id="generate-form"
 		method="POST"
 		action="?/generateSchedule"
+		onsubmit={(e) => {
+			if (!data.healthStats) return;
+			// Intercept if there are issues and warnings haven't been bypassed
+			if (
+				!skipWarnings &&
+				(data.healthStats.unassignedClasses > 0 || data.healthStats.emptyBlocks > 0)
+			) {
+				e.preventDefault();
+				generationWarningOpen = true;
+			}
+		}}
 		use:enhance={() => {
 			isSubmitting = true;
 			const toastId = toast.loading('Starting schedule generation...');
@@ -668,6 +685,14 @@
 									<Label for="c-block" class="font-normal">Enforce Block/Section Availability</Label
 									>
 								</div>
+								<div class="flex items-center gap-2">
+									<Checkbox
+										id="c-split-labs"
+										name="splitLongLabs"
+										bind:checked={constraints.splitLongLabs}
+									/>
+									<Label for="c-split-labs" class="font-normal">Auto-split Long Labs (&gt;4 hours)</Label>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -712,7 +737,18 @@
 									>
 										{data.healthStats.unassignedClasses}
 									</p>
-									<p class="text-xs text-muted-foreground mt-1">classes have no instructor</p>
+									<p class="text-xs text-muted-foreground mt-1 mb-2">classes have no instructor</p>
+									{#if data.healthStats.unassignedClasses > 0}
+										<Button
+											href="/menu/academics/assignments?academic_year={academicYear}&semester={semester}"
+											variant="outline"
+											target="_blank"
+											size="sm"
+											class="w-full mt-auto text-xs"
+										>
+											Assign Instructors
+										</Button>
+									{/if}
 								</div>
 								<div
 									class={cn(
@@ -739,7 +775,18 @@
 									>
 										{data.healthStats.emptyBlocks}
 									</p>
-									<p class="text-xs text-muted-foreground mt-1">blocks have no classes</p>
+									<p class="text-xs text-muted-foreground mt-1 mb-2">blocks have no classes</p>
+									{#if data.healthStats.emptyBlocks > 0}
+										<Button
+											href="/menu/academics/offerings?academic_year={academicYear}&semester={semester}"
+											variant="outline"
+											target="_blank"
+											size="sm"
+											class="w-full mt-auto text-xs"
+										>
+											Fix Blocks
+										</Button>
+									{/if}
 								</div>
 								<div class="flex flex-col p-4 border rounded-lg bg-background">
 									<div class="flex items-center justify-between">
@@ -945,16 +992,75 @@
 
 		<Dialog.Footer class="sm:justify-between gap-2">
 			<Button variant="outline" onclick={() => (failedClassesModalOpen = false)}>Close</Button>
-			{#if reportData?.success}
-				<Button
-					onclick={() =>
-						goto(`/menu/timetables/view/${reportData?.generatedTimetableId}`, {
-							invalidateAll: true
-						})}
-				>
-					View Timetable
-				</Button>
-			{/if}
+			
+			<div class="flex flex-wrap gap-2 justify-end">
+				{#if reportData?.failedClasses?.length > 0 || !reportData?.success}
+					<Button
+						variant="secondary"
+						onclick={() => {
+							failedClassesModalOpen = false;
+							currentStep = 3;
+						}}
+					>
+						Modify Constraints
+					</Button>
+					<Button
+						variant="secondary"
+						onclick={() => {
+							failedClassesModalOpen = false;
+							// Stays on Step 4
+						}}
+					>
+						Try Another Algorithm
+					</Button>
+				{/if}
+				{#if reportData?.success}
+					<Button
+						onclick={() =>
+							goto(`/menu/timetables/view/${reportData?.generatedTimetableId}`, {
+								invalidateAll: true
+							})}
+					>
+						View Timetable
+					</Button>
+				{/if}
+			</div>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Pre-Generation Warning Prompt -->
+<AlertDialog.Root bind:open={generationWarningOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Potential Issues Detected</AlertDialog.Title>
+			<AlertDialog.Description>
+				You have 
+				{#if data.healthStats?.unassignedClasses > 0}
+					<strong class="text-foreground">{data.healthStats.unassignedClasses} unassigned classes</strong>
+				{/if}
+				{#if data.healthStats?.unassignedClasses > 0 && data.healthStats?.emptyBlocks > 0} and {/if}
+				{#if data.healthStats?.emptyBlocks > 0}
+					<strong class="text-foreground">{data.healthStats.emptyBlocks} empty blocks</strong>
+				{/if}. <br /><br />
+				Generating a schedule with unresolved issues might lead to incomplete timetables or skipped classes. 
+				We recommend fixing these in the Academics module first. Do you wish to proceed anyway?
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={() => {
+					skipWarnings = true;
+					generationWarningOpen = false;
+					setTimeout(() => {
+						const form = document.getElementById('generate-form') as HTMLFormElement;
+						form?.requestSubmit(); // This triggers use:enhance natively
+					}, 0);
+				}}
+			>
+				Generate Anyway
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

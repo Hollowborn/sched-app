@@ -10,6 +10,7 @@ export interface Class {
 	lecture_days: string[] | null;
 	room_preferences: { priority: number | null; options: number[] } | null;
 	college_id?: number;
+	is_off_campus?: boolean;
 }
 
 export interface Room {
@@ -48,6 +49,7 @@ export interface SolverConstraints {
 	enforceBlock: boolean;
 	excludedDays: string[];
 	breakTime?: string;
+	splitLongLabs?: boolean;
 }
 
 export type Solver = (

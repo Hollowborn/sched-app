@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.from('classes')
 		.select(
 			`
-            id, split_lecture, lecture_days, subjects!inner (id, subject_code, subject_name, lecture_hours),
+            id, split_lecture, lecture_days, is_off_campus, subjects!inner (id, subject_code, subject_name, lecture_hours),
             instructors (id, name),
             blocks!inner (id, block_name, programs!inner (id, college_id, program_name)),
             room_preferences
@@ -206,6 +206,7 @@ export const actions: Actions = {
 
 		const priority = priorityRoomId && Number(priorityRoomId) > 0 ? Number(priorityRoomId) : null;
 		const options = optionRoomIdsStr ? JSON.parse(optionRoomIdsStr) : [];
+		const isOffCampus = formData.get('isOffCampus') === 'true';
 
 		const room_preferences = {
 			priority,
@@ -214,7 +215,7 @@ export const actions: Actions = {
 
 		const { error: updateError } = await locals.supabase
 			.from('classes')
-			.update({ room_preferences })
+			.update({ room_preferences, is_off_campus: isOffCampus })
 			.eq('id', classId);
 
 		if (updateError) {

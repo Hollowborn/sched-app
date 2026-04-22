@@ -147,7 +147,7 @@ export const actions: Actions = {
 		const custom_name = formData.get('custom_name')?.toString();
 
 		// 2. Get Constraints
-		const constraints = {
+		const constraints: SolverConstraints = {
 			enforceCapacity: !!formData.get('enforceCapacity'),
 			roomTypeConstraint: (formData.get('roomTypeConstraint')?.toString() || 'strict') as
 				| 'strict'
@@ -156,7 +156,8 @@ export const actions: Actions = {
 			enforceInstructor: !!formData.get('enforceInstructor'),
 			enforceBlock: !!formData.get('enforceBlock'),
 			excludedDays: excluded_days,
-			breakTime: breakTime
+			breakTime: breakTime,
+			splitLongLabs: !!formData.get('splitLongLabs')
 		};
 
 		if (!academic_year || !semester || program_ids.length === 0 || room_ids.length === 0) {
@@ -232,21 +233,31 @@ export const actions: Actions = {
 		// --- Start Solver Logic ---
 		try {
 			// 4. Fetch all data needed for the solver
-			const [{ data: classesData, error: classesError }, { data: roomsData, error: roomsError }] =
-				await Promise.all([
-					locals.supabase
-						.from('classes')
-						.select(
-							'id, split_lecture, lecture_days, instructor_id, block_id, room_preferences, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
-						)
-						.eq('academic_year', academic_year)
-						.eq('semester', semester)
-						.in('blocks.program_id', program_ids),
-					locals.supabase.from('rooms').select('*').in('id', room_ids)
-				]);
+			// Also fetch the Off-Campus pseudo room unconditionally to handle field classes
+			const [
+				{ data: classesData, error: classesError },
+				{ data: roomsData, error: roomsError },
+				{ data: offCampusRoomData }
+			] = await Promise.all([
+				locals.supabase
+					.from('classes')
+					.select(
+						'id, split_lecture, lecture_days, instructor_id, block_id, room_preferences, is_off_campus, subjects(subject_code, lecture_hours, lab_hours), blocks!inner(program_id, estimated_students), instructors(id, name)'
+					)
+					.eq('academic_year', academic_year)
+					.eq('semester', semester)
+					.in('blocks.program_id', program_ids),
+				locals.supabase.from('rooms').select('*').in('id', room_ids),
+				locals.supabase.from('rooms').select('*').eq('room_name', 'Off-Campus / Field').single()
+			]);
 
 			if (classesError) throw error(500, `Classes Error: ${JSON.stringify(classesError)}`);
 			if (roomsError) throw error(500, `Rooms Error: ${JSON.stringify(roomsError)}`);
+
+			// Append offCampusRoom if it exists and wasn't already in the selected rooms array
+			if (offCampusRoomData && roomsData && !roomsData.find((r) => r.id === offCampusRoomData.id)) {
+				roomsData.push(offCampusRoomData);
+			}
 
 			if (!classesData || classesData.length === 0) {
 				// Update metadata to failed

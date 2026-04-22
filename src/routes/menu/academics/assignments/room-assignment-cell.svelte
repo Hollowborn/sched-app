@@ -26,6 +26,7 @@
 		priority: rowData.room_preferences?.priority?.toString() ?? '',
 		options: rowData.room_preferences?.options ?? []
 	});
+	let isOffCampus = $state(rowData.is_off_campus ?? false);
 
 	// Update local state when rowData changes (e.g. after save)
 	$effect(() => {
@@ -33,6 +34,7 @@
 			priority: rowData.room_preferences?.priority?.toString() ?? '',
 			options: rowData.room_preferences?.options ?? []
 		};
+		isOffCampus = rowData.is_off_campus ?? false;
 	});
 </script>
 
@@ -51,11 +53,15 @@
 			<Button variant="outline" class="w-full justify-start text-left font-normal" {...props}>
 				<div class="flex flex-col items-start truncate">
 					<span class="font-medium">
-						{prefs.priority
-							? data.rooms?.find((r) => r.id.toString() === prefs.priority)?.room_name
-							: 'No Priority'}
+						{#if isOffCampus}
+							Off-Campus / Field
+						{:else}
+							{prefs.priority
+								? data.rooms?.find((r) => r.id.toString() === prefs.priority)?.room_name
+								: 'No Priority'}
+						{/if}
 					</span>
-					{#if prefs.options.length > 0}
+					{#if !isOffCampus && prefs.options.length > 0}
 						<span class="text-xs text-muted-foreground">
 							+{prefs.options.length} alternatives
 						</span>
@@ -84,9 +90,20 @@
 			class="space-y-4"
 		>
 			<input type="hidden" name="classId" value={rowData.id} />
+			<input type="hidden" name="isOffCampus" value={isOffCampus.toString()} />
+
+			<div class="flex items-center space-x-2 bg-muted/50 p-2 rounded-md border">
+				<Checkbox
+					id="offcampus-{rowData.id}"
+					bind:checked={isOffCampus}
+				/>
+				<Label for="offcampus-{rowData.id}" class="text-sm font-semibold cursor-pointer">
+					Off-Campus / Field Class
+				</Label>
+			</div>
 
 			<!-- Priority Room -->
-			<div class="space-y-2">
+			<div class={cn("space-y-2 transition-opacity", isOffCampus && "opacity-50 pointer-events-none")}>
 				<Label>Priority Room</Label>
 				<Select.Root
 					type="single"
@@ -104,36 +121,40 @@
 					<Select.Content class="max-h-[200px]">
 						<Select.Item value="">None</Select.Item>
 						{#each data.rooms || [] as room}
-							<Select.Item value={room.id.toString()}>
-								{room.room_name}
-								({room.type})
-							</Select.Item>
+							{#if room.room_name !== 'Off-Campus / Field'}
+								<Select.Item value={room.id.toString()}>
+									{room.room_name}
+									({room.type})
+								</Select.Item>
+							{/if}
 						{/each}
 					</Select.Content>
 				</Select.Root>
 			</div>
 
 			<!-- Alternative Rooms -->
-			<div class="space-y-2">
+			<div class={cn("space-y-2 transition-opacity", isOffCampus && "opacity-50 pointer-events-none")}>
 				<Label>Alternative Rooms</Label>
-				<div class="border rounded-md p-2 max-h-[150px] overflow-y-auto space-y-1">
+				<div class="border rounded-md p-2 max-h-[150px] overflow-y-auto space-y-1 bg-background">
 					{#each data.rooms || [] as room}
-						<div class="flex items-center space-x-2">
-							<Checkbox
-								id="opt-{rowData.id}-{room.id}"
-								checked={prefs.options.includes(room.id)}
-								onCheckedChange={(checked) => {
-									if (checked) {
-										prefs.options = [...prefs.options, room.id];
-									} else {
-										prefs.options = prefs.options.filter((id) => id !== room.id);
-									}
-								}}
-							/>
-							<Label for="opt-{rowData.id}-{room.id}" class="text-sm font-normal cursor-pointer">
-								{room.room_name}
-							</Label>
-						</div>
+						{#if room.room_name !== 'Off-Campus / Field'}
+							<div class="flex items-center space-x-2">
+								<Checkbox
+									id="opt-{rowData.id}-{room.id}"
+									checked={prefs.options.includes(room.id)}
+									onCheckedChange={(checked) => {
+										if (checked) {
+											prefs.options = [...prefs.options, room.id];
+										} else {
+											prefs.options = prefs.options.filter((id) => id !== room.id);
+										}
+									}}
+								/>
+								<Label for="opt-{rowData.id}-{room.id}" class="text-sm font-normal cursor-pointer">
+									{room.room_name}
+								</Label>
+							</div>
+						{/if}
 					{/each}
 				</div>
 				<input type="hidden" name="optionRoomIds" value={JSON.stringify(prefs.options)} />

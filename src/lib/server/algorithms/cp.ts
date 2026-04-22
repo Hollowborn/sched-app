@@ -75,8 +75,42 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			possibleDays = DAYS.filter((d) => !constraints.excludedDays?.includes(d));
 		}
 
+		const determinePossibleRooms = (targetType: 'Lecture' | 'Lab') => {
+			if (cls.is_off_campus) {
+				const offCampusRoom = rooms.find((r) => r.room_name === 'Off-Campus / Field');
+				return offCampusRoom ? [offCampusRoom] : [];
+			}
+			return rooms
+				.filter((r) => {
+					const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
+					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === targetType : true;
+					return capOk && typeOk;
+				})
+				.sort((a, b) => {
+					if (cls.room_preferences) {
+						const prefs = cls.room_preferences;
+						if (prefs.priority) {
+							if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
+							if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
+						}
+						if (prefs.options && prefs.options.length > 0) {
+							const aIsOption = prefs.options.includes(a.id);
+							const bIsOption = prefs.options.includes(b.id);
+							if (aIsOption && !bIsOption) return -1;
+							if (!aIsOption && bIsOption) return 1;
+						}
+					}
+					if (constraints.roomTypeConstraint === 'soft') {
+						if (a.type === targetType && b.type !== targetType) return -1;
+						if (a.type !== targetType && b.type === targetType) return 1;
+					}
+					return 0;
+				});
+		};
+
 		// Lecture
 		if (cls.subjects.lecture_hours > 0) {
+			const lecRooms = determinePossibleRooms('Lecture');
 			if (cls.split_lecture) {
 				const splitHours = Number(cls.subjects.lecture_hours) / 2;
 				tasks.push({
@@ -85,38 +119,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms
-						.filter((r) => {
-							const capOk =
-								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk =
-								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-							return capOk && typeOk;
-						})
-						.sort((a, b) => {
-							// 1. Preferred Room (Priority & Options)
-							if (cls.room_preferences) {
-								const prefs = cls.room_preferences;
-								// Priority Room
-								if (prefs.priority) {
-									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
-									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
-								}
-								// Option Rooms
-								if (prefs.options && prefs.options.length > 0) {
-									const aIsOption = prefs.options.includes(a.id);
-									const bIsOption = prefs.options.includes(b.id);
-									if (aIsOption && !bIsOption) return -1;
-									if (!aIsOption && bIsOption) return 1;
-								}
-							}
-							// 2. Soft Room Type
-							if (constraints.roomTypeConstraint === 'soft') {
-								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
-								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
-							}
-							return 0;
-						}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 				tasks.push({
@@ -125,38 +128,7 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms
-						.filter((r) => {
-							const capOk =
-								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk =
-								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-							return capOk && typeOk;
-						})
-						.sort((a, b) => {
-							// 1. Preferred Room (Priority & Options)
-							if (cls.room_preferences) {
-								const prefs = cls.room_preferences;
-								// Priority Room
-								if (prefs.priority) {
-									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
-									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
-								}
-								// Option Rooms
-								if (prefs.options && prefs.options.length > 0) {
-									const aIsOption = prefs.options.includes(a.id);
-									const bIsOption = prefs.options.includes(b.id);
-									if (aIsOption && !bIsOption) return -1;
-									if (!aIsOption && bIsOption) return 1;
-								}
-							}
-							// 2. Soft Room Type
-							if (constraints.roomTypeConstraint === 'soft') {
-								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
-								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
-							}
-							return 0;
-						}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			} else {
@@ -166,83 +138,51 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 					type: 'Lecture',
 					hours: Number(cls.subjects.lecture_hours),
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
-					possibleRooms: rooms
-						.filter((r) => {
-							const capOk =
-								!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-							const typeOk =
-								constraints.roomTypeConstraint === 'strict' ? r.type === 'Lecture' : true;
-							return capOk && typeOk;
-						})
-						.sort((a, b) => {
-							// 1. Preferred Room (Priority & Options)
-							if (cls.room_preferences) {
-								const prefs = cls.room_preferences;
-								// Priority Room
-								if (prefs.priority) {
-									if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
-									if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
-								}
-								// Option Rooms
-								if (prefs.options && prefs.options.length > 0) {
-									const aIsOption = prefs.options.includes(a.id);
-									const bIsOption = prefs.options.includes(b.id);
-									if (aIsOption && !bIsOption) return -1;
-									if (!aIsOption && bIsOption) return 1;
-								}
-							}
-							// 2. Soft Room Type
-							if (constraints.roomTypeConstraint === 'soft') {
-								if (a.type === 'Lecture' && b.type !== 'Lecture') return -1;
-								if (a.type !== 'Lecture' && b.type === 'Lecture') return 1;
-							}
-							return 0;
-						}),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			}
 		}
 		// Lab
 		if (cls.subjects.lab_hours > 0) {
-			tasks.push({
-				id: `${cls.id}_Lab`,
-				classData: cls,
-				type: 'Lab',
-				hours: Number(cls.subjects.lab_hours),
-				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
-				possibleRooms: rooms
-					.filter((r) => {
-						const capOk =
-							!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-						const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
-						return capOk && typeOk;
-					})
-					.sort((a, b) => {
-						// 1. Preferred Room (Priority & Options)
-						if (cls.room_preferences) {
-							const prefs = cls.room_preferences;
-							// Priority Room
-							if (prefs.priority) {
-								if (a.id === prefs.priority && b.id !== prefs.priority) return -1;
-								if (a.id !== prefs.priority && b.id === prefs.priority) return 1;
-							}
-							// Option Rooms
-							if (prefs.options && prefs.options.length > 0) {
-								const aIsOption = prefs.options.includes(a.id);
-								const bIsOption = prefs.options.includes(b.id);
-								if (aIsOption && !bIsOption) return -1;
-								if (!aIsOption && bIsOption) return 1;
-							}
-						}
-						// 2. Soft Room Type
-						if (constraints.roomTypeConstraint === 'soft') {
-							if (a.type === 'Lab' && b.type !== 'Lab') return -1;
-							if (a.type !== 'Lab' && b.type === 'Lab') return 1;
-						}
-						return 0;
-					}),
-				possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d)) // Labs respect excluded days
-			});
+			const labHours = Number(cls.subjects.lab_hours);
+			const labRooms = determinePossibleRooms('Lab');
+			
+			if (constraints.splitLongLabs && labHours >= 5) {
+				const numChunks = Math.ceil(labHours / 4);
+				const baseChunk = Math.floor((labHours / numChunks) * 2) / 2;
+				
+				let hoursAllocated = 0;
+				for (let i = 1; i <= numChunks; i++) {
+					let chunkHours = baseChunk;
+					if (i === numChunks) {
+						chunkHours = labHours - hoursAllocated;
+					} else {
+						chunkHours = Math.round(chunkHours * 2) / 2; 
+					}
+					
+					tasks.push({
+						id: `${cls.id}_Lab_${i}`,
+						classData: cls,
+						type: 'Lab',
+						hours: chunkHours,
+						slotsNeeded: Math.ceil(chunkHours / SLOT_DURATION_HOURS),
+						possibleRooms: labRooms,
+						possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+					});
+					hoursAllocated += chunkHours;
+				}
+			} else {
+				tasks.push({
+					id: `${cls.id}_Lab`,
+					classData: cls,
+					type: 'Lab',
+					hours: labHours,
+					slotsNeeded: Math.ceil(labHours / SLOT_DURATION_HOURS),
+					possibleRooms: labRooms,
+					possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+				});
+			}
 		}
 	});
 
@@ -270,25 +210,22 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			}
 		}
 
-		// --- NEW: Split Lecture Day Constraint ---
-		// This ensures the two halves of a split lecture are on different days.
-		if (task.id.includes('_Lecture_')) {
+		// --- NEW: Split Lecture and Lab Day Constraint ---
+		// This ensures sibling chunks of a split lecture or lab are on different days.
+		if (task.id.includes('_Lecture_') || task.id.includes('_Lab_')) {
 			const parts = task.id.split('_');
 			const classId = parts[0];
-			const splitPart = parts[2]; // '1' or '2'
+			const type = parts[1]; // Lecture or Lab
 
-			if (splitPart === '1' || splitPart === '2') {
-				// Determine the sibling task ID
-				const siblingSplitPart = splitPart === '1' ? '2' : '1';
-				const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-				const siblingAssignment = assignments[siblingTaskId];
-
-				// If the sibling task is already placed...
-				if (siblingAssignment && siblingAssignment.length > 0) {
-					const siblingDay = siblingAssignment[0].day_of_week;
-					// ...it cannot be on the same day as the current task.
-					if (day === siblingDay) {
-						return false; // CONFLICT: Split lectures on same day.
+			const taskPrefix = `${classId}_${type}_`;
+			for (const assignedTaskId in assignments) {
+				if (assignedTaskId.startsWith(taskPrefix) && assignedTaskId !== task.id) {
+					const siblingAssignment = assignments[assignedTaskId];
+					if (siblingAssignment && siblingAssignment.length > 0) {
+						const siblingDay = siblingAssignment[0].day_of_week;
+						if (day === siblingDay) {
+							return false; // CONFLICT: Sibling chunks on same day.
+						}
 					}
 				}
 			}
@@ -300,7 +237,9 @@ export const solveCP: Solver = (classes, rooms, timeSlots, constraints) => {
 			for (const entry of assignedEntries) {
 				// Same Room Conflict
 				if (entry.room_id === room.id && entry.day_of_week === day) {
-					if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
+					if (room.room_name !== 'Off-Campus / Field') {
+						if (isOverlap(start + ':00', end + ':00', entry.start_time, entry.end_time)) return false;
+					}
 				}
 
 				const assignedTask = tasks.find((t) => t.id === assignedTaskId);

@@ -88,7 +88,20 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			possibleDays = DAYS.filter((d) => !constraints.excludedDays?.includes(d));
 		}
 
+		const determinePossibleRooms = (targetType: 'Lecture' | 'Lab') => {
+			if (cls.is_off_campus) {
+				const offCampusRoom = rooms.find((r) => r.room_name === 'Off-Campus / Field');
+				return offCampusRoom ? [offCampusRoom] : [];
+			}
+			return rooms.filter(
+				(r) =>
+					(constraints.roomTypeConstraint !== 'strict' || r.type === targetType) &&
+					(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
+			);
+		};
+
 		if (cls.subjects.lecture_hours > 0) {
+			const lecRooms = determinePossibleRooms('Lecture');
 			if (cls.split_lecture) {
 				const splitHours = Number(cls.subjects.lecture_hours) / 2;
 				tasks.push({
@@ -97,11 +110,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 				tasks.push({
@@ -110,11 +119,7 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: splitHours,
 					slotsNeeded: Math.ceil(splitHours / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			} else {
@@ -124,29 +129,51 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					type: 'Lecture',
 					hours: Number(cls.subjects.lecture_hours),
 					slotsNeeded: Math.ceil(Number(cls.subjects.lecture_hours) / SLOT_DURATION_HOURS),
-					possibleRooms: rooms.filter(
-						(r) =>
-							(constraints.roomTypeConstraint !== 'strict' || r.type === 'Lecture') &&
-							(!constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students)
-					),
+					possibleRooms: lecRooms,
 					possibleDays: possibleDays
 				});
 			}
 		}
+		
 		if (cls.subjects.lab_hours > 0) {
-			tasks.push({
-				id: `${cls.id}_Lab`,
-				classData: cls,
-				type: 'Lab',
-				hours: Number(cls.subjects.lab_hours),
-				slotsNeeded: Math.ceil(Number(cls.subjects.lab_hours) / SLOT_DURATION_HOURS),
-				possibleRooms: rooms.filter((r) => {
-					const capOk = !constraints.enforceCapacity || r.capacity >= cls.blocks.estimated_students;
-					const typeOk = constraints.roomTypeConstraint === 'strict' ? r.type === 'Lab' : true;
-					return capOk && typeOk;
-				}),
-				possibleDays: possibleDays
-			});
+			const labHours = Number(cls.subjects.lab_hours);
+			const labRooms = determinePossibleRooms('Lab');
+			
+			if (constraints.splitLongLabs && labHours >= 5) {
+				const numChunks = Math.ceil(labHours / 4);
+				const baseChunk = Math.floor((labHours / numChunks) * 2) / 2;
+				
+				let hoursAllocated = 0;
+				for (let i = 1; i <= numChunks; i++) {
+					let chunkHours = baseChunk;
+					if (i === numChunks) {
+						chunkHours = labHours - hoursAllocated;
+					} else {
+						chunkHours = Math.round(chunkHours * 2) / 2; 
+					}
+					
+					tasks.push({
+						id: `${cls.id}_Lab_${i}`,
+						classData: cls,
+						type: 'Lab',
+						hours: chunkHours,
+						slotsNeeded: Math.ceil(chunkHours / SLOT_DURATION_HOURS),
+						possibleRooms: labRooms,
+						possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+					});
+					hoursAllocated += chunkHours;
+				}
+			} else {
+				tasks.push({
+					id: `${cls.id}_Lab`,
+					classData: cls,
+					type: 'Lab',
+					hours: labHours,
+					slotsNeeded: Math.ceil(labHours / SLOT_DURATION_HOURS),
+					possibleRooms: labRooms,
+					possibleDays: DAYS.filter((d) => !constraints.excludedDays?.includes(d))
+				});
+			}
 		}
 	});
 
@@ -197,18 +224,19 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 				}
 			}
 
-			// --- Hard Constraint: Split Lecture Same Day ---
-			if (task.id.includes('_Lecture_')) {
+			// --- Hard Constraint: Split Lecture or Lab Same Day ---
+			if (task.id.includes('_Lecture_') || task.id.includes('_Lab_')) {
 				const parts = task.id.split('_');
 				const classId = Number(parts[0]);
-				const splitPart = parts[2];
+				const type = parts[1]; // Lecture or Lab
 
-				if (splitPart === '1' || splitPart === '2') {
-					const siblingSplitPart = splitPart === '1' ? '2' : '1';
-					const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-					const siblingGene = genes.find((g) => g.taskId === siblingTaskId);
+				const taskPrefix = `${classId}_${type}_`;
+				const siblingsOfSameSplitType = siblingsOfSameClass.filter(
+					(s) => s.gene.taskId.startsWith(taskPrefix) && s.gene.taskId !== gene.taskId
+				);
 
-					if (siblingGene && gene.day === siblingGene.day) {
+				for (const sibling of siblingsOfSameSplitType) {
+					if (gene.day === sibling.gene.day) {
 						hardConflictCount++;
 					}
 				}
@@ -257,7 +285,12 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 					isOverlap(startA + ':00', endA + ':00', startB + ':00', endB + ':00')
 				) {
 					// Room Conflict
-					if (geneA.roomId === geneB.roomId) hardConflictCount++;
+					if (geneA.roomId === geneB.roomId) {
+						const roomObj = rooms.find((r) => r.id === geneA.roomId);
+						if (roomObj && roomObj.room_name !== 'Off-Campus / Field') {
+							hardConflictCount++;
+						}
+					}
 					// Instructor Conflict
 					if (
 						constraints.enforceInstructor &&
@@ -449,19 +482,19 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 			}
 		}
 
-		// 2. Split Lecture Same Day (check against already accepted genes)
-		if (!isHardConflict && task.id.includes('_Lecture_')) {
+		// 2. Split Lecture or Lab Same Day (check against already accepted genes)
+		if (!isHardConflict && (task.id.includes('_Lecture_') || task.id.includes('_Lab_'))) {
 			const parts = task.id.split('_');
 			const classId = Number(parts[0]);
-			const splitPart = parts[2];
+			const type = parts[1]; // Lecture or Lab
 
-			if (splitPart === '1' || splitPart === '2') {
-				const siblingSplitPart = splitPart === '1' ? '2' : '1';
-				const siblingTaskId = `${classId}_Lecture_${siblingSplitPart}`;
-				const siblingGene = acceptedGenes.find((g) => g.taskId === siblingTaskId); // Check accepted
-
-				if (siblingGene && gene.day === siblingGene.day) {
-					isHardConflict = true;
+			const taskPrefix = `${classId}_${type}_`;
+			for (const accepted of acceptedGenes) {
+				if (accepted.taskId.startsWith(taskPrefix)) {
+					if (gene.day === accepted.day) {
+						isHardConflict = true;
+						break;
+					}
 				}
 			}
 		}
@@ -489,7 +522,12 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 				if (gene.day === accepted.day) {
 					if (isOverlap(start + ':00', end + ':00', acceptedStart + ':00', acceptedEnd + ':00')) {
 						// Room Conflict
-						if (gene.roomId === accepted.roomId) isHardConflict = true;
+						if (gene.roomId === accepted.roomId) {
+							const roomObj = rooms.find((r) => r.id === gene.roomId);
+							if (roomObj && roomObj.room_name !== 'Off-Campus / Field') {
+								isHardConflict = true;
+							}
+						}
 						// Instructor Conflict
 						if (
 							constraints.enforceInstructor &&
