@@ -15,7 +15,7 @@ function isOverlap(start1: string, end1: string, start2: string, end2: string): 
 
 // --- Memetic Algorithm Constants ---
 const POPULATION_SIZE = 50;
-const GENERATIONS = 50;
+const GENERATIONS = 100;
 const MUTATION_RATE = 0.1;
 const ELITISM_COUNT = 2;
 
@@ -134,24 +134,24 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 				});
 			}
 		}
-		
+
 		if (cls.subjects.lab_hours > 0) {
 			const labHours = Number(cls.subjects.lab_hours);
 			const labRooms = determinePossibleRooms('Lab');
-			
+
 			if (constraints.splitLongLabs && labHours >= 5) {
 				const numChunks = Math.ceil(labHours / 4);
 				const baseChunk = Math.floor((labHours / numChunks) * 2) / 2;
-				
+
 				let hoursAllocated = 0;
 				for (let i = 1; i <= numChunks; i++) {
 					let chunkHours = baseChunk;
 					if (i === numChunks) {
 						chunkHours = labHours - hoursAllocated;
 					} else {
-						chunkHours = Math.round(chunkHours * 2) / 2; 
+						chunkHours = Math.round(chunkHours * 2) / 2;
 					}
-					
+
 					tasks.push({
 						id: `${cls.id}_Lab_${i}`,
 						classData: cls,

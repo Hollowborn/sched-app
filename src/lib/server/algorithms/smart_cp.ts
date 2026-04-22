@@ -401,7 +401,7 @@ export const solveSmartCP: Solver = (classes, rooms, timeSlots, constraints) => 
 		return false;
 	}
 
-	const TIMEOUT_MS = 60000; // Increased timeout for smarter solver
+	const TIMEOUT_MS = 15000; // Increased timeout for smarter solver
 	const startTime = performance.now();
 	const success = backtrack(0);
 
