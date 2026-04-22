@@ -224,6 +224,8 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 				}
 			}
 
+			const siblingsOfSameClass = classToGenesMap.get(task.classData.id) || [];
+
 			// --- Hard Constraint: Split Lecture or Lab Same Day ---
 			if (task.id.includes('_Lecture_') || task.id.includes('_Lab_')) {
 				const parts = task.id.split('_');
@@ -244,7 +246,6 @@ export const solveMemetic: Solver = (classes, rooms, timeSlots, constraints) => 
 
 			// --- Hard Constraint: Lecture/Lab Same Day ---
 			// Check if this gene's class has a sibling (Lecture/Lab) on the same day
-			const siblingsOfSameClass = classToGenesMap.get(task.classData.id) || [];
 			for (const sibling of siblingsOfSameClass) {
 				if (
 					sibling.gene.taskId !== gene.taskId && // Not the same gene
