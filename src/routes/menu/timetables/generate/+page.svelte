@@ -269,18 +269,21 @@
 		id="generate-form"
 		method="POST"
 		action="?/generateSchedule"
-		onsubmit={(e) => {
-			if (!data.healthStats) return;
+		use:enhance={({ cancel }) => {
+			if (!data.healthStats) {
+				cancel();
+				return;
+			}
 			// Intercept if there are issues and warnings haven't been bypassed
 			if (
 				!skipWarnings &&
 				(data.healthStats.unassignedClasses > 0 || data.healthStats.emptyBlocks > 0)
 			) {
-				e.preventDefault();
+				cancel();
 				generationWarningOpen = true;
+				return;
 			}
-		}}
-		use:enhance={() => {
+
 			isSubmitting = true;
 			const toastId = toast.loading('Starting schedule generation...');
 
